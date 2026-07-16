@@ -131,6 +131,9 @@ class DatabaseSeeder extends Seeder
                 'fecha_fin_estimada' => now()->addDays(40),
             ]);
 
+            // Equipo del proyecto: todos los tecnicos participan
+            $proyecto->equipo()->sync($tecnicos->pluck('id'));
+
             // Tareas: mezcla de a tiempo, vencidas y abiertas
             $this->crearTarea($proyecto, $tipo, 'alta', 'completada', $tecnicos, $admin, aTiempo: true, diasAtras: 10);
             $this->crearTarea($proyecto, $tipo, 'critica', 'completada', $tecnicos, $admin, aTiempo: false, diasAtras: 8);

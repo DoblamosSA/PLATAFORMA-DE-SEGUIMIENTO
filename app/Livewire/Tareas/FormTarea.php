@@ -9,6 +9,7 @@ use App\Models\TaskActivity;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
@@ -16,8 +17,11 @@ class FormTarea extends Component
 {
     public ?Task $task = null;
 
-    // Campos del formulario
+    // Proyecto pre-seleccionado via query string (?project=ID) al crear
+    #[Url(as: 'project')]
     public ?int $project_id = null;
+
+    // Campos del formulario
     public string $titulo = '';
     public string $descripcion = '';
     public string $tipo = 'soporte';
@@ -37,6 +41,43 @@ class FormTarea extends Component
             $this->estado      = $task->estado;
             $this->asignado_id = $task->asignado_id;
         }
+
+        // Si se crea desde un proyecto, heredar su tipo por defecto
+        if (! $task?->exists && $this->project_id) {
+            $proyecto = Project::find($this->project_id);
+            if ($proyecto) {
+                $this->tipo = $proyecto->tipo;
+            }
+        }
+    }
+
+    /**
+     * Si el asignado actual ya no pertenece al equipo del proyecto elegido,
+     * limpiar la seleccion para forzar elegir a alguien del equipo.
+     */
+    public function updatedProjectId(): void
+    {
+        $disponibles = $this->empleadosDisponibles()->pluck('id')->all();
+
+        if ($this->asignado_id && ! in_array($this->asignado_id, $disponibles, true)) {
+            $this->asignado_id = null;
+        }
+    }
+
+    /**
+     * Empleados a los que se puede asignar la tarea. Si hay un proyecto con
+     * equipo definido, se limita a ese equipo; de lo contrario, todos.
+     */
+    public function empleadosDisponibles()
+    {
+        if ($this->project_id) {
+            $proyecto = Project::with('equipo')->find($this->project_id);
+            if ($proyecto && $proyecto->equipo->isNotEmpty()) {
+                return $proyecto->equipo->sortBy('name')->values();
+            }
+        }
+
+        return User::where('activo', true)->orderBy('name')->get();
     }
 
     protected function rules(): array
@@ -63,6 +104,15 @@ class FormTarea extends Component
     public function save()
     {
         $this->validate();
+
+        // El asignado debe pertenecer al equipo del proyecto (si el proyecto tiene equipo)
+        if ($this->asignado_id) {
+            $disponibles = $this->empleadosDisponibles()->pluck('id')->all();
+            if (! in_array($this->asignado_id, $disponibles, true)) {
+                $this->addError('asignado_id', 'La persona seleccionada no pertenece al equipo del proyecto.');
+                return;
+            }
+        }
 
         $esNueva = ! $this->task;
 
@@ -119,6 +169,11 @@ class FormTarea extends Component
 
         session()->flash('ok', $esNueva ? 'Tarea creada correctamente.' : 'Tarea actualizada.');
 
+        // Volver al detalle del proyecto si la tarea pertenece a uno
+        if ($task->project_id) {
+            return $this->redirect(route('proyectos.ver', $task->project_id), navigate: true);
+        }
+
         return $this->redirect(route('tareas'), navigate: true);
     }
 
@@ -126,7 +181,7 @@ class FormTarea extends Component
     {
         return view('livewire.tareas.form-tarea', [
             'proyectos' => Project::orderBy('nombre')->get(),
-            'empleados' => User::where('activo', true)->orderBy('name')->get(),
+            'empleados' => $this->empleadosDisponibles(),
             'bitacora'  => $this->task?->actividades()->with('user')->limit(20)->get() ?? collect(),
         ]);
     }

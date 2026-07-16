@@ -29,7 +29,7 @@
                 {{-- Proyecto --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Proyecto</label>
-                    <select wire:model="project_id" class="w-full rounded-lg border-gray-300 text-sm">
+                    <select wire:model.live="project_id" class="w-full rounded-lg border-gray-300 text-sm">
                         <option value="">— Actividad suelta (sin proyecto) —</option>
                         @foreach ($proyectos as $p)
                             <option value="{{ $p->id }}">{{ $p->nombre }}</option>
@@ -46,6 +46,12 @@
                             <option value="{{ $e->id }}">{{ $e->name }} ({{ ucfirst($e->area) }})</option>
                         @endforeach
                     </select>
+                    @if ($project_id && $empleados->isEmpty())
+                        <span class="text-xs text-amber-600">Este proyecto no tiene equipo aun. Agrega desarrolladores en el proyecto.</span>
+                    @elseif ($project_id)
+                        <span class="text-xs text-gray-400">Solo se muestran los integrantes del equipo del proyecto.</span>
+                    @endif
+                    @error('asignado_id') <span class="block text-xs text-rose-600">{{ $message }}</span> @enderror
                 </div>
 
                 {{-- Tipo --}}

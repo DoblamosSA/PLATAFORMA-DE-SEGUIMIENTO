@@ -21,6 +21,9 @@ class FormProyecto extends Component
     public ?string $fecha_inicio = null;
     public ?string $fecha_fin_estimada = null;
 
+    /** IDs de los usuarios que integran el equipo del proyecto. */
+    public array $equipo = [];
+
     public function mount(?Project $project = null): void
     {
         if ($project?->exists) {
@@ -33,6 +36,7 @@ class FormProyecto extends Component
             $this->responsable_id     = $project->responsable_id;
             $this->fecha_inicio       = $project->fecha_inicio?->format('Y-m-d');
             $this->fecha_fin_estimada = $project->fecha_fin_estimada?->format('Y-m-d');
+            $this->equipo             = $project->equipo()->pluck('users.id')->map(fn ($id) => (string) $id)->toArray();
         }
     }
 
@@ -47,12 +51,16 @@ class FormProyecto extends Component
             'responsable_id'     => 'nullable|exists:users,id',
             'fecha_inicio'       => 'nullable|date',
             'fecha_fin_estimada' => 'nullable|date|after_or_equal:fecha_inicio',
+            'equipo'             => 'array',
+            'equipo.*'           => 'exists:users,id',
         ];
     }
 
     public function save()
     {
         $data = $this->validate();
+        $equipo = $data['equipo'] ?? [];
+        unset($data['equipo']);
 
         $esNuevo = ! $this->project;
         $project = $this->project ?? new Project();
@@ -64,9 +72,12 @@ class FormProyecto extends Component
 
         $project->fill($data)->save();
 
+        // Sincronizar el equipo del proyecto
+        $project->equipo()->sync($equipo);
+
         session()->flash('ok', $esNuevo ? 'Proyecto creado.' : 'Proyecto actualizado.');
 
-        return $this->redirect(route('proyectos'), navigate: true);
+        return $this->redirect(route('proyectos.ver', $project), navigate: true);
     }
 
     public function render()
@@ -76,6 +87,7 @@ class FormProyecto extends Component
                 ->whereIn('rol', ['admin', 'lider'])
                 ->orderBy('name')
                 ->get(),
+            'empleados' => User::where('activo', true)->orderBy('name')->get(),
         ]);
     }
 }

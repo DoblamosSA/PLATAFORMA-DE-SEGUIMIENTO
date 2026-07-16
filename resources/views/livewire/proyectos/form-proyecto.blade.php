@@ -73,6 +73,28 @@
                 </div>
             </div>
 
+            {{-- Equipo del proyecto (desarrolladores) --}}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Equipo del proyecto
+                    <span class="text-xs font-normal text-gray-400">— solo estas personas podran recibir tareas del proyecto</span>
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    @foreach ($empleados as $e)
+                        <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50
+                                      {{ in_array((string) $e->id, $equipo) ? 'bg-indigo-50 border-indigo-200' : '' }}">
+                            <input type="checkbox" wire:model.live="equipo" value="{{ $e->id }}"
+                                   class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="min-w-0">
+                                <span class="block truncate text-gray-700">{{ $e->name }}</span>
+                                <span class="block text-xs text-gray-400 capitalize">{{ $e->area }}</span>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('equipo') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+            </div>
+
             @if ($project)
                 <div class="rounded-lg bg-gray-50 border border-gray-100 px-4 py-3 text-sm text-gray-600">
                     Progreso actual: <span class="font-semibold text-gray-800">{{ $project->progreso }}%</span>

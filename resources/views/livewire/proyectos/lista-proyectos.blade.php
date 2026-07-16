@@ -34,7 +34,7 @@
         {{-- Tarjetas de proyecto --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @forelse ($proyectos as $p)
-                <a href="{{ route('proyectos.editar', $p) }}" wire:navigate
+                <a href="{{ route('proyectos.ver', $p) }}" wire:navigate
                    class="block bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition">
                     <div class="flex items-start justify-between gap-2">
                         <h2 class="font-semibold text-gray-800">{{ $p->nombre }}</h2>
