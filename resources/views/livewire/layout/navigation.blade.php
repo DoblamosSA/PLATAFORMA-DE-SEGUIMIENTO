@@ -5,9 +5,6 @@ use Livewire\Volt\Component;
 
 new class extends Component
 {
-    /**
-     * Log the current user out of the application.
-     */
     public function logout(Logout $logout): void
     {
         $logout();
@@ -16,113 +13,82 @@ new class extends Component
     }
 }; ?>
 
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
-    <!-- Primary Navigation Menu -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <div class="flex">
-                <!-- Logo -->
-                <div class="shrink-0 flex items-center">
-                    <a href="{{ route('dashboard') }}" wire:navigate>
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+@php
+    $nav = [
+        ['route' => 'dashboard',              'pattern' => 'dashboard',   'label' => 'Dashboard', 'icon' => 'dashboard'],
+        ['route' => 'proyectos',              'pattern' => 'proyectos*',  'label' => 'Proyectos', 'icon' => 'folder'],
+        ['route' => 'tareas',                 'pattern' => 'tareas*',     'label' => 'Tareas',    'icon' => 'tasks'],
+        ['route' => 'informes.cumplimiento',  'pattern' => 'informes*',   'label' => 'Informes',  'icon' => 'report'],
+    ];
+    $u = auth()->user();
+    $iniciales = collect(explode(' ', $u->name))->take(2)->map(fn ($p) => mb_substr($p, 0, 1))->implode('');
+@endphp
+
+<div x-data="{ open: false }">
+    {{-- Barra superior movil --}}
+    <div class="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-slate-900 px-4 py-3 text-white shadow-lg">
+        <div class="flex items-center gap-2">
+            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 font-bold">TI</span>
+            <span class="font-semibold tracking-tight">Gestion TI</span>
+        </div>
+        <button @click="open = true" class="p-1.5 rounded-lg hover:bg-white/10"><x-icon name="menu" class="w-6 h-6" /></button>
+    </div>
+
+    {{-- Overlay movil --}}
+    <div x-show="open" x-transition.opacity @click="open = false"
+         class="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm lg:hidden" style="display:none;"></div>
+
+    {{-- Sidebar --}}
+    <aside class="fixed inset-y-0 left-0 z-50 w-64 transform overflow-y-auto transition-transform duration-300 lg:translate-x-0"
+           :class="open ? 'translate-x-0' : '-translate-x-full'"
+           style="background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);">
+
+        <div class="flex h-full flex-col px-4 py-6 text-slate-300">
+            {{-- Marca --}}
+            <div class="flex items-center justify-between px-2">
+                <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3">
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-bold shadow-lg shadow-indigo-900/50">TI</span>
+                    <div class="leading-tight">
+                        <p class="font-semibold text-white">Gestion TI</p>
+                        <p class="text-[11px] text-slate-400">Proyectos & SLA</p>
+                    </div>
+                </a>
+                <button @click="open = false" class="lg:hidden p-1 rounded-lg hover:bg-white/10 text-slate-400"><x-icon name="close" class="w-5 h-5" /></button>
+            </div>
+
+            {{-- Navegacion --}}
+            <nav class="mt-8 flex-1 space-y-1">
+                <p class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Menu</p>
+                @foreach ($nav as $item)
+                    @php $active = request()->routeIs($item['pattern']); @endphp
+                    <a href="{{ route($item['route']) }}" wire:navigate @click="open = false"
+                       class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+                              {{ $active
+                                    ? 'bg-white/10 text-white shadow-inner'
+                                    : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
+                        @if ($active)
+                            <span class="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-indigo-400 to-violet-500"></span>
+                        @endif
+                        <x-icon :name="$item['icon']" class="w-5 h-5 {{ $active ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300' }}" />
+                        {{ $item['label'] }}
                     </a>
+                @endforeach
+            </nav>
+
+            {{-- Usuario + logout --}}
+            <div class="mt-4 border-t border-white/10 pt-4">
+                <div class="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5">
+                    <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-semibold text-white uppercase">{{ $iniciales }}</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium text-white">{{ $u->name }}</p>
+                        <p class="truncate text-[11px] capitalize text-slate-400">{{ $u->cargo ?? $u->rol }}</p>
+                    </div>
+                    <button wire:click="logout" title="Cerrar sesion"
+                            class="p-1.5 rounded-lg text-slate-400 hover:bg-white/10 hover:text-rose-300 transition">
+                        <x-icon name="logout" class="w-5 h-5" />
+                    </button>
                 </div>
-
-                <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('proyectos')" :active="request()->routeIs('proyectos')" wire:navigate>
-                        {{ __('Proyectos') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('tareas')" :active="request()->routeIs('tareas')" wire:navigate>
-                        {{ __('Tareas') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('informes.cumplimiento')" :active="request()->routeIs('informes.*')" wire:navigate>
-                        {{ __('Informes') }}
-                    </x-nav-link>
-                </div>
-            </div>
-
-            <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <x-dropdown align="right" width="48">
-                    <x-slot name="trigger">
-                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
-                            <div x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
-
-                            <div class="ms-1">
-                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        </button>
-                    </x-slot>
-
-                    <x-slot name="content">
-                        <x-dropdown-link :href="route('profile')" wire:navigate>
-                            {{ __('Profile') }}
-                        </x-dropdown-link>
-
-                        <!-- Authentication -->
-                        <button wire:click="logout" class="w-full text-start">
-                            <x-dropdown-link>
-                                {{ __('Log Out') }}
-                            </x-dropdown-link>
-                        </button>
-                    </x-slot>
-                </x-dropdown>
-            </div>
-
-            <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
-                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                        <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
             </div>
         </div>
-    </div>
-
-    <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('proyectos')" :active="request()->routeIs('proyectos')" wire:navigate>
-                {{ __('Proyectos') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('tareas')" :active="request()->routeIs('tareas')" wire:navigate>
-                {{ __('Tareas') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('informes.cumplimiento')" :active="request()->routeIs('informes.*')" wire:navigate>
-                {{ __('Informes') }}
-            </x-responsive-nav-link>
-        </div>
-
-        <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800" x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
-                <div class="font-medium text-sm text-gray-500">{{ auth()->user()->email }}</div>
-            </div>
-
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile')" wire:navigate>
-                    {{ __('Profile') }}
-                </x-responsive-nav-link>
-
-                <!-- Authentication -->
-                <button wire:click="logout" class="w-full text-start">
-                    <x-responsive-nav-link>
-                        {{ __('Log Out') }}
-                    </x-responsive-nav-link>
-                </button>
-            </div>
-        </div>
-    </div>
-</nav>
+    </aside>
+</div>

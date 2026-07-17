@@ -1,177 +1,166 @@
-<div class="py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+<div class="p-4 sm:p-6 lg:p-8 space-y-6">
 
-        {{-- Encabezado + selector de periodo --}}
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">Cumplimiento y SLA</h1>
-                <p class="text-sm text-gray-500">Indicadores de actividades y proyectos de tecnologia.</p>
-            </div>
+    {{-- Encabezado --}}
+    <x-page-header title="Cumplimiento y SLA" subtitle="Panorama de actividades y proyectos de tecnologia" icon="dashboard">
+        <x-slot:actions>
             <select wire:model.live="rango"
-                    class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    class="rounded-xl border-slate-200 bg-white text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                 @foreach ($this->periodos() as $valor => $etiqueta)
                     <option value="{{ $valor }}">{{ $etiqueta }}</option>
                 @endforeach
             </select>
+        </x-slot:actions>
+    </x-page-header>
+
+    {{-- Fila principal: gauge + KPIs --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {{-- Gauge de cumplimiento --}}
+        <div class="relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
+            <div class="absolute inset-x-0 -top-px h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500"></div>
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-slate-700">Cumplimiento SLA</p>
+                    <p class="text-xs text-slate-400">{{ $this->periodos()[$rango] }}</p>
+                </div>
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <x-icon name="sparkles" class="w-5 h-5" />
+                </span>
+            </div>
+            <div class="mt-2 flex items-center justify-center">
+                <x-gauge :value="$resumen['cumplimiento']" label="a tiempo" />
+            </div>
+            <p class="text-center text-xs text-slate-400">{{ $resumen['a_tiempo'] }} de {{ $resumen['completadas'] }} completadas dentro del plazo</p>
         </div>
 
-        {{-- Tarjetas KPI --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {{-- Cumplimiento --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <p class="text-sm text-gray-500">% Cumplimiento SLA</p>
-                <div class="mt-2 flex items-end gap-2">
-                    <span class="text-3xl font-bold
-                        @if ($resumen['cumplimiento'] >= 90) text-emerald-600
-                        @elseif ($resumen['cumplimiento'] >= 70) text-amber-600
-                        @else text-rose-600 @endif">
-                        {{ $resumen['cumplimiento'] }}%
-                    </span>
-                </div>
-                <div class="mt-3 h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                    <div class="h-full rounded-full
-                        @if ($resumen['cumplimiento'] >= 90) bg-emerald-500
-                        @elseif ($resumen['cumplimiento'] >= 70) bg-amber-500
-                        @else bg-rose-500 @endif"
-                        style="width: {{ min($resumen['cumplimiento'], 100) }}%"></div>
-                </div>
-                <p class="mt-2 text-xs text-gray-400">{{ $resumen['a_tiempo'] }} de {{ $resumen['completadas'] }} completadas a tiempo</p>
-            </div>
-
-            {{-- Abiertas vencidas --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <p class="text-sm text-gray-500">Tareas vencidas (abiertas)</p>
-                <p class="mt-2 text-3xl font-bold text-rose-600">{{ $resumen['abiertas_vencidas'] }}</p>
-                <p class="mt-3 text-xs text-gray-400">{{ $resumen['abiertas'] }} tareas abiertas en total</p>
-            </div>
-
-            {{-- Tiempo promedio --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <p class="text-sm text-gray-500">Tiempo promedio resolucion</p>
-                <p class="mt-2 text-3xl font-bold text-indigo-600">
-                    {{ $resumen['tiempo_promedio'] !== null ? $resumen['tiempo_promedio'].'h' : '—' }}
-                </p>
-                <p class="mt-3 text-xs text-gray-400">En el periodo seleccionado</p>
-            </div>
-
-            {{-- Completadas --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <p class="text-sm text-gray-500">Completadas / Vencidas cerradas</p>
-                <p class="mt-2 text-3xl font-bold text-gray-800">
-                    {{ $resumen['completadas'] }}
-                    <span class="text-lg text-rose-500">/ {{ $resumen['vencidas_cerradas'] }}</span>
-                </p>
-                <p class="mt-3 text-xs text-gray-400">Total asignadas: {{ $resumen['total'] }}</p>
-            </div>
+        {{-- KPIs --}}
+        <div class="lg:col-span-2 grid grid-cols-2 gap-5">
+            <x-stat label="Vencidas abiertas" :value="$resumen['abiertas_vencidas']" icon="alert" tone="rose"
+                    hint="{{ $resumen['abiertas'] }} tareas abiertas en total" />
+            <x-stat label="Tiempo promedio" :value="$resumen['tiempo_promedio'] !== null ? $resumen['tiempo_promedio'].'h' : '—'" icon="clock" tone="sky"
+                    hint="Resolucion en el periodo" />
+            <x-stat label="Completadas" :value="$resumen['completadas']" icon="check" tone="emerald"
+                    hint="{{ $resumen['vencidas_cerradas'] }} cerradas fuera de SLA" />
+            <x-stat label="Total asignadas" :value="$resumen['total']" icon="tasks" tone="indigo"
+                    hint="En el periodo seleccionado" />
         </div>
+    </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {{-- Cumplimiento por tipo --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h2 class="text-sm font-semibold text-gray-700 mb-4">Cumplimiento por tipo</h2>
-                <div class="space-y-4">
-                    @foreach ($porTipo as $fila)
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="capitalize text-gray-600">{{ $fila['tipo'] }}</span>
-                                <span class="text-gray-500">
-                                    {{ $fila['cumplimiento'] }}%
-                                    <span class="text-gray-400">({{ $fila['a_tiempo'] }}/{{ $fila['completadas'] }})</span>
-                                </span>
-                            </div>
-                            <div class="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                                <div class="h-full rounded-full
-                                    @if ($fila['cumplimiento'] >= 90) bg-emerald-500
-                                    @elseif ($fila['cumplimiento'] >= 70) bg-amber-500
-                                    @else bg-rose-500 @endif"
-                                    style="width: {{ min($fila['cumplimiento'], 100) }}%"></div>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-1">{{ $fila['abiertas'] }} abiertas</p>
+    {{-- Por tipo + por persona --}}
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        <x-card title="Cumplimiento por tipo" class="lg:col-span-2">
+            <div class="space-y-5">
+                @foreach ($porTipo as $fila)
+                    @php $tint = ['software' => 'indigo', 'soporte' => 'teal', 'infraestructura' => 'cyan'][$fila['tipo']] ?? 'slate'; @endphp
+                    <div>
+                        <div class="flex items-center justify-between text-sm mb-1.5">
+                            <span class="flex items-center gap-2 capitalize font-medium text-slate-600">
+                                <x-icon :name="['software'=>'code','soporte'=>'support','infraestructura'=>'server'][$fila['tipo']] ?? 'dot'" class="w-4 h-4 text-slate-400" />
+                                {{ $fila['tipo'] }}
+                            </span>
+                            <span class="text-slate-500 tabular-nums">{{ $fila['cumplimiento'] }}%
+                                <span class="text-slate-300">·</span>
+                                <span class="text-xs text-slate-400">{{ $fila['a_tiempo'] }}/{{ $fila['completadas'] }}</span>
+                            </span>
                         </div>
-                    @endforeach
-                </div>
+                        <div class="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-700
+                                @if ($fila['cumplimiento'] >= 90) bg-gradient-to-r from-emerald-400 to-emerald-500
+                                @elseif ($fila['cumplimiento'] >= 70) bg-gradient-to-r from-amber-400 to-amber-500
+                                @else bg-gradient-to-r from-rose-400 to-rose-500 @endif"
+                                style="width: {{ max($fila['cumplimiento'], 2) }}%"></div>
+                        </div>
+                        <p class="mt-1 text-[11px] text-slate-400">{{ $fila['abiertas'] }} abiertas</p>
+                    </div>
+                @endforeach
             </div>
+        </x-card>
 
-            {{-- Ranking por persona --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h2 class="text-sm font-semibold text-gray-700 mb-4">Cumplimiento por persona</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead>
-                            <tr class="text-left text-gray-400 border-b">
-                                <th class="py-2 pr-2 font-medium">Empleado</th>
-                                <th class="py-2 px-2 font-medium text-center">A tiempo</th>
-                                <th class="py-2 px-2 font-medium text-center">Abiertas</th>
-                                <th class="py-2 px-2 font-medium text-center">Vencidas</th>
-                                <th class="py-2 pl-2 font-medium text-right">Cumpl.</th>
+        <x-card title="Cumplimiento por persona" class="lg:col-span-3">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                            <th class="py-2 pr-2 font-medium">Empleado</th>
+                            <th class="py-2 px-2 font-medium text-center">A tiempo</th>
+                            <th class="py-2 px-2 font-medium text-center">Abiertas</th>
+                            <th class="py-2 px-2 font-medium text-center">Vencidas</th>
+                            <th class="py-2 pl-2 font-medium text-right">Cumpl.</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        @forelse ($porPersona as $fila)
+                            @php $ini = collect(explode(' ', $fila['usuario']->name))->take(2)->map(fn($p)=>mb_substr($p,0,1))->implode(''); @endphp
+                            <tr class="hover:bg-slate-50/70">
+                                <td class="py-2.5 pr-2">
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-xs font-semibold text-slate-600 uppercase">{{ $ini }}</span>
+                                        <div>
+                                            <p class="font-medium text-slate-700 leading-tight">{{ $fila['usuario']->name }}</p>
+                                            <p class="text-[11px] text-slate-400 capitalize">{{ $fila['usuario']->area }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-2.5 px-2 text-center text-slate-600 tabular-nums">{{ $fila['a_tiempo'] }}/{{ $fila['completadas'] }}</td>
+                                <td class="py-2.5 px-2 text-center text-slate-600 tabular-nums">{{ $fila['abiertas'] }}</td>
+                                <td class="py-2.5 px-2 text-center tabular-nums {{ $fila['vencidas'] > 0 ? 'text-rose-600 font-semibold' : 'text-slate-300' }}">{{ $fila['vencidas'] }}</td>
+                                <td class="py-2.5 pl-2 text-right">
+                                    @if ($fila['cumplimiento'] === null)
+                                        <span class="text-slate-300">—</span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold
+                                            @if ($fila['cumplimiento'] >= 90) bg-emerald-50 text-emerald-700
+                                            @elseif ($fila['cumplimiento'] >= 70) bg-amber-50 text-amber-700
+                                            @else bg-rose-50 text-rose-700 @endif">{{ $fila['cumplimiento'] }}%</span>
+                                    @endif
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            @forelse ($porPersona as $fila)
-                                <tr>
-                                    <td class="py-2 pr-2">
-                                        <span class="font-medium text-gray-700">{{ $fila['usuario']->name }}</span>
-                                        <span class="block text-xs text-gray-400 capitalize">{{ $fila['usuario']->area }}</span>
-                                    </td>
-                                    <td class="py-2 px-2 text-center text-gray-600">{{ $fila['a_tiempo'] }}/{{ $fila['completadas'] }}</td>
-                                    <td class="py-2 px-2 text-center text-gray-600">{{ $fila['abiertas'] }}</td>
-                                    <td class="py-2 px-2 text-center {{ $fila['vencidas'] > 0 ? 'text-rose-600 font-semibold' : 'text-gray-400' }}">{{ $fila['vencidas'] }}</td>
-                                    <td class="py-2 pl-2 text-right font-semibold
-                                        @if ($fila['cumplimiento'] === null) text-gray-300
-                                        @elseif ($fila['cumplimiento'] >= 90) text-emerald-600
-                                        @elseif ($fila['cumplimiento'] >= 70) text-amber-600
-                                        @else text-rose-600 @endif">
-                                        {{ $fila['cumplimiento'] !== null ? $fila['cumplimiento'].'%' : '—' }}
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="py-4 text-center text-gray-400">Sin datos en el periodo.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                        @empty
+                            <tr><td colspan="5" class="py-6 text-center text-slate-400">Sin datos en el periodo.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-        </div>
+        </x-card>
+    </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {{-- Vencidas --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h2 class="text-sm font-semibold text-rose-700 mb-4">⚠ Tareas vencidas</h2>
-                @forelse ($vencidas as $t)
-                    <a href="{{ route('tareas.editar', $t) }}" wire:navigate
-                       class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 -mx-2 px-2 rounded">
-                        <div class="min-w-0">
-                            <p class="text-sm font-medium text-gray-700 truncate">{{ $t->titulo }}</p>
-                            <p class="text-xs text-gray-400">{{ $t->asignado?->name ?? 'Sin asignar' }} · {{ $t->proyecto?->nombre ?? 'Sin proyecto' }}</p>
-                        </div>
-                        <span class="text-xs text-rose-600 whitespace-nowrap ml-2">
-                            {{ $t->fecha_limite->diffForHumans() }}
-                        </span>
-                    </a>
-                @empty
-                    <p class="text-sm text-gray-400">Ninguna tarea vencida. 🎉</p>
-                @endforelse
+    {{-- Vencidas + proximas --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <x-card>
+            <div class="flex items-center gap-2 mb-3">
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600"><x-icon name="alert" class="w-5 h-5" /></span>
+                <h2 class="text-sm font-semibold text-slate-700">Tareas vencidas</h2>
             </div>
+            @forelse ($vencidas as $t)
+                <a href="{{ route('tareas.editar', $t) }}" wire:navigate
+                   class="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 -mx-1 transition hover:bg-rose-50/60">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-slate-700 truncate group-hover:text-rose-700">{{ $t->titulo }}</p>
+                        <p class="text-[11px] text-slate-400">{{ $t->asignado?->name ?? 'Sin asignar' }} · {{ $t->proyecto?->nombre ?? 'Sin proyecto' }}</p>
+                    </div>
+                    <span class="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-700">{{ $t->fecha_limite->diffForHumans() }}</span>
+                </a>
+            @empty
+                <div class="py-6 text-center text-sm text-slate-400">Ninguna tarea vencida. 🎉</div>
+            @endforelse
+        </x-card>
 
-            {{-- Proximas a vencer --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h2 class="text-sm font-semibold text-gray-700 mb-4">Proximas a vencer</h2>
-                @forelse ($proximasVencer as $t)
-                    <a href="{{ route('tareas.editar', $t) }}" wire:navigate
-                       class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 -mx-2 px-2 rounded">
-                        <div class="min-w-0">
-                            <p class="text-sm font-medium text-gray-700 truncate">{{ $t->titulo }}</p>
-                            <p class="text-xs text-gray-400">{{ $t->asignado?->name ?? 'Sin asignar' }} · {{ $t->proyecto?->nombre ?? 'Sin proyecto' }}</p>
-                        </div>
-                        <span class="text-xs text-gray-500 whitespace-nowrap ml-2">
-                            {{ $t->fecha_limite->diffForHumans() }}
-                        </span>
-                    </a>
-                @empty
-                    <p class="text-sm text-gray-400">Nada pendiente por vencer.</p>
-                @endforelse
+        <x-card>
+            <div class="flex items-center gap-2 mb-3">
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><x-icon name="clock" class="w-5 h-5" /></span>
+                <h2 class="text-sm font-semibold text-slate-700">Proximas a vencer</h2>
             </div>
-        </div>
-
+            @forelse ($proximasVencer as $t)
+                <a href="{{ route('tareas.editar', $t) }}" wire:navigate
+                   class="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 -mx-1 transition hover:bg-slate-50">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-slate-700 truncate group-hover:text-indigo-700">{{ $t->titulo }}</p>
+                        <p class="text-[11px] text-slate-400">{{ $t->asignado?->name ?? 'Sin asignar' }} · {{ $t->proyecto?->nombre ?? 'Sin proyecto' }}</p>
+                    </div>
+                    <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{{ $t->fecha_limite->diffForHumans() }}</span>
+                </a>
+            @empty
+                <div class="py-6 text-center text-sm text-slate-400">Nada pendiente por vencer.</div>
+            @endforelse
+        </x-card>
     </div>
 </div>

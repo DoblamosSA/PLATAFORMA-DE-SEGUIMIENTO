@@ -1,35 +1,34 @@
-<div class="py-8">
+<div class="p-4 sm:p-6 lg:p-8">
     {{-- Estilos de impresion: ocultar navegacion y controles --}}
     <style>
         @media print {
-            nav, .no-print { display: none !important; }
+            aside, .lg\:hidden, .no-print { display: none !important; }
+            .lg\:pl-64 { padding-left: 0 !important; }
             body { background: white !important; }
             .print-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; break-inside: avoid; }
-            main { padding: 0 !important; }
         }
     </style>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div class="max-w-7xl mx-auto space-y-6">
 
         {{-- Encabezado + controles --}}
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">Reporte de Cumplimiento</h1>
-                <p class="text-sm text-gray-500">Periodo: <span class="font-medium text-gray-700">{{ $this->etiquetaMes }}</span></p>
-            </div>
-            <div class="flex items-center gap-2 no-print">
-                <input type="month" wire:model.live="mes"
-                       class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <button wire:click="exportarCsv"
-                        class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
-                    ⬇ Excel/CSV
-                </button>
-                <button onclick="window.print()"
-                        class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    🖨 Imprimir / PDF
-                </button>
-            </div>
-        </div>
+        <x-page-header title="Reporte de Cumplimiento" icon="report">
+            <x-slot:subtitle>Periodo: <span class="font-medium text-slate-700">{{ $this->etiquetaMes }}</span></x-slot:subtitle>
+            <x-slot:actions>
+                <div class="flex items-center gap-2 no-print">
+                    <input type="month" wire:model.live="mes"
+                           class="rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <button wire:click="exportarCsv"
+                            class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition">
+                        <x-icon name="download" class="w-4 h-4" /> Excel/CSV
+                    </button>
+                    <button onclick="window.print()"
+                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
+                        <x-icon name="print" class="w-4 h-4" /> Imprimir / PDF
+                    </button>
+                </div>
+            </x-slot:actions>
+        </x-page-header>
 
         {{-- Resumen ejecutivo --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 print-card">

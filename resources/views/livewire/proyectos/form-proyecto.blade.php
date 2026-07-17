@@ -1,14 +1,15 @@
-<div class="py-8">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+<div class="p-4 sm:p-6 lg:p-8">
+    <div class="max-w-3xl mx-auto space-y-5">
 
-        <div class="flex items-center justify-between">
-            <h1 class="text-2xl font-bold text-gray-800">
-                {{ $project ? 'Editar proyecto' : 'Nuevo proyecto' }}
-            </h1>
-            <a href="{{ route('proyectos') }}" wire:navigate class="text-sm text-gray-500 hover:text-gray-700">← Volver</a>
-        </div>
+        <x-page-header :title="$project ? 'Editar proyecto' : 'Nuevo proyecto'" subtitle="Datos del proyecto y su equipo" icon="folder">
+            <x-slot:actions>
+                <a href="{{ route('proyectos') }}" wire:navigate class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
+                    <x-icon name="arrow-left" class="w-4 h-4" /> Volver
+                </a>
+            </x-slot:actions>
+        </x-page-header>
 
-        <form wire:submit="save" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
+        <form wire:submit="save" class="rounded-2xl bg-white shadow-sm border border-slate-200/70 p-6 space-y-5">
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
@@ -105,10 +106,10 @@
 
             <div class="flex items-center gap-3 pt-2">
                 <button type="submit"
-                        class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                        class="rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-indigo-500/30 hover:from-indigo-700 hover:to-violet-700 transition">
                     {{ $project ? 'Guardar cambios' : 'Crear proyecto' }}
                 </button>
-                <a href="{{ route('proyectos') }}" wire:navigate class="text-sm text-gray-500 hover:text-gray-700">Cancelar</a>
+                <a href="{{ route('proyectos') }}" wire:navigate class="text-sm text-slate-500 hover:text-slate-700">Cancelar</a>
             </div>
         </form>
     </div>
