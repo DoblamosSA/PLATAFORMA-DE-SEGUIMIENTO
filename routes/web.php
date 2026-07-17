@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Dashboard;
+use App\Livewire\Informes\ReporteMensual;
 use App\Livewire\Proyectos\FormProyecto;
 use App\Livewire\Proyectos\ListaProyectos;
 use App\Livewire\Proyectos\VerProyecto;
@@ -21,6 +22,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('tareas', ListaTareas::class)->name('tareas');
     Route::get('tareas/nueva', FormTarea::class)->name('tareas.crear');
     Route::get('tareas/{task}/editar', FormTarea::class)->name('tareas.editar');
+
+    Route::get('informes/cumplimiento', ReporteMensual::class)->name('informes.cumplimiento');
 
     Route::view('profile', 'profile')->name('profile');
 });

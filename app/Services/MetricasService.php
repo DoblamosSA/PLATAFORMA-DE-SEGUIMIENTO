@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -94,6 +95,38 @@ class MetricasService
                 'abiertas'     => Task::abiertas()->where('tipo', $tipo)->count(),
             ];
         });
+    }
+
+    /**
+     * Cumplimiento por proyecto (tareas asignadas dentro del rango).
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function porProyecto(Carbon $desde, Carbon $hasta): Collection
+    {
+        return Project::with('responsable')
+            ->orderBy('nombre')
+            ->get()
+            ->map(function (Project $p) use ($desde, $hasta) {
+                $base = Task::where('project_id', $p->id)
+                    ->whereBetween('fecha_asignacion', [$desde, $hasta]);
+
+                $completadas = (clone $base)->where('estado', 'completada')->count();
+                $aTiempo     = (clone $base)->where('estado', 'completada')->where('cumplida_a_tiempo', true)->count();
+
+                return [
+                    'proyecto'     => $p,
+                    'total'        => (clone $base)->count(),
+                    'completadas'  => $completadas,
+                    'a_tiempo'     => $aTiempo,
+                    'abiertas'     => Task::where('project_id', $p->id)->abiertas()->count(),
+                    'vencidas'     => Task::where('project_id', $p->id)->vencidas()->count(),
+                    'progreso'     => $p->progreso,
+                    'cumplimiento' => $completadas > 0 ? round(($aTiempo / $completadas) * 100, 1) : null,
+                ];
+            })
+            ->filter(fn ($r) => $r['total'] > 0 || $r['abiertas'] > 0)
+            ->values();
     }
 
     /**
