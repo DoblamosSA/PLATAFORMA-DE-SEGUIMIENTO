@@ -27,6 +27,31 @@ class ListaProyectos extends Component
         $this->resetPage();
     }
 
+    /** Selecciona/deselecciona el filtro por area al pulsar una tarjeta. */
+    public function toggleArea(string $tipo): void
+    {
+        $this->tipo = $this->tipo === $tipo ? '' : $tipo;
+        $this->resetPage();
+    }
+
+    /**
+     * Conteo de proyectos por area (tipo), con desglose activos/completados.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function resumenAreas(): array
+    {
+        $totales      = Project::selectRaw('tipo, COUNT(*) as c')->groupBy('tipo')->pluck('c', 'tipo');
+        $completados  = Project::where('estado', 'completado')->selectRaw('tipo, COUNT(*) as c')->groupBy('tipo')->pluck('c', 'tipo');
+
+        return collect(['software', 'soporte', 'infraestructura'])->map(fn ($t) => [
+            'tipo'        => $t,
+            'total'       => (int) ($totales[$t] ?? 0),
+            'completados' => (int) ($completados[$t] ?? 0),
+            'activos'     => (int) ($totales[$t] ?? 0) - (int) ($completados[$t] ?? 0),
+        ])->all();
+    }
+
     public function render()
     {
         $proyectos = Project::query()
@@ -43,7 +68,9 @@ class ListaProyectos extends Component
             ->paginate(12);
 
         return view('livewire.proyectos.lista-proyectos', [
-            'proyectos' => $proyectos,
+            'proyectos'    => $proyectos,
+            'resumenAreas' => $this->resumenAreas(),
+            'totalProyectos' => Project::count(),
         ]);
     }
 }
