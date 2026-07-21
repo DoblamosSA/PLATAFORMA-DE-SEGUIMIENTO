@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\NoCacheHeaders::class])->group(function () {
     Route::get('dashboard', Dashboard::class)->name('dashboard');
 
     Route::get('proyectos', ListaProyectos::class)->name('proyectos');

@@ -2,6 +2,19 @@ import './bootstrap';
 import Sortable from 'sortablejs';
 
 /**
+ * Guardia de sesion contra el back/forward cache (bfcache): al pulsar
+ * "atras" el navegador puede restaurar una pantalla completa desde memoria
+ * sin consultar al servidor (mostrando p. ej. el dashboard tras cerrar
+ * sesion). Si la pagina viene del bfcache, se fuerza una peticion real:
+ * el servidor redirige al login cuando ya no hay sesion.
+ */
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+
+/**
  * Tema claro/oscuro: persiste la eleccion del usuario y expone
  * $store.theme.dark / .toggle() a cualquier x-data via Alpine (ya incluido
  * por Livewire, sin dependencias nuevas). El anti-FOUC en el <head> ya
@@ -31,16 +44,20 @@ document.addEventListener('livewire:navigated', () => {
 });
 
 /**
- * Reinicia la animacion de entrada de contenido en cada navegacion SPA
- * (wire:navigate), ya que el elemento se conserva y Livewire solo
- * reemplaza su contenido interno.
+ * Reinicia las animaciones de apertura (page-enter y anim-*) en cada
+ * navegacion SPA (wire:navigate): si Livewire conserva los elementos y
+ * solo actualiza su contenido, la animacion CSS no volveria a correr sin
+ * quitar y re-agregar la clase con un reflow de por medio.
  */
 document.addEventListener('livewire:navigated', () => {
-    const el = document.getElementById('main-content');
-    if (!el) return;
-    el.classList.remove('page-enter');
-    void el.offsetWidth; // fuerza reflow para reiniciar la animacion CSS
-    el.classList.add('page-enter');
+    const selector = '#main-content, .anim-fade-in, .anim-fade-up, .anim-fade-right, .anim-stagger, .anim-stagger-x';
+    document.querySelectorAll(selector).forEach((el) => {
+        const clases = [...el.classList].filter((c) => c === 'page-enter' || c.startsWith('anim-'));
+        if (!clases.length) return;
+        el.classList.remove(...clases);
+        void el.offsetWidth; // fuerza reflow para reiniciar la animacion CSS
+        el.classList.add(...clases);
+    });
 });
 
 /**

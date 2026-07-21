@@ -9,7 +9,10 @@ new class extends Component
     {
         $logout();
 
-        $this->redirect('/', navigate: true);
+        // Redireccion completa (sin wire:navigate): descarta el contexto JS y
+        // el cache de snapshots de Livewire, para que "atras" no pueda
+        // restaurar una pantalla autenticada desde memoria.
+        $this->redirect('/');
     }
 }; ?>
 
