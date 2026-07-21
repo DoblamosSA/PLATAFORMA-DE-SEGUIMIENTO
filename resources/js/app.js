@@ -15,6 +15,71 @@ window.addEventListener('pageshow', (event) => {
 });
 
 /**
+ * PWA + Web Push.
+ * Registra el service worker (sw.js) y, en pantallas autenticadas (el layout
+ * expone la clave VAPID en <meta name="vapid-public-key">), suscribe este
+ * navegador a notificaciones push y guarda la suscripcion en el servidor.
+ * Si el permiso aun no fue decidido, se pide en la primera interaccion del
+ * usuario (los navegadores exigen un gesto para mostrar el dialogo).
+ */
+const base64UrlAUint8Array = (base64Url) => {
+    const relleno = '='.repeat((4 - (base64Url.length % 4)) % 4);
+    const base64 = (base64Url + relleno).replace(/-/g, '+').replace(/_/g, '/');
+    const crudo = atob(base64);
+    return Uint8Array.from([...crudo].map((c) => c.charCodeAt(0)));
+};
+
+const suscribirPush = async (registro) => {
+    const meta = document.querySelector('meta[name="vapid-public-key"]');
+    if (!meta || !('PushManager' in window) || Notification.permission !== 'granted') return;
+
+    try {
+        const suscripcion = await registro.pushManager.getSubscription()
+            ?? await registro.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: base64UrlAUint8Array(meta.content),
+            });
+
+        await fetch('/push/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            body: JSON.stringify(suscripcion.toJSON()),
+        });
+    } catch (e) {
+        console.warn('Web Push: no se pudo suscribir', e);
+    }
+};
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', async () => {
+        try {
+            const registro = await navigator.serviceWorker.register('/sw.js');
+
+            // Solo en pantallas autenticadas (meta VAPID presente)
+            if (!document.querySelector('meta[name="vapid-public-key"]')) return;
+
+            if (Notification.permission === 'granted') {
+                suscribirPush(registro);
+            } else if (Notification.permission === 'default') {
+                // Pedir permiso en el primer gesto del usuario
+                const pedir = async () => {
+                    document.removeEventListener('pointerdown', pedir);
+                    if (await Notification.requestPermission() === 'granted') {
+                        suscribirPush(registro);
+                    }
+                };
+                document.addEventListener('pointerdown', pedir, { once: true });
+            }
+        } catch (e) {
+            console.warn('Service worker: registro fallido', e);
+        }
+    });
+}
+
+/**
  * Tema claro/oscuro: persiste la eleccion del usuario y expone
  * $store.theme.dark / .toggle() a cualquier x-data via Alpine (ya incluido
  * por Livewire, sin dependencias nuevas). El anti-FOUC en el <head> ya

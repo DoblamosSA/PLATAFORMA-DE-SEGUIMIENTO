@@ -58,13 +58,13 @@ new class extends Component
         <div class="flex h-full flex-col px-4 py-6 text-slate-300">
             {{-- Marca --}}
             <div class="flex items-center justify-between px-2">
-                <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3">
+                <div class="flex items-center gap-3 pointer-events-none">
                     <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-600 text-white font-bold shadow-lg shadow-blue-900/50">P</span>
                     <div class="leading-tight">
                         <p class="font-semibold text-white">Projects</p>
                         <p class="text-[11px] text-slate-400">Proyectos & SLA</p>
                     </div>
-                </a>
+                </div>
                 <button @click="open = false" class="lg:hidden p-1 rounded-lg hover:bg-white/10 text-slate-400"><x-icon name="close" class="w-5 h-5" /></button>
             </div>
 

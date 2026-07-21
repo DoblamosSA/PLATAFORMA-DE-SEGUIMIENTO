@@ -16,6 +16,12 @@
 
         <title>{{ config('app.name', 'Projects') }}</title>
 
+        {{-- PWA --}}
+        <link rel="manifest" href="/manifest.webmanifest">
+        <meta name="theme-color" content="#2563eb">
+        <link rel="apple-touch-icon" href="/icons/icon-192.png">
+        <link rel="icon" type="image/png" href="/icons/icon-192.png">
+
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="h-full font-sans antialiased">
