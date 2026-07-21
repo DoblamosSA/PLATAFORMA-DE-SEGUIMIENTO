@@ -16,12 +16,12 @@
         {{-- Total --}}
         <button type="button" wire:click="$set('tipo', '')"
                 class="group relative overflow-hidden rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md
-                       {{ $tipo === '' ? 'border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-200' : 'border-slate-200/70 bg-white shadow-sm' }}">
+                       {{ $tipo === '' ? 'border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-200 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:ring-indigo-500/30' : 'border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20' }}">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-medium uppercase tracking-wide text-slate-400">Todas las areas</p>
-                    <p class="mt-2 text-3xl font-bold text-slate-800">{{ $totalProyectos }}</p>
-                    <p class="mt-1 text-xs text-slate-400">proyectos en total</p>
+                    <p class="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Todas las areas</p>
+                    <p class="mt-2 text-3xl font-bold text-slate-800 dark:text-slate-100">{{ $totalProyectos }}</p>
+                    <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">proyectos en total</p>
                 </div>
                 <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-500 to-slate-700 text-white shadow-lg">
                     <x-icon name="folder" class="w-5 h-5" />
@@ -31,23 +31,23 @@
 
         @php
             $areaMeta = [
-                'software'        => ['Software', 'code', 'from-indigo-500 to-violet-600', 'text-indigo-600', 'border-indigo-300 bg-indigo-50/60 ring-indigo-200'],
-                'soporte'         => ['Soporte', 'support', 'from-teal-500 to-emerald-600', 'text-teal-600', 'border-teal-300 bg-teal-50/60 ring-teal-200'],
-                'infraestructura' => ['Infraestructura', 'server', 'from-cyan-500 to-sky-600', 'text-cyan-600', 'border-cyan-300 bg-cyan-50/60 ring-cyan-200'],
+                'software'        => ['Software', 'code', 'from-indigo-500 to-violet-600', 'text-indigo-600 dark:text-indigo-400', 'border-indigo-300 bg-indigo-50/60 ring-indigo-200 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:ring-indigo-500/30'],
+                'soporte'         => ['Soporte', 'support', 'from-teal-500 to-emerald-600', 'text-teal-600 dark:text-teal-400', 'border-teal-300 bg-teal-50/60 ring-teal-200 dark:border-teal-500/40 dark:bg-teal-500/10 dark:ring-teal-500/30'],
+                'infraestructura' => ['Infraestructura', 'server', 'from-cyan-500 to-sky-600', 'text-cyan-600 dark:text-cyan-400', 'border-cyan-300 bg-cyan-50/60 ring-cyan-200 dark:border-cyan-500/40 dark:bg-cyan-500/10 dark:ring-cyan-500/30'],
             ];
         @endphp
         @foreach ($resumenAreas as $a)
             @php [$nombre, $ico, $grad, $txt, $activeCls] = $areaMeta[$a['tipo']]; $sel = $tipo === $a['tipo']; @endphp
             <button type="button" wire:click="toggleArea('{{ $a['tipo'] }}')"
                     class="group relative overflow-hidden rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md
-                           {{ $sel ? $activeCls.' ring-2' : 'border-slate-200/70 bg-white shadow-sm' }}">
+                           {{ $sel ? $activeCls.' ring-2' : 'border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20' }}">
                 <div class="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br {{ $grad }} opacity-[0.07] transition group-hover:opacity-[0.14]"></div>
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ $nombre }}</p>
+                        <p class="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ $nombre }}</p>
                         <p class="mt-2 text-3xl font-bold {{ $txt }}">{{ $a['total'] }}</p>
-                        <p class="mt-1 text-xs text-slate-400">
-                            <span class="text-slate-500">{{ $a['activos'] }} activos</span> · {{ $a['completados'] }} completados
+                        <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                            <span class="text-slate-500 dark:text-slate-400">{{ $a['activos'] }} activos</span> · {{ $a['completados'] }} completados
                         </p>
                     </div>
                     <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br {{ $grad }} text-white shadow-lg">
