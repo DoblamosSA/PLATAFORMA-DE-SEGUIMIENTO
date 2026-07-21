@@ -34,7 +34,10 @@
       "Bash(grep '$this->' c:/Projects/PLATAFORMA-DE-SEGUIMIENTO/resources/views/livewire/tareas/form-tarea.blade.php)",
       "Bash(xargs grep \"public function render\")",
       "Bash(cd \"c:/Projects/PLATAFORMA-DE-SEGUIMIENTO\" && stat -c '%Y %n' public/build/manifest.json public/build/assets/* resources/js/app.js resources/css/app.css 2>/dev/null | sort -n)",
-      "Read(//c/Projects/PLATAFORMA-DE-SEGUIMIENTO/**)"
+      "Read(//c/Projects/PLATAFORMA-DE-SEGUIMIENTO/**)",
+      "Bash(ssh -V)",
+      "Bash(python -m py_compile deploy/deploy.py)",
+      "Bash(python -c \"import paramiko\")"
     ]
   }
 }

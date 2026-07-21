@@ -1,0 +1,22 @@
+# Despliegue de "Projects" — un solo servicio, sin tocar nada del resto
+# del servidor. El puerto host se define en deploy/.env.deploy (PUERTO_HOST)
+# tras validar cuales estan libres.
+services:
+  projects:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: projects-app:latest
+    container_name: projects_app
+    restart: unless-stopped
+    ports:
+      - "${PUERTO_HOST:-8090}:80"
+    env_file:
+      - .env.production
+    volumes:
+      - projects_db:/var/www/html/database
+      - projects_storage:/var/www/html/storage/app
+
+volumes:
+  projects_db:
+  projects_storage:
