@@ -1,4 +1,4 @@
-<div class="p-4 sm:p-6 lg:p-8 space-y-6">
+<div class="p-4 sm:p-6 lg:p-8 space-y-6 anim-fade-right">
 
     {{-- Encabezado --}}
     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">

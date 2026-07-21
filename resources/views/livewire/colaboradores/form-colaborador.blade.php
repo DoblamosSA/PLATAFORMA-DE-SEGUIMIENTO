@@ -1,5 +1,5 @@
 <div class="p-4 sm:p-6 lg:p-8">
-    <div class="max-w-3xl mx-auto space-y-5">
+    <div class="max-w-3xl mx-auto space-y-5 anim-fade-up">
 
         <x-page-header :title="$colaborador ? 'Editar colaborador' : 'Nuevo colaborador'" subtitle="Datos, rol y disponibilidad" icon="users">
             <x-slot:actions>

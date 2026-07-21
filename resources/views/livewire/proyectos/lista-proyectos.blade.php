@@ -1,4 +1,4 @@
-<div class="p-4 sm:p-6 lg:p-8 space-y-6">
+<div class="p-4 sm:p-6 lg:p-8 space-y-6 anim-stagger">
 
     <x-page-header title="Proyectos" subtitle="Software, soporte e infraestructura" icon="folder">
         <x-slot:actions>

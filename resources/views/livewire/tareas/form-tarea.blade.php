@@ -1,5 +1,5 @@
 <div class="p-4 sm:p-6 lg:p-8">
-    <div class="max-w-4xl mx-auto space-y-5">
+    <div class="max-w-4xl mx-auto space-y-5 anim-fade-up">
 
         <x-page-header :title="$task ? 'Editar tarea' : 'Nueva tarea'" subtitle="Define la actividad y su asignacion" icon="tasks">
             <x-slot:actions>

@@ -1,4 +1,4 @@
-<div class="p-4 sm:p-6 lg:p-8 space-y-6">
+<div class="p-4 sm:p-6 lg:p-8 space-y-6 anim-fade-in">
 
     {{-- Encabezado --}}
     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -79,7 +79,7 @@
     <div wire:key="board-{{ $project->id }}"
          x-data
          x-init="window.kanbanColumns($el, $wire)"
-         class="flex gap-4 overflow-x-auto kanban-scroll pb-4 snap-x items-start">
+         class="flex gap-4 overflow-x-auto kanban-scroll pb-4 snap-x items-start anim-stagger-x">
 
         @foreach ($columnas as $col)
             <section wire:key="col-{{ $col->id }}"

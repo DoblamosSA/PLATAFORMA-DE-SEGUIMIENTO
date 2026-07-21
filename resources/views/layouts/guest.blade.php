@@ -31,7 +31,7 @@
             {{-- Formulario --}}
             <div class="flex min-h-full items-center justify-center bg-white dark:bg-slate-950 px-6 py-12 sm:px-10"
                  style="background-image: radial-gradient(40rem 40rem at 100% 0%, rgba(59,130,246,0.06), transparent 60%);">
-                <div class="w-full max-w-md">
+                <div class="w-full max-w-md anim-fade-up">
                     <div class="mb-8 lg:hidden flex items-center gap-3">
                         <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-600 text-white font-bold">P</span>
                         <span class="text-lg font-semibold text-slate-800 dark:text-slate-100">Projects</span>
