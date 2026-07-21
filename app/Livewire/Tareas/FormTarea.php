@@ -317,6 +317,18 @@ class FormTarea extends Component
             $task->aplicarSla();
         }
 
+        // Auto-generar fecha_limite si se asigna una tarea con horas pero sin fecha_limite.
+        // Esto asegura que las horas se contabilicen en la carga operativa del colaborador.
+        if ($this->asignado_id && $task->horas_estimadas > 0 && ! $this->fechaLimiteInput) {
+            $colaborador = User::find($this->asignado_id);
+            if ($colaborador && $colaborador->horas_diarias > 0) {
+                $diasNecesarios = ceil($task->horas_estimadas / (float) $colaborador->horas_diarias);
+                $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : now();
+                $limite = $inicio->copy()->addDays($diasNecesarios);
+                $task->fecha_limite = $limite;
+            }
+        }
+
         // Manejo de transiciones de fecha segun estado
         if ($this->estado === 'en_progreso' && ! $task->fecha_inicio_real) {
             $task->fecha_inicio_real = now();
