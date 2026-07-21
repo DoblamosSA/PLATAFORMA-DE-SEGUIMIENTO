@@ -17,24 +17,32 @@ class Task extends Model
         'tipo',
         'prioridad',
         'estado',
+        'board_column_id',
+        'posicion',
         'asignado_id',
         'creado_por',
         'fecha_asignacion',
+        'fecha_inicio',
         'fecha_limite',
         'fecha_inicio_real',
         'fecha_completada',
         'sla_horas',
+        'horas_estimadas',
         'cumplida_a_tiempo',
+        'tag',
     ];
 
     protected function casts(): array
     {
         return [
-            'fecha_asignacion'  => 'datetime',
-            'fecha_limite'      => 'datetime',
+            'fecha_asignacion' => 'datetime',
+            'fecha_inicio' => 'date',
+            'fecha_limite' => 'datetime',
             'fecha_inicio_real' => 'datetime',
-            'fecha_completada'  => 'datetime',
+            'fecha_completada' => 'datetime',
             'cumplida_a_tiempo' => 'boolean',
+            'posicion' => 'integer',
+            'horas_estimadas' => 'decimal:2',
         ];
     }
 
@@ -62,6 +70,35 @@ class Task extends Model
         return $this->hasMany(TaskActivity::class)->latest();
     }
 
+    /** Columna del tablero Kanban donde esta ubicada la tarea. */
+    public function columna(): BelongsTo
+    {
+        return $this->belongsTo(BoardColumn::class, 'board_column_id');
+    }
+
+    /** Solo los comentarios de la bitacora (foro de discusion). */
+    public function comentarios(): HasMany
+    {
+        return $this->hasMany(TaskActivity::class)->where('accion', 'comentario')->latest();
+    }
+
+    /** Desglose de la tarea en subtareas con horas estimadas, en orden de creacion. */
+    public function subtareas(): HasMany
+    {
+        return $this->hasMany(Subtask::class)->oldest();
+    }
+
+    /**
+     * Recalcula horas_estimadas como la suma de las horas de las subtareas
+     * y la persiste. Sin subtareas, queda en null.
+     */
+    public function recalcularHoras(): void
+    {
+        $total = $this->subtareas()->sum('horas');
+
+        $this->update(['horas_estimadas' => $total > 0 ? $total : null]);
+    }
+
     // ---------------------------------------------------------------
     // Scopes
     // ---------------------------------------------------------------
@@ -84,6 +121,24 @@ class Task extends Model
             ->where('fecha_limite', '<', now());
     }
 
+    /**
+     * Limita el listado a las tareas visibles para el usuario: admin y
+     * coordinador ven todas; colaborador y evaluador solo las suyas o las
+     * de los proyectos donde participan.
+     */
+    public function scopeVisiblesPara(Builder $q, User $user): Builder
+    {
+        if ($user->esCoordinador()) {
+            return $q;
+        }
+
+        return $q->where(function (Builder $q2) use ($user) {
+            $q2->where('asignado_id', $user->id)
+                ->orWhereHas('proyecto.equipo', fn (Builder $q3) => $q3->where('users.id', $user->id))
+                ->orWhereHas('proyecto', fn (Builder $q3) => $q3->where('responsable_id', $user->id));
+        });
+    }
+
     // ---------------------------------------------------------------
     // Logica de SLA
     // ---------------------------------------------------------------
@@ -96,9 +151,9 @@ class Task extends Model
     public function aplicarSla(): void
     {
         $horas = SlaPolicy::horasPara($this->tipo, $this->prioridad);
-        $base  = $this->fecha_asignacion ?? now();
+        $base = $this->fecha_asignacion ?? now();
 
-        $this->sla_horas   = $horas;
+        $this->sla_horas = $horas;
         $this->fecha_limite = $base->copy()->addHours($horas);
     }
 
@@ -134,12 +189,24 @@ class Task extends Model
     {
         $cuando ??= now();
 
-        $this->estado            = 'completada';
-        $this->fecha_completada  = $cuando;
+        $this->estado = 'completada';
+        $this->fecha_completada = $cuando;
         $this->cumplida_a_tiempo = $this->fecha_limite
             ? $cuando->lessThanOrEqualTo($this->fecha_limite)
             : true;
 
+        $this->save();
+    }
+
+    /**
+     * El evaluador rechaza una tarea completada: vuelve a quedar abierta
+     * (en_revision) y no cuenta para el cumplimiento hasta resolverse.
+     */
+    public function rechazar(): void
+    {
+        $this->estado = 'rechazada';
+        $this->fecha_completada = null;
+        $this->cumplida_a_tiempo = null;
         $this->save();
     }
 }

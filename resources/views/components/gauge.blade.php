@@ -23,7 +23,7 @@
                     <stop offset="100%" stop-color="{{ $color }}"/>
                 </linearGradient>
             </defs>
-            <circle cx="60" cy="60" r="{{ $r }}" fill="none" stroke="#eef2f7" stroke-width="11"/>
+            <circle cx="60" cy="60" r="{{ $r }}" fill="none" stroke="var(--surface-gauge-track)" stroke-width="11"/>
             <circle cx="60" cy="60" r="{{ $r }}" fill="none" stroke="url(#{{ $id }})" stroke-width="11"
                     stroke-linecap="round"
                     stroke-dasharray="{{ $circ }}"
@@ -31,8 +31,8 @@
                     style="transition: stroke-dashoffset 1s cubic-bezier(.22,1,.36,1);"/>
         </svg>
         <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <span class="text-3xl font-extrabold text-slate-800">{{ rtrim(rtrim(number_format($v, 1), '0'), '.') }}%</span>
-            @if ($label)<span class="text-[11px] font-medium uppercase tracking-wide text-slate-400">{{ $label }}</span>@endif
+            <span class="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{{ rtrim(rtrim(number_format($v, 1), '0'), '.') }}%</span>
+            @if ($label)<span class="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ $label }}</span>@endif
         </div>
     </div>
 </div>

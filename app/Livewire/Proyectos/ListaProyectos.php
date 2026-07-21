@@ -3,6 +3,7 @@
 namespace App\Livewire\Proyectos;
 
 use App\Models\Project;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -59,8 +60,14 @@ class ListaProyectos extends Component
                 'tareas',
                 'tareas as tareas_completadas_count' => fn ($q) => $q->where('estado', 'completada'),
                 'tareas as tareas_vencidas_count' => fn ($q) => $q->vencidas(),
+                'tareas as tareas_a_tiempo_count' => fn ($q) => $q->where('estado', 'completada')->where('cumplida_a_tiempo', true),
+                'tareas as tareas_en_riesgo_count' => fn ($q) => $q->abiertas()
+                    ->whereNotNull('fecha_limite')
+                    ->whereBetween('fecha_limite', [now(), now()->addDays(Project::DIAS_ALERTA_VENCIMIENTO)]),
+                'tareas as tareas_ejecutadas_count' => fn ($q) => $q->whereIn('estado', ['en_progreso', 'en_revision', 'completada']),
             ])
             ->with('responsable')
+            ->visiblesPara(Auth::user())
             ->when($this->buscar, fn ($q) => $q->where('nombre', 'like', "%{$this->buscar}%"))
             ->when($this->tipo, fn ($q) => $q->where('tipo', $this->tipo))
             ->when($this->estado, fn ($q) => $q->where('estado', $this->estado))

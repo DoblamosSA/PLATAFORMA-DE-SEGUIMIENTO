@@ -5,20 +5,29 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Gestion TI') }}</title>
+        {{-- Anti-FOUC: aplica el tema antes del primer pintado (preferencia guardada o del sistema) --}}
+        <script>
+            (function () {
+                var stored = localStorage.getItem('theme');
+                var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.classList.toggle('dark', dark);
+            })();
+        </script>
+
+        <title>{{ config('app.name', 'Projects') }}</title>
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="h-full font-sans antialiased text-slate-700">
-        <div class="min-h-full bg-slate-100/80"
-             style="background-image: radial-gradient(60rem 60rem at 110% -10%, rgba(99,102,241,0.08), transparent 60%), radial-gradient(50rem 50rem at -10% 110%, rgba(139,92,246,0.07), transparent 55%);">
+    <body class="h-full font-sans antialiased text-slate-700 dark:text-slate-300">
+        <div class="min-h-full bg-slate-100/80 dark:bg-slate-950"
+             style="background-image: radial-gradient(60rem 60rem at 110% -10%, rgba(59,130,246,0.08), transparent 60%), radial-gradient(50rem 50rem at -10% 110%, rgba(14,165,233,0.07), transparent 55%);">
 
             {{-- Sidebar + barra movil (componente Livewire con logout) --}}
             <livewire:layout.navigation />
 
             {{-- Contenido --}}
             <div class="lg:pl-64">
-                <main class="min-h-screen">
+                <main id="main-content" class="min-h-screen page-enter">
                     {{ $slot }}
                 </main>
             </div>

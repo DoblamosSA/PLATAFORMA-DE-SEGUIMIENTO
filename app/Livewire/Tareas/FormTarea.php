@@ -2,11 +2,14 @@
 
 namespace App\Livewire\Tareas;
 
+use App\Models\AuditLog;
 use App\Models\Project;
 use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\TaskActivity;
 use App\Models\User;
+use App\Services\CapacidadService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -23,23 +26,44 @@ class FormTarea extends Component
 
     // Campos del formulario
     public string $titulo = '';
+
     public string $descripcion = '';
+
     public string $tipo = 'soporte';
+
     public string $prioridad = 'media';
+
     public string $estado = 'pendiente';
+
     public ?int $asignado_id = null;
+
+    public ?string $fechaInicioInput = null;
+
+    public string $tag = '';
+
+    // Modificacion manual de la fecha limite: solo el administrador puede
+    // hacerlo, y debe dejar una observacion justificando el cambio.
+    public ?string $fechaLimiteInput = null;
+
+    public string $observacionFecha = '';
 
     public function mount(?Task $task = null): void
     {
+        // Solo coordinador/evaluador/admin pueden crear tareas nuevas.
+        abort_unless(! $task?->exists ? Auth::user()?->puedeCrearTarea() : true, 403);
+
         if ($task?->exists) {
-            $this->task        = $task;
-            $this->project_id  = $task->project_id;
-            $this->titulo      = $task->titulo;
+            $this->task = $task;
+            $this->project_id = $task->project_id;
+            $this->titulo = $task->titulo;
             $this->descripcion = $task->descripcion ?? '';
-            $this->tipo        = $task->tipo;
-            $this->prioridad   = $task->prioridad;
-            $this->estado      = $task->estado;
+            $this->tipo = $task->tipo;
+            $this->prioridad = $task->prioridad;
+            $this->estado = $task->estado;
             $this->asignado_id = $task->asignado_id;
+            $this->fechaInicioInput = $task->fecha_inicio?->format('Y-m-d');
+            $this->fechaLimiteInput = $task->fecha_limite?->format('Y-m-d\TH:i');
+            $this->tag = $task->tag ?? '';
         }
 
         // Si se crea desde un proyecto, heredar su tipo por defecto
@@ -49,6 +73,24 @@ class FormTarea extends Component
                 $this->tipo = $proyecto->tipo;
             }
         }
+
+        // El evaluador solo puede crear tareas con el tag "certificacion",
+        // y el campo queda bloqueado (no editable) en el formulario.
+        if (! $task?->exists && $this->esEvaluadorNoAdmin()) {
+            $this->tag = 'certificacion';
+        }
+    }
+
+    protected function esEvaluadorNoAdmin(): bool
+    {
+        $u = Auth::user();
+
+        return $u && $u->esEvaluador() && ! $u->esAdmin();
+    }
+
+    public function getTagBloqueadoProperty(): bool
+    {
+        return ! $this->task && $this->esEvaluadorNoAdmin();
     }
 
     /**
@@ -83,13 +125,15 @@ class FormTarea extends Component
     protected function rules(): array
     {
         return [
-            'titulo'      => 'required|string|min:3|max:255',
+            'titulo' => 'required|string|min:3|max:255',
             'descripcion' => 'nullable|string',
-            'tipo'        => 'required|in:software,soporte,infraestructura',
-            'prioridad'   => 'required|in:baja,media,alta,critica',
-            'estado'      => 'required|in:pendiente,en_progreso,en_revision,completada,cancelada',
-            'project_id'  => 'nullable|exists:projects,id',
+            'tipo' => 'required|in:software,soporte,infraestructura',
+            'prioridad' => 'required|in:baja,media,alta,critica',
+            'estado' => 'required|in:pendiente,en_progreso,en_revision,completada,cancelada,rechazada',
+            'project_id' => 'nullable|exists:projects,id',
             'asignado_id' => 'nullable|exists:users,id',
+            'fechaInicioInput' => 'nullable|date',
+            'tag' => 'nullable|string|max:40',
         ];
     }
 
@@ -101,37 +145,171 @@ class FormTarea extends Component
         return SlaPolicy::horasPara($this->tipo, $this->prioridad);
     }
 
+    /** Solo el administrador puede modificar manualmente la fecha limite. */
+    public function getEsAdminProperty(): bool
+    {
+        return Auth::user()?->esAdmin() ?? false;
+    }
+
+    /** El coordinador solo puede eliminar si la tarea no tiene subtareas; el admin siempre. */
+    public function getPuedeEliminarProperty(): bool
+    {
+        return $this->task && (Auth::user()?->puedeEliminarTarea($this->task) ?? false);
+    }
+
+    /**
+     * Previsualiza la carga resultante del colaborador seleccionado antes de
+     * guardar, usando las horas estimadas actuales de la tarea (si las hay).
+     */
+    public function getCargaPreviaProperty(): ?array
+    {
+        if (! $this->asignado_id || ! $this->task || ! $this->task->horas_estimadas) {
+            return null;
+        }
+
+        $colaborador = User::find($this->asignado_id);
+        if (! $colaborador) {
+            return null;
+        }
+
+        $limite = $this->fechaLimiteInput ? Carbon::parse($this->fechaLimiteInput) : $this->task->fecha_limite;
+        $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : $this->task->fecha_inicio;
+
+        return app(CapacidadService::class)->validarAsignacion(
+            $colaborador,
+            (float) $this->task->horas_estimadas,
+            $inicio,
+            $limite,
+            $this->task->id,
+        );
+    }
+
+    public function eliminar()
+    {
+        abort_unless($this->task && Auth::user()?->puedeEliminarTarea($this->task), 403);
+
+        $nombre = $this->task->titulo;
+        $proyectoId = $this->task->project_id;
+
+        AuditLog::registrar('tarea_eliminada', null, "Tarea eliminada: {$nombre}");
+        $this->task->delete();
+
+        session()->flash('ok', 'Tarea eliminada.');
+
+        return $proyectoId
+            ? $this->redirect(route('proyectos.ver', $proyectoId), navigate: true)
+            : $this->redirect(route('tareas'), navigate: true);
+    }
+
+    /** True si el admin edito el valor de la fecha limite en el formulario. */
+    public function getFechaLimiteCambiadaProperty(): bool
+    {
+        if (! $this->task) {
+            return false;
+        }
+
+        $actual = $this->task->fecha_limite?->format('Y-m-d\TH:i') ?? '';
+
+        return ($this->fechaLimiteInput ?? '') !== $actual;
+    }
+
     public function save()
     {
-        $this->validate();
+        $esNueva = ! $this->task;
+
+        // Re-chequeo defensivo de permisos en el servidor (no solo en mount).
+        abort_unless($esNueva ? Auth::user()?->puedeCrearTarea() : true, 403);
+
+        $reglas = $this->rules();
+
+        // Solo al editar (no al crear) y solo el admin puede tocar la fecha
+        // limite manualmente; si la cambia, la observacion es obligatoria.
+        $puedeEditarFecha = $this->task && $this->esAdmin;
+        if ($puedeEditarFecha) {
+            $reglas['fechaLimiteInput'] = 'nullable|date';
+            if ($this->fechaLimiteCambiada) {
+                $reglas['observacionFecha'] = 'required|string|min:5|max:500';
+            }
+        }
+
+        $this->validate($reglas, [], [
+            'fechaLimiteInput' => 'fecha límite',
+            'observacionFecha' => 'observación',
+        ]);
+
+        // Se evalua aqui, antes de tocar $this->task, para comparar contra
+        // el valor original en base de datos.
+        $fechaCambioManual = $puedeEditarFecha && $this->fechaLimiteCambiada;
 
         // El asignado debe pertenecer al equipo del proyecto (si el proyecto tiene equipo)
         if ($this->asignado_id) {
             $disponibles = $this->empleadosDisponibles()->pluck('id')->all();
             if (! in_array($this->asignado_id, $disponibles, true)) {
                 $this->addError('asignado_id', 'La persona seleccionada no pertenece al equipo del proyecto.');
+
                 return;
             }
         }
 
-        $esNueva = ! $this->task;
-
         $task = $this->task ?? new Task([
-            'creado_por'       => Auth::id(),
+            'creado_por' => Auth::id(),
             'fecha_asignacion' => now(),
         ]);
 
-        $estadoAnterior = $task->estado;
+        // El tag del evaluador es obligatorio y esta bloqueado en la UI; se
+        // fuerza tambien aqui para que no se pueda saltar la restriccion.
+        if ($esNueva && $this->esEvaluadorNoAdmin()) {
+            $this->tag = 'certificacion';
+        }
+
+        // Validacion de capacidad: si se asigna a alguien y la tarea ya tiene
+        // horas estimadas (por sus subtareas) y fecha limite, no se permite
+        // superar la capacidad del colaborador en ese periodo.
+        if ($this->asignado_id && $task->horas_estimadas > 0) {
+            $limite = $this->fechaLimiteInput ? Carbon::parse($this->fechaLimiteInput) : $task->fecha_limite;
+            $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : $task->fecha_inicio;
+
+            $colaborador = User::find($this->asignado_id);
+            $resultado = app(CapacidadService::class)->validarAsignacion(
+                $colaborador,
+                (float) $task->horas_estimadas,
+                $inicio,
+                $limite,
+                $task->id,
+            );
+
+            if (! $resultado['ok']) {
+                $this->addError('asignado_id', $resultado['mensaje']);
+                TaskActivity::create([
+                    'task_id' => $task->id,
+                    'user_id' => Auth::id(),
+                    'accion' => 'bloqueo_capacidad',
+                    'detalle' => $resultado['mensaje'],
+                ]);
+
+                return;
+            }
+        }
+
+        // Valores previos para la trazabilidad granular
+        $prev = [
+            'estado' => $task->estado,
+            'asignado_id' => $task->asignado_id,
+            'prioridad' => $task->prioridad,
+            'fecha_limite' => $task->fecha_limite,
+        ];
         $tipoOPrioridadCambio = $task->tipo !== $this->tipo || $task->prioridad !== $this->prioridad;
 
         $task->fill([
-            'project_id'  => $this->project_id,
-            'titulo'      => $this->titulo,
+            'project_id' => $this->project_id,
+            'titulo' => $this->titulo,
             'descripcion' => $this->descripcion,
-            'tipo'        => $this->tipo,
-            'prioridad'   => $this->prioridad,
-            'estado'      => $this->estado,
+            'tipo' => $this->tipo,
+            'prioridad' => $this->prioridad,
+            'estado' => $this->estado,
             'asignado_id' => $this->asignado_id,
+            'fecha_inicio' => $this->fechaInicioInput ?: null,
+            'tag' => $this->tag ?: null,
         ]);
 
         // (Re)calcular SLA al crear o si cambio tipo/prioridad y sigue abierta
@@ -155,15 +333,63 @@ class FormTarea extends Component
             $task->save();
         }
 
-        // Bitacora
-        TaskActivity::create([
-            'task_id' => $task->id,
-            'user_id' => Auth::id(),
-            'accion'  => $esNueva ? 'creacion' : 'actualizacion',
-            'detalle' => $esNueva
-                ? 'Tarea creada'
-                : "Actualizada (estado {$estadoAnterior} → {$this->estado})",
-        ]);
+        // Override manual de la fecha limite (solo admin, solo al editar).
+        // Se aplica despues del SLA/transiciones de estado para que tenga
+        // siempre la ultima palabra sobre el valor final.
+        if ($fechaCambioManual) {
+            $task->fecha_limite = $this->fechaLimiteInput ? Carbon::parse($this->fechaLimiteInput) : null;
+
+            // Si la tarea ya esta cerrada, reevaluar el cumplimiento del SLA
+            // contra la nueva fecha limite.
+            if ($task->fecha_completada) {
+                $task->cumplida_a_tiempo = $task->fecha_limite
+                    ? $task->fecha_completada->lessThanOrEqualTo($task->fecha_limite)
+                    : true;
+            }
+
+            $task->save();
+        }
+
+        // Ubicar la tarea en el tablero Kanban segun su estado final, para que
+        // aparezca automaticamente al crearla o al cambiar de estado.
+        if ($task->project_id && $task->proyecto) {
+            $task->proyecto->asegurarColumnas();
+            $actual = $task->columna;
+            if (! $actual || $actual->estado !== $task->estado) {
+                if ($columna = $task->proyecto->columnaParaEstado($task->estado)) {
+                    $task->board_column_id = $columna->id;
+                    $task->posicion = (int) Task::where('board_column_id', $columna->id)->max('posicion') + 1;
+                    $task->save();
+                }
+            }
+        }
+
+        // Bitacora granular (no destructiva)
+        if ($esNueva) {
+            $this->registrar($task, 'creacion', 'Tarea creada');
+            if ($task->asignado_id) {
+                $this->registrar($task, 'reasignacion', 'Asignada a '.(User::find($task->asignado_id)?->name ?? '—'));
+            }
+        } else {
+            if ($prev['estado'] !== $task->estado) {
+                $this->registrar($task, 'cambio_estado', "Estado: {$prev['estado']} → {$task->estado}");
+            }
+            if ($prev['asignado_id'] !== $task->asignado_id) {
+                $this->registrar($task, 'reasignacion', 'Reasignada a '.(User::find($task->asignado_id)?->name ?? 'Sin asignar'));
+            }
+            if ($prev['prioridad'] !== $task->prioridad) {
+                $this->registrar($task, 'cambio_prioridad', "Prioridad: {$prev['prioridad']} → {$task->prioridad}");
+            }
+            $limAntes = optional($prev['fecha_limite'])->format('d/m/Y H:i');
+            $limAhora = optional($task->fecha_limite)->format('d/m/Y H:i');
+            if ($limAntes !== $limAhora) {
+                $detalle = 'Fecha límite: '.($limAntes ?? '—').' → '.($limAhora ?? '—');
+                if ($fechaCambioManual) {
+                    $detalle .= '. Motivo: '.trim($this->observacionFecha);
+                }
+                $this->registrar($task, 'cambio_fecha_limite', $detalle);
+            }
+        }
 
         $task->proyecto?->recalcularProgreso();
 
@@ -177,12 +403,32 @@ class FormTarea extends Component
         return $this->redirect(route('tareas'), navigate: true);
     }
 
+    protected function registrar(Task $task, string $accion, string $detalle): void
+    {
+        TaskActivity::create([
+            'task_id' => $task->id,
+            'user_id' => Auth::id(),
+            'accion' => $accion,
+            'detalle' => $detalle,
+        ]);
+    }
+
     public function render()
     {
+        $servicio = app(CapacidadService::class);
+        $empleados = $this->empleadosDisponibles();
+        $empleados->each(fn (User $e) => $e->setAttribute('carga', $servicio->cargaSemanaActual($e)));
+
         return view('livewire.tareas.form-tarea', [
             'proyectos' => Project::orderBy('nombre')->get(),
-            'empleados' => $this->empleadosDisponibles(),
-            'bitacora'  => $this->task?->actividades()->with('user')->limit(20)->get() ?? collect(),
+            'empleados' => $empleados,
+            'bitacora' => $this->task?->actividades()->with('user')->limit(20)->get() ?? collect(),
+            'slaHoras' => $this->slaHoras,
+            'esAdmin' => $this->esAdmin,
+            'puedeEliminar' => $this->puedeEliminar,
+            'cargaPrevia' => $this->cargaPrevia,
+            'fechaLimiteCambiada' => $this->fechaLimiteCambiada,
+            'tagBloqueado' => $this->tagBloqueado,
         ]);
     }
 }

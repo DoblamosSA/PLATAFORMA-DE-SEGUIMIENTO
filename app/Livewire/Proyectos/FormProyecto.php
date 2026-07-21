@@ -4,6 +4,7 @@ namespace App\Livewire\Proyectos;
 
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -13,12 +14,19 @@ class FormProyecto extends Component
     public ?Project $project = null;
 
     public string $nombre = '';
+
     public string $descripcion = '';
+
     public string $tipo = 'software';
+
     public string $estado = 'planeado';
+
     public string $prioridad = 'media';
+
     public ?int $responsable_id = null;
+
     public ?string $fecha_inicio = null;
+
     public ?string $fecha_fin_estimada = null;
 
     /** IDs de los usuarios que integran el equipo del proyecto. */
@@ -26,44 +34,51 @@ class FormProyecto extends Component
 
     public function mount(?Project $project = null): void
     {
+        // Solo el administrador y el coordinador pueden crear proyectos nuevos.
+        abort_unless(! $project?->exists ? Auth::user()?->puedeCrearProyecto() : true, 403);
+
         if ($project?->exists) {
-            $this->project            = $project;
-            $this->nombre             = $project->nombre;
-            $this->descripcion        = $project->descripcion ?? '';
-            $this->tipo               = $project->tipo;
-            $this->estado             = $project->estado;
-            $this->prioridad          = $project->prioridad;
-            $this->responsable_id     = $project->responsable_id;
-            $this->fecha_inicio       = $project->fecha_inicio?->format('Y-m-d');
+            $this->project = $project;
+            $this->nombre = $project->nombre;
+            $this->descripcion = $project->descripcion ?? '';
+            $this->tipo = $project->tipo;
+            $this->estado = $project->estado;
+            $this->prioridad = $project->prioridad;
+            $this->responsable_id = $project->responsable_id;
+            $this->fecha_inicio = $project->fecha_inicio?->format('Y-m-d');
             $this->fecha_fin_estimada = $project->fecha_fin_estimada?->format('Y-m-d');
-            $this->equipo             = $project->equipo()->pluck('users.id')->map(fn ($id) => (string) $id)->toArray();
+            $this->equipo = $project->equipo()->pluck('users.id')->map(fn ($id) => (string) $id)->toArray();
         }
     }
 
     protected function rules(): array
     {
         return [
-            'nombre'             => 'required|string|min:3|max:255',
-            'descripcion'        => 'nullable|string',
-            'tipo'               => 'required|in:software,soporte,infraestructura',
-            'estado'             => 'required|in:planeado,en_progreso,en_pausa,completado,cancelado',
-            'prioridad'          => 'required|in:baja,media,alta,critica',
-            'responsable_id'     => 'nullable|exists:users,id',
-            'fecha_inicio'       => 'nullable|date',
+            'nombre' => 'required|string|min:3|max:255',
+            'descripcion' => 'nullable|string',
+            'tipo' => 'required|in:software,soporte,infraestructura',
+            'estado' => 'required|in:planeado,en_progreso,en_pausa,completado,cancelado',
+            'prioridad' => 'required|in:baja,media,alta,critica',
+            'responsable_id' => 'nullable|exists:users,id',
+            'fecha_inicio' => 'nullable|date',
             'fecha_fin_estimada' => 'nullable|date|after_or_equal:fecha_inicio',
-            'equipo'             => 'array',
-            'equipo.*'           => 'exists:users,id',
+            'equipo' => 'array',
+            'equipo.*' => 'exists:users,id',
         ];
     }
 
     public function save()
     {
+        $esNuevo = ! $this->project;
+
+        // Re-chequeo defensivo de permisos en el servidor (no solo en mount).
+        abort_unless($esNuevo ? Auth::user()?->puedeCrearProyecto() : true, 403);
+
         $data = $this->validate();
         $equipo = $data['equipo'] ?? [];
         unset($data['equipo']);
 
-        $esNuevo = ! $this->project;
-        $project = $this->project ?? new Project();
+        $project = $this->project ?? new Project;
 
         // Al pasar a completado, sellar fecha fin real
         if ($this->estado === 'completado' && ! $project->fecha_fin_real) {

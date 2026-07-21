@@ -1,3 +1,91 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ---------------------------------------------------------------
+   Tokens de diseño (colores que no son utilidades Tailwind directas:
+   gauge SVG, degradados con opacidad). Un solo lugar por tema.
+   --------------------------------------------------------------- */
+:root {
+    --surface-gauge-track: #eef2f7;
+    color-scheme: light;
+}
+
+.dark {
+    --surface-gauge-track: #334155; /* slate-700 */
+    color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------
+   Transicion de tema: cambio de color breve y consistente al
+   alternar claro/oscuro. Se omite bajo prefers-reduced-motion.
+   --------------------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+    * {
+        transition-property: background-color, border-color, color, fill, stroke;
+        transition-duration: 150ms;
+        transition-timing-function: ease-out;
+    }
+}
+
+/* ---------------------------------------------------------------
+   Entrada de contenido al navegar (fade + desplazamiento leve).
+   Se reinicia en cada navegacion via wire:navigate (ver app.js).
+   --------------------------------------------------------------- */
+@keyframes page-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-enter {
+    animation: page-enter 220ms ease-out;
+}
+
+/* Apaga toda animacion/transicion (incluidas las de Alpine x-transition:
+   modal, dropdown, panel lateral) para quien prefiera menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* --- Tablero Kanban (drag & drop) --- */
+.kanban-ghost {
+    opacity: 0.4;
+}
+
+.kanban-drag {
+    transform: rotate(2deg);
+}
+
+/* Oculta la barra de scroll horizontal del tablero sin perder el desplazamiento */
+.kanban-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+}
+
+.kanban-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.kanban-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(203 213 225);
+    border-radius: 9999px;
+}
+
+.dark .kanban-scroll {
+    scrollbar-color: rgb(71 85 105) transparent;
+}
+
+.dark .kanban-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(71 85 105);
+}

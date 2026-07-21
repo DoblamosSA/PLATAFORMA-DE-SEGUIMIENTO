@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,8 +12,21 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /** Codigos de dia laboral, en el orden en que se muestran en el formulario. */
+    public const DIAS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+    /** Mapa codigo de dia -> Carbon::dayOfWeek (0=domingo ... 6=sabado). */
+    public const DIAS_CARBON = ['L' => 1, 'M' => 2, 'X' => 3, 'J' => 4, 'V' => 5, 'S' => 6, 'D' => 0];
+
+    public const ROLES_LABEL = [
+        'admin' => 'Administrador',
+        'lider' => 'Coordinador',
+        'tecnico' => 'Colaborador',
+        'evaluador' => 'Evaluador',
+    ];
 
     protected $fillable = [
         'name',
@@ -22,6 +36,10 @@ class User extends Authenticatable
         'area',
         'cargo',
         'activo',
+        'telefono',
+        'foto_path',
+        'dias_laborales',
+        'horas_diarias',
     ];
 
     protected $hidden = [
@@ -35,6 +53,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'activo' => 'boolean',
+            'dias_laborales' => 'array',
+            'horas_diarias' => 'decimal:2',
         ];
     }
 
@@ -66,5 +86,113 @@ class User extends Authenticatable
     public function esLider(): bool
     {
         return in_array($this->rol, ['admin', 'lider'], true);
+    }
+
+    /** Coordinador (o admin, que hereda todos los permisos). */
+    public function esCoordinador(): bool
+    {
+        return in_array($this->rol, ['admin', 'lider'], true);
+    }
+
+    public function esColaborador(): bool
+    {
+        return $this->rol === 'tecnico';
+    }
+
+    public function esEvaluador(): bool
+    {
+        return $this->rol === 'evaluador';
+    }
+
+    public function rolLabel(): string
+    {
+        return self::ROLES_LABEL[$this->rol] ?? ucfirst((string) $this->rol);
+    }
+
+    public function fotoUrl(): ?string
+    {
+        // URL relativa a la raiz (no absoluta con APP_URL) para que siempre
+        // resuelva contra el host/puerto real desde el que se sirve la app.
+        return $this->foto_path ? '/storage/'.$this->foto_path : null;
+    }
+
+    public function iniciales(): string
+    {
+        return collect(explode(' ', $this->name))->take(2)->map(fn ($p) => mb_substr($p, 0, 1))->implode('');
+    }
+
+    // ---------------------------------------------------------------
+    // Disponibilidad y capacidad operativa
+    // ---------------------------------------------------------------
+
+    /** Capacidad semanal en horas: dias laborales seleccionados x horas diarias. */
+    public function capacidadSemanal(): float
+    {
+        return count($this->dias_laborales ?? []) * (float) ($this->horas_diarias ?? 0);
+    }
+
+    /** True si el usuario trabaja el dia de semana indicado (Carbon::dayOfWeek: 0=domingo). */
+    public function trabajaEnDiaSemana(int $dayOfWeek): bool
+    {
+        foreach ($this->dias_laborales ?? [] as $codigo) {
+            if ((self::DIAS_CARBON[$codigo] ?? null) === $dayOfWeek) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // ---------------------------------------------------------------
+    // Permisos de proyectos/tareas/subtareas/comentarios
+    // ---------------------------------------------------------------
+
+    /** Coordinador y evaluador pueden crear tareas (el evaluador solo con tag "certificacion"). */
+    public function puedeCrearTarea(): bool
+    {
+        return $this->esAdmin() || $this->esCoordinador() || $this->esEvaluador();
+    }
+
+    /** Solo el administrador y el coordinador pueden crear proyectos. */
+    public function puedeCrearProyecto(): bool
+    {
+        return $this->esCoordinador(); // esCoordinador() ya incluye al admin
+    }
+
+    /** El coordinador solo puede eliminar una tarea si no tiene subtareas; el admin siempre puede. */
+    public function puedeEliminarTarea(Task $task): bool
+    {
+        if ($this->esAdmin()) {
+            return true;
+        }
+
+        return $this->esCoordinador() && ! $task->subtareas()->exists();
+    }
+
+    /** Cualquier rol con acceso al proyecto puede crear subtareas. */
+    public function puedeCrearSubtarea(): bool
+    {
+        return $this->esAdmin() || $this->esCoordinador() || $this->esColaborador() || $this->esEvaluador();
+    }
+
+    public function puedeEliminarSubtarea(): bool
+    {
+        return $this->esAdmin();
+    }
+
+    public function puedeCrearComentario(): bool
+    {
+        return $this->esAdmin() || $this->esCoordinador() || $this->esColaborador() || $this->esEvaluador();
+    }
+
+    public function puedeEliminarComentario(): bool
+    {
+        return $this->esAdmin();
+    }
+
+    /** Solo el evaluador (o el admin) puede rechazar una tarea completada. */
+    public function puedeRechazarTarea(): bool
+    {
+        return $this->esAdmin() || $this->esEvaluador();
     }
 }

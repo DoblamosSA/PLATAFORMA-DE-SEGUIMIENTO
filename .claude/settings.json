@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node check-click.mjs)",
+      "Bash(node check-theme2.mjs)",
+      "Bash(curl -s http://127.0.0.1:8000/proyectos)",
+      "Bash(curl -s \"http://localhost:5174/resources/css/app.css\")",
+      "Bash(curl -s \"http://localhost:5174/resources/css/app.css\" -o /tmp/app.css)",
+      "Read(//tmp/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(python -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s \"http://localhost:5174/resources/css/app.css\" -o \"C:/Projects/PLATAFORMA-DE-SEGUIMIENTO/scratch-app.css\")",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\" //FO CSV)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 28816 //PID 25408 //PID 22400 //PID 15624)",
+      "Bash(curl -s -o /dev/null -w \"HTTP:%{http_code}\\\\n\" http://127.0.0.1:8000/login --max-time 8)",
+      "Read(//c/Users/D.DIAZ/AppData/Local/Temp/**)",
+      "Bash(node check-vars.mjs)",
+      "Bash(node check-colors.mjs)",
+      "Bash(find \"/c/Users/DE477~1.DIA/AppData/Local/Temp/claude/c--Projects-PLATAFORMA-DE-SEGUIMIENTO\" -type f -newermt \"-15 minutes\" 2>/dev/null | head -50)",
+      "Read(//c/Users/DE477~1.DIA/AppData/Local/Temp/claude/c--Projects-PLATAFORMA-DE-SEGUIMIENTO/**)",
+      "Read(//c/Users/DE477~1.DIA/AppData/Local/Temp/**)",
+      "Bash(xargs -r ls -lt)",
+      "Bash(find \"/c/Users/D.DIAZ\" -maxdepth 6 \\\\\\( -iname \"*.png\" -o -iname \"*.jpg\" -o -iname \"*.jpeg\" -o -iname \"*.webp\" \\\\\\) -newermt \"-5 minutes\" 2>/dev/null | grep -v \"AppData/Local/Microsoft\" | head -30)",
+      "Read(//c/Users/D.DIAZ/**)",
+      "Bash(awk '{print $5}')",
+      "Bash(xargs -r -I{} taskkill //F //PID {})",
+      "Bash(rm -f storage/logs/laravel.log)",
+      "Bash(curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt -d 'email=admin%40gestionti.local&password=password' -X POST http://127.0.0.1:8125/login)",
+      "Bash(curl -s -b /tmp/cookies.txt http://127.0.0.1:8125/dashboard)",
+      "Bash(grep -n '$this->' c:/Projects/PLATAFORMA-DE-SEGUIMIENTO/resources/views/livewire/dashboard.blade.php)",
+      "Bash(php test_dashboard.php)",
+      "Bash(grep '$this->' c:/Projects/PLATAFORMA-DE-SEGUIMIENTO/resources/views/livewire/tareas/form-tarea.blade.php)",
+      "Bash(xargs grep \"public function render\")",
+      "Bash(cd \"c:/Projects/PLATAFORMA-DE-SEGUIMIENTO\" && stat -c '%Y %n' public/build/manifest.json public/build/assets/* resources/js/app.js resources/css/app.css 2>/dev/null | sort -n)",
+      "Read(//c/Projects/PLATAFORMA-DE-SEGUIMIENTO/**)"
+    ]
+  }
+}

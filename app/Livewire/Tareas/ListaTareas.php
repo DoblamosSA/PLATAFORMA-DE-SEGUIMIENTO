@@ -44,8 +44,11 @@ class ListaTareas extends Component
     {
         $task = Task::findOrFail($taskId);
 
+        $u = Auth::user();
+        abort_unless($u && ($u->esCoordinador() || $task->asignado_id === $u->id), 403);
+
         $flujo = [
-            'pendiente'   => 'en_progreso',
+            'pendiente' => 'en_progreso',
             'en_progreso' => 'en_revision',
             'en_revision' => 'completada',
         ];
@@ -68,10 +71,23 @@ class ListaTareas extends Component
             $task->save();
         }
 
+        // Mantener la card en la columna que corresponde a su nuevo estado.
+        if ($task->project_id && $task->proyecto) {
+            $task->proyecto->asegurarColumnas();
+            $actual = $task->columna;
+            if (! $actual || $actual->estado !== $task->estado) {
+                if ($columna = $task->proyecto->columnaParaEstado($task->estado)) {
+                    $task->board_column_id = $columna->id;
+                    $task->posicion = (int) Task::where('board_column_id', $columna->id)->max('posicion') + 1;
+                    $task->save();
+                }
+            }
+        }
+
         TaskActivity::create([
             'task_id' => $task->id,
             'user_id' => Auth::id(),
-            'accion'  => 'cambio_estado',
+            'accion' => 'cambio_estado',
             'detalle' => "Estado: {$anterior} → {$siguiente}",
         ]);
 
@@ -82,18 +98,18 @@ class ListaTareas extends Component
     {
         $tareas = Task::query()
             ->with(['asignado', 'proyecto'])
-            ->when($this->buscar, fn ($q) =>
-                $q->where('titulo', 'like', "%{$this->buscar}%"))
+            ->visiblesPara(Auth::user())
+            ->when($this->buscar, fn ($q) => $q->where('titulo', 'like', "%{$this->buscar}%"))
             ->when($this->estado, fn ($q) => $q->where('estado', $this->estado))
             ->when($this->tipo, fn ($q) => $q->where('tipo', $this->tipo))
             ->when($this->asignado, fn ($q) => $q->where('asignado_id', $this->asignado))
             ->when($this->soloVencidas, fn ($q) => $q->vencidas())
-            ->orderByRaw("FIELD(estado, 'pendiente','en_progreso','en_revision','completada','cancelada')")
+            ->orderByRaw("CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_progreso' THEN 2 WHEN 'en_revision' THEN 3 WHEN 'completada' THEN 4 WHEN 'cancelada' THEN 5 ELSE 6 END")
             ->orderBy('fecha_limite')
             ->paginate(15);
 
         return view('livewire.tareas.lista-tareas', [
-            'tareas'   => $tareas,
+            'tareas' => $tareas,
             'empleados' => User::where('activo', true)->orderBy('name')->get(),
         ]);
     }

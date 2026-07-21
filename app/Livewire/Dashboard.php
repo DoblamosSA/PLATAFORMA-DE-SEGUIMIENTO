@@ -54,6 +54,8 @@ class Dashboard extends Component
                 ->orderBy('fecha_limite')
                 ->limit(6)
                 ->get(),
+            'periodos' => $this->periodos(),
+            'rango' => $this->rango,
         ]);
     }
 }

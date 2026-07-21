@@ -4,6 +4,8 @@ namespace App\Livewire\Proyectos;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Services\CapacidadService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -14,6 +16,8 @@ class VerProyecto extends Component
 
     public function mount(Project $project): void
     {
+        abort_unless($project->usuarioPuedeGestionar(Auth::user()), 403);
+
         $this->project = $project;
     }
 
@@ -24,21 +28,24 @@ class VerProyecto extends Component
      */
     private function cumplimientoEquipo(): array
     {
-        return $this->project->equipo->map(function ($u) {
+        $servicio = app(CapacidadService::class);
+
+        return $this->project->equipo->map(function ($u) use ($servicio) {
             $base = Task::where('project_id', $this->project->id)
                 ->where('asignado_id', $u->id);
 
             $completadas = (clone $base)->where('estado', 'completada')->count();
-            $aTiempo     = (clone $base)->where('estado', 'completada')->where('cumplida_a_tiempo', true)->count();
+            $aTiempo = (clone $base)->where('estado', 'completada')->where('cumplida_a_tiempo', true)->count();
 
             return [
-                'usuario'      => $u,
-                'total'        => (clone $base)->count(),
-                'completadas'  => $completadas,
-                'a_tiempo'     => $aTiempo,
-                'abiertas'     => (clone $base)->abiertas()->count(),
-                'vencidas'     => (clone $base)->vencidas()->count(),
+                'usuario' => $u,
+                'total' => (clone $base)->count(),
+                'completadas' => $completadas,
+                'a_tiempo' => $aTiempo,
+                'abiertas' => (clone $base)->abiertas()->count(),
+                'vencidas' => (clone $base)->vencidas()->count(),
                 'cumplimiento' => $completadas > 0 ? round(($aTiempo / $completadas) * 100, 1) : null,
+                'carga' => $servicio->cargaSemanaActual($u),
             ];
         })->all();
     }
@@ -49,10 +56,10 @@ class VerProyecto extends Component
 
         return view('livewire.proyectos.ver-proyecto', [
             'metricas' => $this->project->metricasCumplimiento(),
-            'equipo'   => $this->cumplimientoEquipo(),
-            'tareas'   => Task::where('project_id', $this->project->id)
+            'equipo' => $this->cumplimientoEquipo(),
+            'tareas' => Task::where('project_id', $this->project->id)
                 ->with('asignado')
-                ->orderByRaw("FIELD(estado, 'pendiente','en_progreso','en_revision','completada','cancelada')")
+                ->orderByRaw("CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_progreso' THEN 2 WHEN 'en_revision' THEN 3 WHEN 'completada' THEN 4 WHEN 'cancelada' THEN 5 ELSE 6 END")
                 ->orderBy('fecha_limite')
                 ->get(),
         ]);

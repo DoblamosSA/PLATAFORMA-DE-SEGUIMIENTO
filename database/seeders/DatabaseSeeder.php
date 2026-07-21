@@ -26,9 +26,9 @@ class DatabaseSeeder extends Seeder
     {
         $matriz = [
             // tipo            critica  alta  media  baja
-            'soporte'        => [4,     8,    24,   72],
-            'software'       => [8,     24,   72,   160],
-            'infraestructura'=> [2,     6,    24,   72],
+            'soporte' => [4,     8,    24,   72],
+            'software' => [8,     24,   72,   160],
+            'infraestructura' => [2,     6,    24,   72],
         ];
 
         $prioridades = ['critica', 'alta', 'media', 'baja'];
@@ -48,49 +48,71 @@ class DatabaseSeeder extends Seeder
      */
     private function seedUsuarios(): array
     {
+        $diasCompletos = ['L', 'M', 'X', 'J', 'V'];
+
         $admin = User::updateOrCreate(
             ['email' => 'admin@gestionti.local'],
             [
-                'name'     => 'Administrador TI',
+                'name' => 'Administrador TI',
                 'password' => Hash::make('password'),
-                'rol'      => 'admin',
-                'area'     => 'general',
-                'cargo'    => 'Director de TI',
-                'activo'   => true,
+                'rol' => 'admin',
+                'area' => 'general',
+                'cargo' => 'Director de TI',
+                'activo' => true,
+                'dias_laborales' => $diasCompletos,
+                'horas_diarias' => 8,
             ],
         );
 
         $lider = User::updateOrCreate(
             ['email' => 'lider.software@gestionti.local'],
             [
-                'name'     => 'Laura Gomez',
+                'name' => 'Laura Gomez',
                 'password' => Hash::make('password'),
-                'rol'      => 'lider',
-                'area'     => 'software',
-                'cargo'    => 'Lider de Desarrollo',
-                'activo'   => true,
+                'rol' => 'lider',
+                'area' => 'software',
+                'cargo' => 'Coordinador de Desarrollo',
+                'activo' => true,
+                'dias_laborales' => $diasCompletos,
+                'horas_diarias' => 8,
+            ],
+        );
+
+        $evaluador = User::updateOrCreate(
+            ['email' => 'evaluador@gestionti.local'],
+            [
+                'name' => 'Elena Vargas',
+                'password' => Hash::make('password'),
+                'rol' => 'evaluador',
+                'area' => 'general',
+                'cargo' => 'Evaluadora de Certificación',
+                'activo' => true,
+                'dias_laborales' => $diasCompletos,
+                'horas_diarias' => 6,
             ],
         );
 
         $tecnicos = [
-            ['Carlos Ruiz', 'carlos@gestionti.local', 'software'],
-            ['Ana Torres', 'ana@gestionti.local', 'soporte'],
-            ['Miguel Diaz', 'miguel@gestionti.local', 'infraestructura'],
-            ['Sofia Leon', 'sofia@gestionti.local', 'soporte'],
+            ['Carlos Ruiz', 'carlos@gestionti.local', 'software', 8],
+            ['Ana Torres', 'ana@gestionti.local', 'soporte', 8],
+            ['Miguel Diaz', 'miguel@gestionti.local', 'infraestructura', 6],
+            ['Sofia Leon', 'sofia@gestionti.local', 'soporte', 8],
         ];
 
-        $creados = ['admin' => $admin, 'lider' => $lider];
+        $creados = ['admin' => $admin, 'lider' => $lider, 'evaluador' => $evaluador];
 
-        foreach ($tecnicos as [$nombre, $email, $area]) {
+        foreach ($tecnicos as [$nombre, $email, $area, $horas]) {
             $creados[$email] = User::updateOrCreate(
                 ['email' => $email],
                 [
-                    'name'     => $nombre,
+                    'name' => $nombre,
                     'password' => Hash::make('password'),
-                    'rol'      => 'tecnico',
-                    'area'     => $area,
-                    'cargo'    => 'Tecnico de ' . ucfirst($area),
-                    'activo'   => true,
+                    'rol' => 'tecnico',
+                    'area' => $area,
+                    'cargo' => 'Colaborador de '.ucfirst($area),
+                    'activo' => true,
+                    'dias_laborales' => $diasCompletos,
+                    'horas_diarias' => $horas,
                 ],
             );
         }
@@ -101,7 +123,7 @@ class DatabaseSeeder extends Seeder
     /**
      * Proyectos y tareas de ejemplo con distintos estados de cumplimiento.
      *
-     * @param array<string, User> $usuarios
+     * @param  array<string, User>  $usuarios
      */
     private function seedDemo(array $usuarios): void
     {
@@ -121,13 +143,13 @@ class DatabaseSeeder extends Seeder
 
         foreach ($proyectos as [$nombre, $tipo, $estado, $prioridad]) {
             $proyecto = Project::create([
-                'nombre'             => $nombre,
-                'descripcion'        => 'Proyecto de ejemplo generado por el seeder.',
-                'tipo'               => $tipo,
-                'estado'             => $estado,
-                'prioridad'          => $prioridad,
-                'responsable_id'     => $lider->id,
-                'fecha_inicio'       => now()->subDays(20),
+                'nombre' => $nombre,
+                'descripcion' => 'Proyecto de ejemplo generado por el seeder.',
+                'tipo' => $tipo,
+                'estado' => $estado,
+                'prioridad' => $prioridad,
+                'responsable_id' => $lider->id,
+                'fecha_inicio' => now()->subDays(20),
                 'fecha_fin_estimada' => now()->addDays(40),
             ]);
 
@@ -141,6 +163,9 @@ class DatabaseSeeder extends Seeder
             $this->crearTarea($proyecto, $tipo, 'alta', 'pendiente', $tecnicos, $admin, diasAtras: 6, vencidaAbierta: true);
 
             $proyecto->recalcularProgreso();
+
+            // Crear el tablero Kanban y ubicar las tareas por su estado
+            $proyecto->asegurarColumnas();
         }
     }
 
@@ -159,14 +184,14 @@ class DatabaseSeeder extends Seeder
         $fechaAsignacion = now()->subDays($diasAtras);
 
         $task = new Task([
-            'project_id'       => $proyecto->id,
-            'titulo'           => 'Actividad ' . fake()->words(3, true),
-            'descripcion'      => fake()->sentence(10),
-            'tipo'             => $tipo,
-            'prioridad'        => $prioridad,
-            'estado'           => $estado,
-            'asignado_id'      => $asignado->id,
-            'creado_por'       => $creador->id,
+            'project_id' => $proyecto->id,
+            'titulo' => 'Actividad '.fake()->words(3, true),
+            'descripcion' => fake()->sentence(10),
+            'tipo' => $tipo,
+            'prioridad' => $prioridad,
+            'estado' => $estado,
+            'asignado_id' => $asignado->id,
+            'creado_por' => $creador->id,
             'fecha_asignacion' => $fechaAsignacion,
         ]);
         $task->aplicarSla();
@@ -192,8 +217,8 @@ class DatabaseSeeder extends Seeder
         TaskActivity::create([
             'task_id' => $task->id,
             'user_id' => $creador->id,
-            'accion'  => 'creacion',
-            'detalle' => 'Tarea creada y asignada a ' . $asignado->name,
+            'accion' => 'creacion',
+            'detalle' => 'Tarea creada y asignada a '.$asignado->name,
         ]);
     }
 }
