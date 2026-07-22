@@ -1,6 +1,8 @@
 <?php
 
+use App\Domain\Organization\Services\RoleContextService;
 use App\Livewire\Forms\LoginForm;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -12,13 +14,19 @@ new #[Layout('layouts.guest')] class extends Component
     /**
      * Handle an incoming authentication request.
      */
-    public function login(): void
+    public function login(RoleContextService $roleContext): void
     {
         $this->validate();
 
         $this->form->authenticate();
 
         Session::regenerate();
+
+        if ($roleContext->hasChoice(Auth::user())) {
+            $this->redirect(route('role.choose', absolute: false), navigate: true);
+
+            return;
+        }
 
         $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
     }

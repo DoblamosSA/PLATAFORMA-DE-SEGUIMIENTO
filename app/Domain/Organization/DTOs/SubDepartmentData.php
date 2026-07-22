@@ -12,6 +12,8 @@ final readonly class SubDepartmentData
         public string $nombre,
         public string $slug,
         public ?string $descripcion,
+        public string $icono = 'sitemap',
+        public string $color = 'slate',
         public bool $activo = true,
     ) {}
 
@@ -23,6 +25,8 @@ final readonly class SubDepartmentData
             nombre: $subDepartment->nombre,
             slug: $subDepartment->slug,
             descripcion: $subDepartment->descripcion,
+            icono: $subDepartment->icono,
+            color: $subDepartment->color,
             activo: $subDepartment->activo,
         );
     }
@@ -35,6 +39,8 @@ final readonly class SubDepartmentData
             'nombre' => $this->nombre,
             'slug' => $this->slug,
             'descripcion' => $this->descripcion,
+            'icono' => $this->icono,
+            'color' => $this->color,
             'activo' => $this->activo,
         ];
     }

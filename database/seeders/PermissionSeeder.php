@@ -30,6 +30,16 @@ class PermissionSeeder extends Seeder
             ['slug' => 'subdepartments.edit', 'nombre' => 'Editar subdepartamentos', 'grupo' => 'subdepartments'],
             ['slug' => 'subdepartments.delete', 'nombre' => 'Eliminar subdepartamentos', 'grupo' => 'subdepartments'],
 
+            ['slug' => 'tasks.view', 'nombre' => 'Ver tareas', 'grupo' => 'tasks'],
+            ['slug' => 'tasks.create', 'nombre' => 'Crear tareas', 'grupo' => 'tasks'],
+            ['slug' => 'tasks.edit', 'nombre' => 'Editar tareas', 'grupo' => 'tasks'],
+            ['slug' => 'tasks.delete', 'nombre' => 'Eliminar tareas', 'grupo' => 'tasks'],
+
+            ['slug' => 'subtasks.view', 'nombre' => 'Ver subtareas', 'grupo' => 'subtasks'],
+            ['slug' => 'subtasks.create', 'nombre' => 'Crear subtareas', 'grupo' => 'subtasks'],
+            ['slug' => 'subtasks.edit', 'nombre' => 'Editar subtareas', 'grupo' => 'subtasks'],
+            ['slug' => 'subtasks.delete', 'nombre' => 'Eliminar subtareas', 'grupo' => 'subtasks'],
+
             ['slug' => 'roles.view', 'nombre' => 'Ver roles', 'grupo' => 'roles'],
             ['slug' => 'roles.create', 'nombre' => 'Crear roles', 'grupo' => 'roles'],
             ['slug' => 'roles.edit', 'nombre' => 'Editar roles', 'grupo' => 'roles'],

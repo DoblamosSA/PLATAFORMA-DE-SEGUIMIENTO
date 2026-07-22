@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Organization\Models\Department;
+use App\Domain\Organization\Models\SubDepartment;
 use App\Models\Project;
 use App\Models\SlaPolicy;
 use App\Models\Task;
@@ -15,19 +17,59 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([PermissionSeeder::class, RoleSeeder::class]);
-        $this->seedSlaPolicies();
+        $subDepartamentos = $this->seedSubDepartamentos();
+        $this->seedSlaPolicies($subDepartamentos);
         $usuarios = $this->seedUsuarios();
         $this->call(SuperAdminBackfillSeeder::class);
-        $this->seedDemo($usuarios);
+        $this->seedDemo($usuarios, $subDepartamentos);
     }
 
     /**
-     * Matriz de SLA (horas de resolucion) por tipo y prioridad.
+     * Departamento "Tecnologia" con sus subdepartamentos base (software,
+     * soporte, infraestructura), usados por proyectos/tareas/SLA.
+     *
+     * @return array<string, SubDepartment>
      */
-    private function seedSlaPolicies(): void
+    private function seedSubDepartamentos(): array
+    {
+        $departamento = Department::firstOrCreate(
+            ['slug' => 'tecnologia'],
+            ['nombre' => 'Tecnología', 'descripcion' => null, 'activo' => true],
+        );
+
+        $subs = [
+            'software' => ['nombre' => 'Software', 'icono' => 'code', 'color' => 'indigo'],
+            'soporte' => ['nombre' => 'Soporte', 'icono' => 'support', 'color' => 'teal'],
+            'infraestructura' => ['nombre' => 'Infraestructura', 'icono' => 'server', 'color' => 'cyan'],
+        ];
+
+        $creados = [];
+
+        foreach ($subs as $slug => $meta) {
+            $creados[$slug] = SubDepartment::firstOrCreate(
+                ['department_id' => $departamento->id, 'slug' => $slug],
+                [
+                    'nombre' => $meta['nombre'],
+                    'descripcion' => null,
+                    'icono' => $meta['icono'],
+                    'color' => $meta['color'],
+                    'activo' => true,
+                ],
+            );
+        }
+
+        return $creados;
+    }
+
+    /**
+     * Matriz de SLA (horas de resolucion) por subdepartamento y prioridad.
+     *
+     * @param  array<string, SubDepartment>  $subDepartamentos
+     */
+    private function seedSlaPolicies(array $subDepartamentos): void
     {
         $matriz = [
-            // tipo            critica  alta  media  baja
+            // subdepartamento  critica  alta  media  baja
             'soporte' => [4,     8,    24,   72],
             'software' => [8,     24,   72,   160],
             'infraestructura' => [2,     6,    24,   72],
@@ -35,10 +77,10 @@ class DatabaseSeeder extends Seeder
 
         $prioridades = ['critica', 'alta', 'media', 'baja'];
 
-        foreach ($matriz as $tipo => $horas) {
+        foreach ($matriz as $slug => $horas) {
             foreach ($prioridades as $i => $prioridad) {
                 SlaPolicy::updateOrCreate(
-                    ['tipo' => $tipo, 'prioridad' => $prioridad],
+                    ['sub_department_id' => $subDepartamentos[$slug]->id, 'prioridad' => $prioridad],
                     ['horas_resolucion' => $horas[$i], 'activo' => true],
                 );
             }
@@ -126,8 +168,9 @@ class DatabaseSeeder extends Seeder
      * Proyectos y tareas de ejemplo con distintos estados de cumplimiento.
      *
      * @param  array<string, User>  $usuarios
+     * @param  array<string, SubDepartment>  $subDepartamentos
      */
-    private function seedDemo(array $usuarios): void
+    private function seedDemo(array $usuarios, array $subDepartamentos): void
     {
         if (Project::exists()) {
             return; // no duplicar demo en re-seed
@@ -143,11 +186,13 @@ class DatabaseSeeder extends Seeder
             ['Mesa de Ayuda 2026', 'soporte', 'planeado', 'media'],
         ];
 
-        foreach ($proyectos as [$nombre, $tipo, $estado, $prioridad]) {
+        foreach ($proyectos as [$nombre, $slug, $estado, $prioridad]) {
+            $subDepartmentId = $subDepartamentos[$slug]->id;
+
             $proyecto = Project::create([
                 'nombre' => $nombre,
                 'descripcion' => 'Proyecto de ejemplo generado por el seeder.',
-                'tipo' => $tipo,
+                'sub_department_id' => $subDepartmentId,
                 'estado' => $estado,
                 'prioridad' => $prioridad,
                 'responsable_id' => $lider->id,
@@ -159,10 +204,10 @@ class DatabaseSeeder extends Seeder
             $proyecto->equipo()->sync($tecnicos->pluck('id'));
 
             // Tareas: mezcla de a tiempo, vencidas y abiertas
-            $this->crearTarea($proyecto, $tipo, 'alta', 'completada', $tecnicos, $admin, aTiempo: true, diasAtras: 10);
-            $this->crearTarea($proyecto, $tipo, 'critica', 'completada', $tecnicos, $admin, aTiempo: false, diasAtras: 8);
-            $this->crearTarea($proyecto, $tipo, 'media', 'en_progreso', $tecnicos, $admin, diasAtras: 2);
-            $this->crearTarea($proyecto, $tipo, 'alta', 'pendiente', $tecnicos, $admin, diasAtras: 6, vencidaAbierta: true);
+            $this->crearTarea($proyecto, $subDepartmentId, 'alta', 'completada', $tecnicos, $admin, aTiempo: true, diasAtras: 10);
+            $this->crearTarea($proyecto, $subDepartmentId, 'critica', 'completada', $tecnicos, $admin, aTiempo: false, diasAtras: 8);
+            $this->crearTarea($proyecto, $subDepartmentId, 'media', 'en_progreso', $tecnicos, $admin, diasAtras: 2);
+            $this->crearTarea($proyecto, $subDepartmentId, 'alta', 'pendiente', $tecnicos, $admin, diasAtras: 6, vencidaAbierta: true);
 
             $proyecto->recalcularProgreso();
 
@@ -173,7 +218,7 @@ class DatabaseSeeder extends Seeder
 
     private function crearTarea(
         Project $proyecto,
-        string $tipo,
+        int $subDepartmentId,
         string $prioridad,
         string $estado,
         $tecnicos,
@@ -189,7 +234,7 @@ class DatabaseSeeder extends Seeder
             'project_id' => $proyecto->id,
             'titulo' => 'Actividad '.fake()->words(3, true),
             'descripcion' => fake()->sentence(10),
-            'tipo' => $tipo,
+            'sub_department_id' => $subDepartmentId,
             'prioridad' => $prioridad,
             'estado' => $estado,
             'asignado_id' => $asignado->id,

@@ -49,6 +49,32 @@ class ListaColaboradores extends Component
         );
     }
 
+    public function eliminar(int $userId): void
+    {
+        abort_unless(Auth::user()?->esAdmin(), 403);
+
+        if ($userId === Auth::id()) {
+            session()->flash('error', 'No puedes eliminar tu propia cuenta.');
+
+            return;
+        }
+
+        $colaborador = User::findOrFail($userId);
+
+        if ($colaborador->esSuperAdmin()) {
+            session()->flash('error', 'No puedes eliminar una cuenta de Super Administrador.');
+
+            return;
+        }
+
+        $nombre = $colaborador->name;
+        $colaborador->delete();
+
+        AuditLog::registrar('colaborador_eliminado', $colaborador, "Colaborador {$nombre} eliminado.");
+
+        session()->flash('ok', 'Colaborador eliminado.');
+    }
+
     public function render()
     {
         $servicio = app(CapacidadService::class);

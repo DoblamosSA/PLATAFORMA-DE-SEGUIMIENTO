@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Tareas;
 
+use App\Domain\Organization\Models\SubDepartment;
 use App\Models\AuditLog;
 use App\Models\Project;
 use App\Models\SlaPolicy;
@@ -29,7 +30,7 @@ class FormTarea extends Component
 
     public string $descripcion = '';
 
-    public string $tipo = 'soporte';
+    public string $sub_department_id = '';
 
     public string $prioridad = 'media';
 
@@ -57,7 +58,7 @@ class FormTarea extends Component
             $this->project_id = $task->project_id;
             $this->titulo = $task->titulo;
             $this->descripcion = $task->descripcion ?? '';
-            $this->tipo = $task->tipo;
+            $this->sub_department_id = (string) $task->sub_department_id;
             $this->prioridad = $task->prioridad;
             $this->estado = $task->estado;
             $this->asignado_id = $task->asignado_id;
@@ -66,11 +67,11 @@ class FormTarea extends Component
             $this->tag = $task->tag ?? '';
         }
 
-        // Si se crea desde un proyecto, heredar su tipo por defecto
+        // Si se crea desde un proyecto, heredar su subdepartamento por defecto
         if (! $task?->exists && $this->project_id) {
             $proyecto = Project::find($this->project_id);
             if ($proyecto) {
-                $this->tipo = $proyecto->tipo;
+                $this->sub_department_id = (string) $proyecto->sub_department_id;
             }
         }
 
@@ -127,7 +128,7 @@ class FormTarea extends Component
         return [
             'titulo' => 'required|string|min:3|max:255',
             'descripcion' => 'nullable|string',
-            'tipo' => 'required|in:software,soporte,infraestructura',
+            'sub_department_id' => 'required|exists:sub_departments,id',
             'prioridad' => 'required|in:baja,media,alta,critica',
             'estado' => 'required|in:pendiente,en_progreso,en_revision,completada,cancelada,rechazada',
             'project_id' => 'nullable|exists:projects,id',
@@ -138,11 +139,11 @@ class FormTarea extends Component
     }
 
     /**
-     * Vista previa de las horas de SLA segun tipo/prioridad actuales.
+     * Vista previa de las horas de SLA segun subdepartamento/prioridad actuales.
      */
     public function getSlaHorasProperty(): int
     {
-        return SlaPolicy::horasPara($this->tipo, $this->prioridad);
+        return SlaPolicy::horasPara($this->sub_department_id !== '' ? (int) $this->sub_department_id : null, $this->prioridad);
     }
 
     /** Solo el administrador puede modificar manualmente la fecha limite. */
@@ -190,9 +191,11 @@ class FormTarea extends Component
 
         $nombre = $this->task->titulo;
         $proyectoId = $this->task->project_id;
+        $proyecto = $this->task->proyecto;
 
         AuditLog::registrar('tarea_eliminada', null, "Tarea eliminada: {$nombre}");
         $this->task->delete();
+        $proyecto?->recalcularProgreso();
 
         session()->flash('ok', 'Tarea eliminada.');
 
@@ -298,13 +301,13 @@ class FormTarea extends Component
             'prioridad' => $task->prioridad,
             'fecha_limite' => $task->fecha_limite,
         ];
-        $tipoOPrioridadCambio = $task->tipo !== $this->tipo || $task->prioridad !== $this->prioridad;
+        $tipoOPrioridadCambio = (string) $task->sub_department_id !== $this->sub_department_id || $task->prioridad !== $this->prioridad;
 
         $task->fill([
             'project_id' => $this->project_id,
             'titulo' => $this->titulo,
             'descripcion' => $this->descripcion,
-            'tipo' => $this->tipo,
+            'sub_department_id' => $this->sub_department_id,
             'prioridad' => $this->prioridad,
             'estado' => $this->estado,
             'asignado_id' => $this->asignado_id,
@@ -434,6 +437,7 @@ class FormTarea extends Component
         return view('livewire.tareas.form-tarea', [
             'proyectos' => Project::orderBy('nombre')->get(),
             'empleados' => $empleados,
+            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
             'bitacora' => $this->task?->actividades()->with('user')->limit(20)->get() ?? collect(),
             'slaHoras' => $this->slaHoras,
             'esAdmin' => $this->esAdmin,

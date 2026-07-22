@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Proyectos;
 
+use App\Models\AuditLog;
 use App\Models\Project;
 use App\Models\Task;
 use App\Services\CapacidadService;
@@ -50,9 +51,23 @@ class VerProyecto extends Component
         })->all();
     }
 
+    public function eliminar()
+    {
+        abort_unless(Auth::user()?->esSuperAdmin(), 403);
+
+        $nombre = $this->project->nombre;
+
+        AuditLog::registrar('proyecto_eliminado', null, "Proyecto eliminado: {$nombre}");
+        $this->project->delete();
+
+        session()->flash('ok', 'Proyecto eliminado.');
+
+        return $this->redirect(route('proyectos'), navigate: true);
+    }
+
     public function render()
     {
-        $this->project->load('equipo', 'responsable');
+        $this->project->load('equipo', 'responsable', 'subDepartamento');
 
         return view('livewire.proyectos.ver-proyecto', [
             'metricas' => $this->project->metricasCumplimiento(),

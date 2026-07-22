@@ -43,21 +43,20 @@
                             </td>
                             <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300">{{ $r->parent->nombre ?? '—' }}</td>
                             <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300">{{ $r->department->nombre ?? '—' }}</td>
-                            <td class="py-2.5 px-5 text-right space-x-3">
-                                @if ($r->is_primary)
-                                    <a href="{{ route('roles.editar', $r) }}" wire:navigate
-                                       class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Ver permisos</a>
-                                @else
-                                    <a href="{{ route('roles.editar', $r) }}" wire:navigate
-                                       class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Editar</a>
-                                    <button wire:click="duplicar({{ $r->id }})"
-                                            class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:underline">Duplicar</button>
-                                    @if ($r->is_deletable)
-                                        <button wire:click="eliminar({{ $r->id }})"
-                                                wire:confirm="¿Eliminar el rol &quot;{{ $r->nombre }}&quot;? Esta acción no se puede deshacer."
-                                                class="text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline">Eliminar</button>
+                            <td class="py-2.5 px-5 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    @if ($r->is_primary)
+                                        <x-row-action variant="ver" :href="route('roles.editar', $r)" label="Ver permisos de {{ $r->nombre }}" />
+                                    @else
+                                        <x-row-action variant="editar" :href="route('roles.editar', $r)" label="Editar {{ $r->nombre }}" />
+                                        <x-row-action variant="duplicar" wire:click="duplicar({{ $r->id }})" label="Duplicar {{ $r->nombre }}" />
+                                        @if ($r->is_deletable)
+                                            <x-row-action variant="eliminar" wire:click="eliminar({{ $r->id }})"
+                                                          :confirm="'¿Eliminar el rol &quot;'.$r->nombre.'&quot;? Esta acción no se puede deshacer.'"
+                                                          label="Eliminar {{ $r->nombre }}" />
+                                        @endif
                                     @endif
-                                @endif
+                                </div>
                             </td>
                         </tr>
                     @empty

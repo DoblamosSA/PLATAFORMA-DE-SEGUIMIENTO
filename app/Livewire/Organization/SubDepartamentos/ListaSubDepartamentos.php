@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Organization\SubDepartamentos;
 
+use App\Domain\Organization\Exceptions\SubDepartmentNotDeletableException;
 use App\Domain\Organization\Models\Department;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Services\SubDepartmentService;
@@ -36,7 +37,13 @@ class ListaSubDepartamentos extends Component
         $subDepartment = SubDepartment::findOrFail($subDepartmentId);
         $this->authorize('delete', $subDepartment);
 
-        app(SubDepartmentService::class)->delete($subDepartment);
+        try {
+            app(SubDepartmentService::class)->delete($subDepartment);
+        } catch (SubDepartmentNotDeletableException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
+        }
 
         session()->flash('ok', 'Subdepartamento eliminado.');
     }

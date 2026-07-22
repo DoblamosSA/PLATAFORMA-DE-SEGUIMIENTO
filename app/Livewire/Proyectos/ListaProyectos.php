@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Proyectos;
 
+use App\Domain\Organization\Models\SubDepartment;
 use App\Models\Project;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -18,7 +19,7 @@ class ListaProyectos extends Component
     public string $buscar = '';
 
     #[Url]
-    public string $tipo = '';
+    public string $sub_department_id = '';
 
     #[Url]
     public string $estado = '';
@@ -28,28 +29,28 @@ class ListaProyectos extends Component
         $this->resetPage();
     }
 
-    /** Selecciona/deselecciona el filtro por area al pulsar una tarjeta. */
-    public function toggleArea(string $tipo): void
+    /** Selecciona/deselecciona el filtro por subdepartamento al pulsar una tarjeta. */
+    public function toggleSubDepartamento(int $subDepartmentId): void
     {
-        $this->tipo = $this->tipo === $tipo ? '' : $tipo;
+        $this->sub_department_id = $this->sub_department_id === (string) $subDepartmentId ? '' : (string) $subDepartmentId;
         $this->resetPage();
     }
 
     /**
-     * Conteo de proyectos por area (tipo), con desglose activos/completados.
+     * Conteo de proyectos por subdepartamento, con desglose activos/completados.
      *
      * @return array<int, array<string, mixed>>
      */
     private function resumenAreas(): array
     {
-        $totales      = Project::selectRaw('tipo, COUNT(*) as c')->groupBy('tipo')->pluck('c', 'tipo');
-        $completados  = Project::where('estado', 'completado')->selectRaw('tipo, COUNT(*) as c')->groupBy('tipo')->pluck('c', 'tipo');
+        $totales      = Project::selectRaw('sub_department_id, COUNT(*) as c')->groupBy('sub_department_id')->pluck('c', 'sub_department_id');
+        $completados  = Project::where('estado', 'completado')->selectRaw('sub_department_id, COUNT(*) as c')->groupBy('sub_department_id')->pluck('c', 'sub_department_id');
 
-        return collect(['software', 'soporte', 'infraestructura'])->map(fn ($t) => [
-            'tipo'        => $t,
-            'total'       => (int) ($totales[$t] ?? 0),
-            'completados' => (int) ($completados[$t] ?? 0),
-            'activos'     => (int) ($totales[$t] ?? 0) - (int) ($completados[$t] ?? 0),
+        return SubDepartment::where('activo', true)->orderBy('nombre')->get()->map(fn (SubDepartment $sd) => [
+            'subdepartamento' => $sd,
+            'total'       => (int) ($totales[$sd->id] ?? 0),
+            'completados' => (int) ($completados[$sd->id] ?? 0),
+            'activos'     => (int) ($totales[$sd->id] ?? 0) - (int) ($completados[$sd->id] ?? 0),
         ])->all();
     }
 
@@ -66,10 +67,10 @@ class ListaProyectos extends Component
                     ->whereBetween('fecha_limite', [now(), now()->addDays(Project::DIAS_ALERTA_VENCIMIENTO)]),
                 'tareas as tareas_ejecutadas_count' => fn ($q) => $q->whereIn('estado', ['en_progreso', 'en_revision', 'completada']),
             ])
-            ->with('responsable')
+            ->with(['responsable', 'subDepartamento'])
             ->visiblesPara(Auth::user())
             ->when($this->buscar, fn ($q) => $q->where('nombre', 'like', "%{$this->buscar}%"))
-            ->when($this->tipo, fn ($q) => $q->where('tipo', $this->tipo))
+            ->when($this->sub_department_id, fn ($q) => $q->where('sub_department_id', $this->sub_department_id))
             ->when($this->estado, fn ($q) => $q->where('estado', $this->estado))
             ->latest()
             ->paginate(12);
@@ -78,6 +79,7 @@ class ListaProyectos extends Component
             'proyectos'    => $proyectos,
             'resumenAreas' => $this->resumenAreas(),
             'totalProyectos' => Project::count(),
+            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
         ]);
     }
 }

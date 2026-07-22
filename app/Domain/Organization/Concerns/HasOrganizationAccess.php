@@ -6,6 +6,7 @@ use App\Domain\Organization\Models\Department;
 use App\Domain\Organization\Models\Role;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Services\PermissionResolutionService;
+use App\Domain\Organization\Services\RoleContextService;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
@@ -46,6 +47,12 @@ trait HasOrganizationAccess
 
     public function esSuperAdmin(): bool
     {
+        $context = app(RoleContextService::class);
+
+        if ($context->active($this) !== null) {
+            return $context->activeIsSuperAdmin($this);
+        }
+
         if (method_exists($this, 'esAdmin') && $this->esAdmin()) {
             return true;
         }
@@ -55,6 +62,9 @@ trait HasOrganizationAccess
 
     public function hasPermission(string $permissionSlug): bool
     {
-        return app(PermissionResolutionService::class)->userHasPermission($this, $permissionSlug);
+        $active = app(RoleContextService::class)->active($this);
+        $scopeTo = $active && $active['role_id'] ? Role::find($active['role_id']) : null;
+
+        return app(PermissionResolutionService::class)->userHasPermission($this, $permissionSlug, $scopeTo);
     }
 }

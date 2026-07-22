@@ -21,6 +21,8 @@ interface SubDepartmentRepositoryInterface
 
     public function delete(SubDepartment $subDepartment): void;
 
+    public function forceDelete(SubDepartment $subDepartment): void;
+
     public function attachUser(SubDepartment $subDepartment, User $user): void;
 
     public function detachUser(SubDepartment $subDepartment, User $user): void;

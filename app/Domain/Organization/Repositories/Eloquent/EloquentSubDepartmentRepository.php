@@ -38,6 +38,11 @@ class EloquentSubDepartmentRepository implements SubDepartmentRepositoryInterfac
         $subDepartment->delete();
     }
 
+    public function forceDelete(SubDepartment $subDepartment): void
+    {
+        $subDepartment->forceDelete();
+    }
+
     public function attachUser(SubDepartment $subDepartment, User $user): void
     {
         $subDepartment->users()->syncWithoutDetaching([$user->id]);

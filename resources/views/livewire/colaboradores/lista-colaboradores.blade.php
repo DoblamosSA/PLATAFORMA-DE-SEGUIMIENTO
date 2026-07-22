@@ -12,6 +12,9 @@
     @if (session('ok'))
         <div class="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{{ session('ok') }}</div>
     @endif
+    @if (session('error'))
+        <div class="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">{{ session('error') }}</div>
+    @endif
 
     {{-- Filtros --}}
     <x-card>
@@ -82,10 +85,14 @@
                                 </button>
                             </td>
                             <td class="py-2.5 px-5 text-right">
-                                <a href="{{ route('colaboradores.editar', $c) }}" wire:navigate
-                                   class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded">
-                                    Editar
-                                </a>
+                                <div class="flex items-center justify-end gap-1">
+                                    <x-row-action variant="editar" :href="route('colaboradores.editar', $c)" label="Editar {{ $c->name }}" />
+                                    @if ($c->id !== auth()->id() && ! $c->esSuperAdmin())
+                                        <x-row-action variant="eliminar" wire:click="eliminar({{ $c->id }})"
+                                                      :confirm="'¿Eliminar a &quot;'.$c->name.'&quot;? Esta acción no se puede deshacer.'"
+                                                      label="Eliminar {{ $c->name }}" />
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty

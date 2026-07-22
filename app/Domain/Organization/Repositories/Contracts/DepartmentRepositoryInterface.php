@@ -23,6 +23,8 @@ interface DepartmentRepositoryInterface
 
     public function delete(Department $department): void;
 
+    public function forceDelete(Department $department): void;
+
     public function attachUser(Department $department, User $user, ?Role $role, bool $esPrincipal = false): void;
 
     public function detachUser(Department $department, User $user): void;

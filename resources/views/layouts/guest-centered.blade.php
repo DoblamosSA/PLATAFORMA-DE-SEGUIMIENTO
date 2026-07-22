@@ -21,27 +21,15 @@
         <meta name="theme-color" content="#2563eb">
         <link rel="apple-touch-icon" href="/icons/icon-192.png">
         <link rel="icon" type="image/png" href="/icons/icon-192.png">
-        @if (config('services.webpush.public_key'))
-            <meta name="vapid-public-key" content="{{ config('services.webpush.public_key') }}">
-        @endif
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="h-full font-sans antialiased text-slate-700 dark:text-slate-300">
-        <div class="min-h-full bg-slate-100/80 dark:bg-slate-950"
-             style="background-image: radial-gradient(60rem 60rem at 110% -10%, rgba(59,130,246,0.08), transparent 60%), radial-gradient(50rem 50rem at -10% 110%, rgba(14,165,233,0.07), transparent 55%);">
-
-            {{-- Sidebar + barra movil (componente Livewire con logout) --}}
-            <livewire:layout.navigation />
-
-            {{-- Contenido --}}
-            <div class="lg:pl-64">
-                <main id="main-content" class="min-h-screen page-enter">
-                    {{ $slot }}
-                </main>
+    <body class="h-full font-sans antialiased">
+        <div class="min-h-full flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12 page-enter"
+             style="background-image: radial-gradient(50rem 50rem at 50% 0%, rgba(59,130,246,0.10), transparent 60%);">
+            <div class="w-full max-w-4xl anim-fade-up">
+                {{ $slot }}
             </div>
-
-            <x-confirm-modal />
         </div>
     </body>
 </html>

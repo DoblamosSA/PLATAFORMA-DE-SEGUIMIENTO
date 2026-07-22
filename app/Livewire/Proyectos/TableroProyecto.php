@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Proyectos;
 
+use App\Domain\Organization\Models\SubDepartment;
 use App\Models\BoardColumn;
 use App\Models\Project;
 use App\Models\Task;
@@ -54,7 +55,7 @@ class TableroProyecto extends Component
 
     public string $edDescripcion = '';
 
-    public string $edTipo = 'soporte';
+    public string $edSubDepartmentId = '';
 
     public string $edPrioridad = 'media';
 
@@ -289,7 +290,7 @@ class TableroProyecto extends Component
 
         $this->edTitulo = $task->titulo;
         $this->edDescripcion = $task->descripcion ?? '';
-        $this->edTipo = $task->tipo;
+        $this->edSubDepartmentId = (string) $task->sub_department_id;
         $this->edPrioridad = $task->prioridad;
         $this->edEstado = $task->estado;
         $this->edAsignadoId = $task->asignado_id;
@@ -376,7 +377,7 @@ class TableroProyecto extends Component
         $reglas = [
             'edTitulo' => 'required|string|min:3|max:255',
             'edDescripcion' => 'nullable|string',
-            'edTipo' => 'required|in:software,soporte,infraestructura',
+            'edSubDepartmentId' => 'required|exists:sub_departments,id',
             'edPrioridad' => 'required|in:baja,media,alta,critica',
             'edEstado' => 'required|in:'.implode(',', self::ESTADOS),
             'edAsignadoId' => 'nullable|exists:users,id',
@@ -442,12 +443,12 @@ class TableroProyecto extends Component
             'prioridad' => $task->prioridad,
             'fecha_limite' => $task->fecha_limite,
         ];
-        $tipoOPrioridadCambio = $task->tipo !== $this->edTipo || $task->prioridad !== $this->edPrioridad;
+        $tipoOPrioridadCambio = (string) $task->sub_department_id !== $this->edSubDepartmentId || $task->prioridad !== $this->edPrioridad;
 
         $task->fill([
             'titulo' => $this->edTitulo,
             'descripcion' => $this->edDescripcion,
-            'tipo' => $this->edTipo,
+            'sub_department_id' => $this->edSubDepartmentId,
             'prioridad' => $this->edPrioridad,
             'estado' => $this->edEstado,
             'asignado_id' => $this->edAsignadoId,
@@ -722,7 +723,7 @@ class TableroProyecto extends Component
             ->get();
 
         $tareaSeleccionada = $this->tareaSeleccionadaId
-            ? Task::with(['asignado', 'proyecto', 'columna', 'actividades.user', 'subtareas'])->find($this->tareaSeleccionadaId)
+            ? Task::with(['asignado', 'proyecto', 'columna', 'actividades.user', 'subtareas', 'subDepartamento'])->find($this->tareaSeleccionadaId)
             : null;
 
         $servicio = app(CapacidadService::class);
@@ -743,6 +744,7 @@ class TableroProyecto extends Component
             'edCargaPrevia' => $this->edCargaPrevia,
             'edFechaLimiteCambiada' => $this->edFechaLimiteCambiada,
             'puedeRechazar' => $this->puedeRechazar,
+            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
         ]);
     }
 }

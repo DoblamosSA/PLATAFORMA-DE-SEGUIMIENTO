@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Tareas;
 
+use App\Domain\Organization\Models\SubDepartment;
+use App\Models\AuditLog;
 use App\Models\Task;
 use App\Models\TaskActivity;
 use App\Models\User;
@@ -23,7 +25,7 @@ class ListaTareas extends Component
     public string $estado = '';
 
     #[Url]
-    public string $tipo = '';
+    public string $sub_department_id = '';
 
     #[Url]
     public string $asignado = '';
@@ -94,14 +96,30 @@ class ListaTareas extends Component
         $task->proyecto?->recalcularProgreso();
     }
 
+    public function eliminar(int $taskId): void
+    {
+        $task = Task::findOrFail($taskId);
+
+        abort_unless(Auth::user()?->puedeEliminarTarea($task), 403);
+
+        $nombre = $task->titulo;
+        $proyecto = $task->proyecto;
+
+        AuditLog::registrar('tarea_eliminada', null, "Tarea eliminada: {$nombre}");
+        $task->delete();
+        $proyecto?->recalcularProgreso();
+
+        session()->flash('ok', 'Tarea eliminada.');
+    }
+
     public function render()
     {
         $tareas = Task::query()
-            ->with(['asignado', 'proyecto'])
+            ->with(['asignado', 'proyecto', 'subDepartamento'])
             ->visiblesPara(Auth::user())
             ->when($this->buscar, fn ($q) => $q->where('titulo', 'like', "%{$this->buscar}%"))
             ->when($this->estado, fn ($q) => $q->where('estado', $this->estado))
-            ->when($this->tipo, fn ($q) => $q->where('tipo', $this->tipo))
+            ->when($this->sub_department_id, fn ($q) => $q->where('sub_department_id', $this->sub_department_id))
             ->when($this->asignado, fn ($q) => $q->where('asignado_id', $this->asignado))
             ->when($this->soloVencidas, fn ($q) => $q->vencidas())
             ->orderByRaw("CASE estado WHEN 'pendiente' THEN 1 WHEN 'en_progreso' THEN 2 WHEN 'en_revision' THEN 3 WHEN 'completada' THEN 4 WHEN 'cancelada' THEN 5 ELSE 6 END")
@@ -111,6 +129,7 @@ class ListaTareas extends Component
         return view('livewire.tareas.lista-tareas', [
             'tareas' => $tareas,
             'empleados' => User::where('activo', true)->orderBy('name')->get(),
+            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
         ]);
     }
 }

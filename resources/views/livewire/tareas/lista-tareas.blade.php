@@ -11,6 +11,10 @@
         </x-slot:actions>
     </x-page-header>
 
+    @if (session('ok'))
+        <div class="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{{ session('ok') }}</div>
+    @endif
+
     {{-- Filtros --}}
     <x-card>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -24,11 +28,11 @@
                 <option value="completada">Completada</option>
                 <option value="cancelada">Cancelada</option>
             </select>
-            <select wire:model.live="tipo" class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500">
-                <option value="">Todos los tipos</option>
-                <option value="software">Software</option>
-                <option value="soporte">Soporte</option>
-                <option value="infraestructura">Infraestructura</option>
+            <select wire:model.live="sub_department_id" class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500">
+                <option value="">Todos los subdepartamentos</option>
+                @foreach ($subDepartamentos as $sd)
+                    <option value="{{ $sd->id }}">{{ $sd->nombre }}</option>
+                @endforeach
             </select>
             <select wire:model.live="asignado" class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="">Todos los empleados</option>
@@ -68,7 +72,7 @@
                                 <span class="block text-xs text-slate-400 dark:text-slate-500">{{ $t->proyecto?->nombre ?? 'Sin proyecto' }}</span>
                             </td>
                             <td class="py-3 px-4 text-slate-600 dark:text-slate-400">{{ $t->asignado?->name ?? '—' }}</td>
-                            <td class="py-3 px-4"><x-badge tipo="tipo" :valor="$t->tipo" /></td>
+                            <td class="py-3 px-4"><x-subdepartamento-badge :subdepartamento="$t->subDepartamento" /></td>
                             <td class="py-3 px-4"><x-badge tipo="prioridad" :valor="$t->prioridad" /></td>
                             <td class="py-3 px-4"><x-badge tipo="estado" :valor="$t->estado" /></td>
                             <td class="py-3 px-4">
@@ -82,7 +86,13 @@
                                 @endif
                             </td>
                             <td class="py-3 px-5 text-right">
-                                @if (! in_array($t->estado, ['completada', 'cancelada']))
+                                @if (auth()->user()->esAdmin())
+                                    <div class="flex items-center justify-end gap-1">
+                                        <x-row-action variant="eliminar" wire:click="eliminar({{ $t->id }})"
+                                                      :confirm="'¿Eliminar la tarea &quot;'.$t->titulo.'&quot;? Esta acción no se puede deshacer.'"
+                                                      label="Eliminar {{ $t->titulo }}" />
+                                    </div>
+                                @elseif (! in_array($t->estado, ['completada', 'cancelada']))
                                     <button wire:click="avanzar({{ $t->id }})"
                                             class="inline-flex items-center gap-1 rounded-lg bg-blue-50 dark:bg-blue-500/15 px-2.5 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/25 active:scale-[0.97] transition">
                                         @if ($t->estado === 'en_revision') <x-icon name="check" class="w-3.5 h-3.5" /> Completar

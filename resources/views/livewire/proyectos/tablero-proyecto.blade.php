@@ -186,7 +186,7 @@
                         <div class="flex flex-wrap items-center gap-1.5 mb-1.5">
                             <x-badge tipo="prioridad" :valor="$tareaSeleccionada->prioridad" />
                             <x-badge tipo="estado" :valor="$tareaSeleccionada->estado" />
-                            <x-badge tipo="tipo" :valor="$tareaSeleccionada->tipo" />
+                            <x-subdepartamento-badge :subdepartamento="$tareaSeleccionada->subDepartamento" />
                             @if ($tareaSeleccionada->tag)
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300">{{ ucfirst($tareaSeleccionada->tag) }}</span>
                             @endif
@@ -300,12 +300,13 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tipo</label>
-                                    <select wire:model="edTipo" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-                                        <option value="software">Software</option>
-                                        <option value="soporte">Soporte</option>
-                                        <option value="infraestructura">Infraestructura</option>
+                                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Subdepartamento</label>
+                                    <select wire:model="edSubDepartmentId" class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
+                                        @foreach ($subDepartamentos as $sd)
+                                            <option value="{{ $sd->id }}">{{ $sd->nombre }}</option>
+                                        @endforeach
                                     </select>
+                                    @error('edSubDepartmentId') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Prioridad</label>
@@ -382,7 +383,13 @@
                                     <span class="flex items-center gap-2 shrink-0 ml-3">
                                         <span class="font-semibold text-slate-500 dark:text-slate-400 tabular-nums">{{ rtrim(rtrim(number_format($s->horas, 2), '0'), '.') }} h</span>
                                         @if ($puedeEliminarSubtarea)
-                                            <button wire:click="eliminarSubtarea({{ $s->id }})" wire:confirm="¿Eliminar esta subtarea?"
+                                            <button x-on:click="$dispatch('confirm-modal', {
+                                                        title: 'Eliminar',
+                                                        message: '¿Eliminar esta subtarea?',
+                                                        confirmText: 'Eliminar',
+                                                        danger: true,
+                                                        onConfirm: () => $wire.eliminarSubtarea({{ $s->id }}),
+                                                    })"
                                                     aria-label="Eliminar subtarea {{ $s->titulo }}" title="Eliminar subtarea"
                                                     class="rounded p-0.5 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
                                                 <x-icon name="close" class="w-3.5 h-3.5" />
@@ -459,7 +466,13 @@
                                                 <span class="flex items-center gap-2">
                                                     <span class="text-[10px] text-slate-400 dark:text-slate-500">{{ $act->created_at->diffForHumans() }}</span>
                                                     @if ($puedeEliminarComentario)
-                                                        <button wire:click="eliminarComentario({{ $act->id }})" wire:confirm="¿Eliminar este comentario?"
+                                                        <button x-on:click="$dispatch('confirm-modal', {
+                                                                    title: 'Eliminar',
+                                                                    message: '¿Eliminar este comentario?',
+                                                                    confirmText: 'Eliminar',
+                                                                    danger: true,
+                                                                    onConfirm: () => $wire.eliminarComentario({{ $act->id }}),
+                                                                })"
                                                                 aria-label="Eliminar comentario" title="Eliminar comentario"
                                                                 class="rounded p-0.5 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
                                                             <x-icon name="close" class="w-3 h-3" />

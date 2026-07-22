@@ -7,14 +7,14 @@
                 <x-icon name="arrow-left" class="w-4 h-4" /> Proyectos
             </a>
             <div class="mt-2 flex items-center gap-3">
-                @php $ico = ['software'=>'code','soporte'=>'support','infraestructura'=>'server'][$project->tipo] ?? 'folder'; @endphp
+                @php $ico = $project->subDepartamento->icono ?? 'folder'; @endphp
                 <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-sky-600 text-white shadow-lg shadow-blue-500/30">
                     <x-icon :name="$ico" class="w-6 h-6" />
                 </span>
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">{{ $project->nombre }}</h1>
                     <div class="mt-1 flex flex-wrap gap-2">
-                        <x-badge tipo="tipo" :valor="$project->tipo" />
+                        <x-subdepartamento-badge :subdepartamento="$project->subDepartamento" />
                         <x-badge tipo="estado" :valor="$project->estado" />
                         <x-badge tipo="prioridad" :valor="$project->prioridad" />
                     </div>
@@ -42,6 +42,18 @@
                class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition">
                 Editar
             </a>
+            @if (auth()->user()->esSuperAdmin())
+                <button x-on:click="$dispatch('confirm-modal', {
+                            title: 'Eliminar',
+                            message: @js('¿Eliminar el proyecto "'.$project->nombre.'"? Se eliminarán también sus tareas y su tablero. Esta acción no se puede deshacer.'),
+                            confirmText: 'Eliminar',
+                            danger: true,
+                            onConfirm: () => $wire.eliminar(),
+                        })"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-500/10 px-4 py-2.5 text-sm font-medium text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 active:scale-[0.98] transition">
+                    <x-icon name="trash" class="w-4 h-4" /> Eliminar
+                </button>
+            @endif
         </div>
     </div>
 

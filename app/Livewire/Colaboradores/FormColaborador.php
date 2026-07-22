@@ -77,17 +77,19 @@ class FormColaborador extends Component
         }
     }
 
-    /** Roles asignables dentro del departamento elegido: primarios (globales) + heredados de ese departamento. */
+    /**
+     * Roles asignables dentro del departamento elegido: primarios (globales) + heredados de ese departamento.
+     * Super Administrador es un rol global, no un rol de departamento, por lo que nunca aparece aqui.
+     */
     public function getRolesDisponiblesProperty()
     {
-        if (! $this->department_id) {
-            return Role::where('is_primary', true)->orderBy('nombre')->get();
-        }
+        $query = $this->department_id
+            ? Role::where('is_primary', true)->orWhere('department_id', $this->department_id)
+            : Role::where('is_primary', true);
 
-        return Role::where('is_primary', true)
-            ->orWhere('department_id', $this->department_id)
-            ->orderBy('nombre')
-            ->get();
+        return $query->orderBy('nombre')->get()
+            ->reject(fn (Role $r) => $r->slug === 'super-admin')
+            ->values();
     }
 
     /** Capacidad semanal en vivo: dias seleccionados x horas diarias. */
@@ -132,6 +134,16 @@ class FormColaborador extends Component
     public function save()
     {
         $data = $this->validate();
+
+        if ($data['role_id']) {
+            $rolSeleccionado = Role::find($data['role_id']);
+
+            if ($rolSeleccionado?->slug === 'super-admin') {
+                $this->addError('role_id', 'Super Administrador es un rol global y no puede asignarse como rol de departamento.');
+
+                return;
+            }
+        }
 
         $esNuevo = ! $this->colaborador;
         $colaborador = $this->colaborador ?? new User;

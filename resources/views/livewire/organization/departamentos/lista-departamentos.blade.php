@@ -49,12 +49,13 @@
                                     {{ $d->activo ? 'Activo' : 'Inactivo' }}
                                 </span>
                             </td>
-                            <td class="py-2.5 px-5 text-right space-x-3">
-                                <a href="{{ route('departamentos.editar', $d) }}" wire:navigate
-                                   class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Editar</a>
-                                <button wire:click="eliminar({{ $d->id }})"
-                                        wire:confirm="¿Eliminar el departamento &quot;{{ $d->nombre }}&quot;? Esta acción no se puede deshacer."
-                                        class="text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline">Eliminar</button>
+                            <td class="py-2.5 px-5 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <x-row-action variant="editar" :href="route('departamentos.editar', $d)" label="Editar {{ $d->nombre }}" />
+                                    <x-row-action variant="eliminar" wire:click="eliminar({{ $d->id }})"
+                                                  :confirm="'¿Eliminar el departamento &quot;'.$d->nombre.'&quot;? Esta acción no se puede deshacer.'"
+                                                  label="Eliminar {{ $d->nombre }}" />
+                                </div>
                             </td>
                         </tr>
                     @empty

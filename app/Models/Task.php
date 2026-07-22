@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Organization\Models\SubDepartment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +15,7 @@ class Task extends Model
         'project_id',
         'titulo',
         'descripcion',
-        'tipo',
+        'sub_department_id',
         'prioridad',
         'estado',
         'board_column_id',
@@ -53,6 +54,11 @@ class Task extends Model
     public function proyecto(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    public function subDepartamento(): BelongsTo
+    {
+        return $this->belongsTo(SubDepartment::class, 'sub_department_id');
     }
 
     public function asignado(): BelongsTo
@@ -150,7 +156,7 @@ class Task extends Model
      */
     public function aplicarSla(): void
     {
-        $horas = SlaPolicy::horasPara($this->tipo, $this->prioridad);
+        $horas = SlaPolicy::horasPara($this->sub_department_id, $this->prioridad);
         $base = $this->fecha_asignacion ?? now();
 
         $this->sla_horas = $horas;

@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
+use App\Domain\Organization\Models\SubDepartment;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Politica de SLA por tipo + prioridad. Fuente de las horas de
+ * Politica de SLA por subdepartamento + prioridad. Fuente de las horas de
  * resolucion que se aplican al crear una tarea.
  */
 class SlaPolicy extends Model
 {
     protected $fillable = [
-        'tipo',
+        'sub_department_id',
         'prioridad',
         'horas_resolucion',
         'activo',
@@ -24,16 +26,23 @@ class SlaPolicy extends Model
         ];
     }
 
+    public function subDepartamento(): BelongsTo
+    {
+        return $this->belongsTo(SubDepartment::class, 'sub_department_id');
+    }
+
     /**
-     * Devuelve las horas de resolucion configuradas para un tipo/prioridad,
+     * Devuelve las horas de resolucion configuradas para un subdepartamento/prioridad,
      * o un valor por defecto razonable si no existe politica.
      */
-    public static function horasPara(string $tipo, string $prioridad): int
+    public static function horasPara(?int $subDepartmentId, string $prioridad): int
     {
-        $policy = static::where('tipo', $tipo)
-            ->where('prioridad', $prioridad)
-            ->where('activo', true)
-            ->first();
+        $policy = $subDepartmentId
+            ? static::where('sub_department_id', $subDepartmentId)
+                ->where('prioridad', $prioridad)
+                ->where('activo', true)
+                ->first()
+            : null;
 
         if ($policy) {
             return (int) $policy->horas_resolucion;

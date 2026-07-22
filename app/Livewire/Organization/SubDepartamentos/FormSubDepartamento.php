@@ -22,6 +22,10 @@ class FormSubDepartamento extends Component
 
     public string $descripcion = '';
 
+    public string $icono = 'sitemap';
+
+    public string $color = 'slate';
+
     public bool $activo = true;
 
     public function mount(?SubDepartment $subDepartment = null): void
@@ -33,6 +37,8 @@ class FormSubDepartamento extends Component
             $this->department_id = (string) $subDepartment->department_id;
             $this->nombre = $subDepartment->nombre;
             $this->descripcion = $subDepartment->descripcion ?? '';
+            $this->icono = $subDepartment->icono;
+            $this->color = $subDepartment->color;
             $this->activo = $subDepartment->activo;
         }
     }
@@ -48,6 +54,8 @@ class FormSubDepartamento extends Component
                     ->ignore($this->subDepartment?->id),
             ],
             'descripcion' => 'nullable|string|max:1000',
+            'icono' => 'required|in:'.implode(',', SubDepartment::ICONOS),
+            'color' => 'required|in:'.implode(',', array_keys(SubDepartment::COLORES)),
             'activo' => 'boolean',
         ];
     }
@@ -67,6 +75,8 @@ class FormSubDepartamento extends Component
             nombre: $data['nombre'],
             slug: $slug,
             descripcion: $data['descripcion'] ?: null,
+            icono: $data['icono'],
+            color: $data['color'],
             activo: $data['activo'],
         );
 

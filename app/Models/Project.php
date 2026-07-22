@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Organization\Models\SubDepartment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,7 +28,7 @@ class Project extends Model
     protected $fillable = [
         'nombre',
         'descripcion',
-        'tipo',
+        'sub_department_id',
         'estado',
         'prioridad',
         'responsable_id',
@@ -50,6 +51,11 @@ class Project extends Model
     public function responsable(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsable_id');
+    }
+
+    public function subDepartamento(): BelongsTo
+    {
+        return $this->belongsTo(SubDepartment::class, 'sub_department_id');
     }
 
     /**

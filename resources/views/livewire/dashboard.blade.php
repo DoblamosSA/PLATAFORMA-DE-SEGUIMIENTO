@@ -47,15 +47,15 @@
 
     {{-- Por tipo + por persona --}}
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <x-card title="Cumplimiento por tipo" class="lg:col-span-2">
+        <x-card title="Cumplimiento por subdepartamento" class="lg:col-span-2">
             <div class="space-y-5">
-                @foreach ($porTipo as $fila)
-                    @php $tint = ['software' => 'indigo', 'soporte' => 'teal', 'infraestructura' => 'cyan'][$fila['tipo']] ?? 'slate'; @endphp
+                @forelse ($porSubdepartamento as $fila)
+                    @php $sd = $fila['subdepartamento']; @endphp
                     <div>
                         <div class="flex items-center justify-between text-sm mb-1.5">
-                            <span class="flex items-center gap-2 capitalize font-medium text-slate-600 dark:text-slate-300">
-                                <x-icon :name="['software'=>'code','soporte'=>'support','infraestructura'=>'server'][$fila['tipo']] ?? 'dot'" class="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                                {{ $fila['tipo'] }}
+                            <span class="flex items-center gap-2 font-medium text-slate-600 dark:text-slate-300">
+                                <x-icon :name="$sd->icono" class="w-4 h-4 {{ $sd->colores()['icono'] }}" />
+                                {{ $sd->nombre }}
                             </span>
                             <span class="text-slate-500 dark:text-slate-400 tabular-nums">{{ $fila['cumplimiento'] }}%
                                 <span class="text-slate-300 dark:text-slate-600">·</span>
@@ -71,7 +71,9 @@
                         </div>
                         <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{{ $fila['abiertas'] }} abiertas</p>
                     </div>
-                @endforeach
+                @empty
+                    <x-empty-state icon="sitemap" mensaje="No hay subdepartamentos activos todavía." />
+                @endforelse
             </div>
         </x-card>
 

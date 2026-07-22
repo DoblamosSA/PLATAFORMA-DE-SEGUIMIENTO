@@ -64,14 +64,16 @@
                     @error('fechaInicioInput') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
                 </div>
 
-                {{-- Tipo --}}
+                {{-- Subdepartamento --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tipo *</label>
-                    <select wire:model.live="tipo" class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm">
-                        <option value="software">Software</option>
-                        <option value="soporte">Soporte</option>
-                        <option value="infraestructura">Infraestructura</option>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Subdepartamento *</label>
+                    <select wire:model.live="sub_department_id" class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm">
+                        <option value="">Selecciona un subdepartamento</option>
+                        @foreach ($subDepartamentos as $sd)
+                            <option value="{{ $sd->id }}">{{ $sd->nombre }}</option>
+                        @endforeach
                     </select>
+                    @error('sub_department_id') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
                 </div>
 
                 {{-- Prioridad --}}
@@ -180,8 +182,14 @@
                 <a href="{{ route('tareas') }}" wire:navigate class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition">Cancelar</a>
 
                 @if ($puedeEliminar)
-                    <button type="button" wire:click="eliminar"
-                            wire:confirm="¿Eliminar esta tarea? Esta acción no se puede deshacer."
+                    <button type="button"
+                            x-on:click="$dispatch('confirm-modal', {
+                                title: 'Eliminar',
+                                message: '¿Eliminar esta tarea? Esta acción no se puede deshacer.',
+                                confirmText: 'Eliminar',
+                                danger: true,
+                                onConfirm: () => $wire.eliminar(),
+                            })"
                             class="ml-auto text-sm font-medium text-rose-600 dark:text-rose-400 hover:underline">
                         Eliminar tarea
                     </button>

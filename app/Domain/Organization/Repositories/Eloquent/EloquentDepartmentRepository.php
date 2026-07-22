@@ -43,6 +43,11 @@ class EloquentDepartmentRepository implements DepartmentRepositoryInterface
         $department->delete();
     }
 
+    public function forceDelete(Department $department): void
+    {
+        $department->forceDelete();
+    }
+
     public function attachUser(Department $department, User $user, ?Role $role, bool $esPrincipal = false): void
     {
         $department->users()->syncWithoutDetaching([

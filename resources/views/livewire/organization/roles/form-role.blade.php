@@ -53,39 +53,28 @@
                 <div>
                     <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Permisos</p>
                     <p class="text-xs text-slate-400 dark:text-slate-500">
-                        <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-600"></span> Heredado</span>
-                        &nbsp;·&nbsp;
-                        <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> Agregado</span>
-                        &nbsp;·&nbsp;
-                        <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-rose-500"></span> Quitado</span>
+                        Activa o desactiva cada permiso para este rol. Se precargan con la configuracion sugerida segun el rol padre.
                     </p>
                 </div>
 
                 @foreach ($gruposPermisos as $grupo => $permisos)
                     <div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                        <p class="bg-slate-50 dark:bg-slate-800/60 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ ucfirst($grupo ?? 'general') }}</p>
+                        <p class="bg-slate-50 dark:bg-slate-800/60 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ \App\Domain\Organization\Models\Permission::grupoLabel($grupo) }}</p>
                         <div class="divide-y divide-slate-100 dark:divide-slate-800">
                             @foreach ($permisos as $permiso)
-                                @php $heredado = in_array($permiso->slug, $this->permisosHeredados, true); @endphp
+                                @php $activo = $this->permisoActivo($permiso); @endphp
                                 <div class="flex items-center justify-between gap-4 px-4 py-2.5">
                                     <div class="min-w-0">
                                         <p class="text-sm text-slate-700 dark:text-slate-200">{{ $permiso->nombre }}</p>
                                         <p class="text-xs text-slate-400 dark:text-slate-500 font-mono">{{ $permiso->slug }}</p>
                                     </div>
-                                    <div class="flex items-center gap-3 shrink-0 text-xs" role="radiogroup" aria-label="Estado de {{ $permiso->nombre }}">
-                                        <label class="inline-flex items-center gap-1 cursor-pointer {{ $heredado ? 'text-slate-500 dark:text-slate-400' : 'text-slate-300 dark:text-slate-600' }}">
-                                            <input type="radio" wire:model="overrides.{{ $permiso->id }}" value="heredado" @disabled($soloLectura)>
-                                            {{ $heredado ? 'Heredado ✓' : 'Heredado' }}
-                                        </label>
-                                        <label class="inline-flex items-center gap-1 cursor-pointer text-emerald-600 dark:text-emerald-400">
-                                            <input type="radio" wire:model="overrides.{{ $permiso->id }}" value="grant" @disabled($soloLectura)>
-                                            Agregar
-                                        </label>
-                                        <label class="inline-flex items-center gap-1 cursor-pointer text-rose-600 dark:text-rose-400">
-                                            <input type="radio" wire:model="overrides.{{ $permiso->id }}" value="deny" @disabled($soloLectura)>
-                                            Quitar
-                                        </label>
-                                    </div>
+                                    <button type="button"
+                                            wire:click="togglePermiso({{ $permiso->id }}, '{{ $permiso->slug }}')"
+                                            @disabled($soloLectura)
+                                            role="switch" aria-checked="{{ $activo ? 'true' : 'false' }}" aria-label="{{ $permiso->nombre }}"
+                                            class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 disabled:cursor-not-allowed {{ $activo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700' }}">
+                                        <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform {{ $activo ? 'translate-x-6' : 'translate-x-1' }}"></span>
+                                    </button>
                                 </div>
                             @endforeach
                         </div>

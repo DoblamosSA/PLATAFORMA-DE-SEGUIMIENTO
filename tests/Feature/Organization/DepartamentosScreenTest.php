@@ -3,8 +3,11 @@
 namespace Tests\Feature\Organization;
 
 use App\Domain\Organization\Models\Department;
+use App\Domain\Organization\Models\SubDepartment;
 use App\Livewire\Organization\Departamentos\FormDepartamento;
 use App\Livewire\Organization\Departamentos\ListaDepartamentos;
+use App\Models\Project;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -84,6 +87,52 @@ class DepartamentosScreenTest extends TestCase
             ->test(ListaDepartamentos::class)
             ->call('eliminar', $department->id);
 
-        $this->assertSoftDeleted('departments', ['id' => $department->id]);
+        $this->assertDatabaseMissing('departments', ['id' => $department->id]);
+    }
+
+    public function test_eliminar_departamento_purga_subdepartamentos_colaboradores_proyectos_y_tareas_pero_conserva_al_superadmin(): void
+    {
+        $department = Department::factory()->create();
+        $subDepartment = SubDepartment::factory()->create(['department_id' => $department->id]);
+
+        $colaborador = User::factory()->create(['rol' => 'tecnico']);
+        $department->users()->attach($colaborador->id, ['es_principal' => true]);
+
+        $project = Project::create([
+            'nombre' => 'Proyecto del colaborador',
+            'tipo' => 'software',
+            'estado' => 'en_progreso',
+            'prioridad' => 'alta',
+            'responsable_id' => $colaborador->id,
+        ]);
+
+        $task = Task::create([
+            'project_id' => $project->id,
+            'titulo' => 'Tarea del colaborador',
+            'tipo' => 'software',
+            'prioridad' => 'media',
+            'estado' => 'pendiente',
+            'fecha_asignacion' => now(),
+            'asignado_id' => $colaborador->id,
+        ]);
+
+        $superAdminMiembro = User::factory()->create(['rol' => 'admin']);
+        $subDepartment->users()->attach($superAdminMiembro->id);
+
+        Livewire::actingAs($this->superAdmin)
+            ->test(ListaDepartamentos::class)
+            ->call('eliminar', $department->id);
+
+        $this->assertDatabaseMissing('departments', ['id' => $department->id]);
+        $this->assertDatabaseMissing('sub_departments', ['id' => $subDepartment->id]);
+        $this->assertDatabaseMissing('users', ['id' => $colaborador->id]);
+        $this->assertDatabaseMissing('projects', ['id' => $project->id]);
+        $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
+
+        $this->assertDatabaseHas('users', ['id' => $superAdminMiembro->id]);
+        $this->assertDatabaseMissing('sub_department_user', [
+            'sub_department_id' => $subDepartment->id,
+            'user_id' => $superAdminMiembro->id,
+        ]);
     }
 }

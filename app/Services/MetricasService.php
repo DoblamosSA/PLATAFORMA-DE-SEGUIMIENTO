@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Domain\Organization\Models\SubDepartment;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -73,14 +74,14 @@ class MetricasService
     }
 
     /**
-     * Cumplimiento por tipo de trabajo.
+     * Cumplimiento por subdepartamento.
      *
      * @return Collection<int, array<string, mixed>>
      */
-    public function porTipo(Carbon $desde, Carbon $hasta): Collection
+    public function porSubdepartamento(Carbon $desde, Carbon $hasta): Collection
     {
-        return collect(['software', 'soporte', 'infraestructura'])->map(function (string $tipo) use ($desde, $hasta) {
-            $base = Task::where('tipo', $tipo)
+        return SubDepartment::where('activo', true)->orderBy('nombre')->get()->map(function (SubDepartment $sd) use ($desde, $hasta) {
+            $base = Task::where('sub_department_id', $sd->id)
                 ->where('estado', 'completada')
                 ->whereBetween('fecha_asignacion', [$desde, $hasta]);
 
@@ -88,11 +89,11 @@ class MetricasService
             $aTiempo     = (clone $base)->where('cumplida_a_tiempo', true)->count();
 
             return [
-                'tipo'         => $tipo,
+                'subdepartamento' => $sd,
                 'completadas'  => $completadas,
                 'a_tiempo'     => $aTiempo,
                 'cumplimiento' => $completadas > 0 ? round(($aTiempo / $completadas) * 100, 1) : 0.0,
-                'abiertas'     => Task::abiertas()->where('tipo', $tipo)->count(),
+                'abiertas'     => Task::abiertas()->where('sub_department_id', $sd->id)->count(),
             ];
         });
     }

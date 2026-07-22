@@ -81,33 +81,43 @@ class User extends Authenticatable
 
     public function esAdmin(): bool
     {
-        return $this->rol === 'admin';
+        return $this->effectiveRol() === 'admin';
     }
 
     public function esLider(): bool
     {
-        return in_array($this->rol, ['admin', 'lider'], true);
+        return in_array($this->effectiveRol(), ['admin', 'lider'], true);
     }
 
     /** Coordinador (o admin, que hereda todos los permisos). */
     public function esCoordinador(): bool
     {
-        return in_array($this->rol, ['admin', 'lider'], true);
+        return in_array($this->effectiveRol(), ['admin', 'lider'], true);
     }
 
     public function esColaborador(): bool
     {
-        return $this->rol === 'tecnico';
+        return $this->effectiveRol() === 'tecnico';
     }
 
     public function esEvaluador(): bool
     {
-        return $this->rol === 'evaluador';
+        return $this->effectiveRol() === 'evaluador';
     }
 
     public function rolLabel(): string
     {
         return self::ROLES_LABEL[$this->rol] ?? ucfirst((string) $this->rol);
+    }
+
+    /**
+     * Rol legado efectivo: normalmente users.rol, pero si el usuario tiene
+     * mas de una identidad de rol simultanea y ya eligio una (vease
+     * RoleContextService), se usa la resuelta a partir de esa eleccion.
+     */
+    private function effectiveRol(): string
+    {
+        return app(\App\Domain\Organization\Services\RoleContextService::class)->effectiveLegacyRol($this);
     }
 
     public function fotoUrl(): ?string

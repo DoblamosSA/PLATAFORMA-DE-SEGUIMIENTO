@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Proyectos;
 
+use App\Domain\Organization\Models\SubDepartment;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ class FormProyecto extends Component
 
     public string $descripcion = '';
 
-    public string $tipo = 'software';
+    public string $sub_department_id = '';
 
     public string $estado = 'planeado';
 
@@ -41,7 +42,7 @@ class FormProyecto extends Component
             $this->project = $project;
             $this->nombre = $project->nombre;
             $this->descripcion = $project->descripcion ?? '';
-            $this->tipo = $project->tipo;
+            $this->sub_department_id = (string) $project->sub_department_id;
             $this->estado = $project->estado;
             $this->prioridad = $project->prioridad;
             $this->responsable_id = $project->responsable_id;
@@ -56,7 +57,7 @@ class FormProyecto extends Component
         return [
             'nombre' => 'required|string|min:3|max:255',
             'descripcion' => 'nullable|string',
-            'tipo' => 'required|in:software,soporte,infraestructura',
+            'sub_department_id' => 'required|exists:sub_departments,id',
             'estado' => 'required|in:planeado,en_progreso,en_pausa,completado,cancelado',
             'prioridad' => 'required|in:baja,media,alta,critica',
             'responsable_id' => 'nullable|exists:users,id',
@@ -103,6 +104,7 @@ class FormProyecto extends Component
                 ->orderBy('name')
                 ->get(),
             'empleados' => User::where('activo', true)->orderBy('name')->get(),
+            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
         ]);
     }
 }

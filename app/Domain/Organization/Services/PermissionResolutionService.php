@@ -45,9 +45,16 @@ class PermissionResolutionService
         return $this->cache[$role->id] = new EffectivePermissionSetData($role->id, array_keys($slugs));
     }
 
-    public function userHasPermission(User $user, string $permissionSlug): bool
+    /**
+     * Cuando $scopeTo se indica, el chequeo se limita a ese rol (uso: el
+     * usuario eligio un contexto de rol activo tras el login); si no, se
+     * evalua contra la union de todos los roles del usuario, como siempre.
+     */
+    public function userHasPermission(User $user, string $permissionSlug, ?Role $scopeTo = null): bool
     {
-        foreach ($this->rolesOf($user) as $role) {
+        $roles = $scopeTo ? collect([$scopeTo]) : $this->rolesOf($user);
+
+        foreach ($roles as $role) {
             if ($this->resolveEffectivePermissions($role)->has($permissionSlug)) {
                 return true;
             }

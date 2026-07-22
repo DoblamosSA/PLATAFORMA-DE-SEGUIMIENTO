@@ -12,6 +12,9 @@
     @if (session('ok'))
         <div class="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{{ session('ok') }}</div>
     @endif
+    @if (session('error'))
+        <div class="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">{{ session('error') }}</div>
+    @endif
 
     <x-card>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -57,12 +60,13 @@
                                     {{ $sd->activo ? 'Activo' : 'Inactivo' }}
                                 </span>
                             </td>
-                            <td class="py-2.5 px-5 text-right space-x-3">
-                                <a href="{{ route('subdepartamentos.editar', $sd) }}" wire:navigate
-                                   class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Editar</a>
-                                <button wire:click="eliminar({{ $sd->id }})"
-                                        wire:confirm="¿Eliminar el subdepartamento &quot;{{ $sd->nombre }}&quot;? Esta acción no se puede deshacer."
-                                        class="text-xs font-medium text-rose-600 dark:text-rose-400 hover:underline">Eliminar</button>
+                            <td class="py-2.5 px-5 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    <x-row-action variant="editar" :href="route('subdepartamentos.editar', $sd)" label="Editar {{ $sd->nombre }}" />
+                                    <x-row-action variant="eliminar" wire:click="eliminar({{ $sd->id }})"
+                                                  :confirm="'¿Eliminar el subdepartamento &quot;'.$sd->nombre.'&quot;? Esta acción no se puede deshacer.'"
+                                                  label="Eliminar {{ $sd->nombre }}" />
+                                </div>
                             </td>
                         </tr>
                     @empty

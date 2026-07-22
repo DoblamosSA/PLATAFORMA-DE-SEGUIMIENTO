@@ -67,6 +67,24 @@ class SubDepartamentosScreenTest extends TestCase
             ->test(ListaSubDepartamentos::class)
             ->call('eliminar', $subDepartment->id);
 
-        $this->assertSoftDeleted('sub_departments', ['id' => $subDepartment->id]);
+        $this->assertDatabaseMissing('sub_departments', ['id' => $subDepartment->id]);
+    }
+
+    public function test_eliminar_subdepartamento_desvincula_a_sus_colaboradores_sin_borrar_sus_cuentas(): void
+    {
+        $subDepartment = SubDepartment::factory()->create();
+        $colaborador = User::factory()->create(['rol' => 'tecnico']);
+        $subDepartment->users()->attach($colaborador->id);
+
+        Livewire::actingAs($this->superAdmin)
+            ->test(ListaSubDepartamentos::class)
+            ->call('eliminar', $subDepartment->id);
+
+        $this->assertDatabaseMissing('sub_departments', ['id' => $subDepartment->id]);
+        $this->assertDatabaseMissing('sub_department_user', [
+            'sub_department_id' => $subDepartment->id,
+            'user_id' => $colaborador->id,
+        ]);
+        $this->assertDatabaseHas('users', ['id' => $colaborador->id]);
     }
 }

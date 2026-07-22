@@ -56,7 +56,7 @@ class FormRole extends Component
         }
     }
 
-    /** Slugs de permisos que el padre seleccionado concede efectivamente (para la vista previa "heredado"). */
+    /** Slugs de permisos que el padre seleccionado concede efectivamente (usado como sugerencia por defecto del switch). */
     public function getPermisosHeredadosProperty(): array
     {
         if (! $this->parent_role_id) {
@@ -70,6 +70,34 @@ class FormRole extends Component
         }
 
         return app(PermissionResolutionService::class)->resolveEffectivePermissions($padre)->permissionSlugs;
+    }
+
+    /** Estado efectivo (encendido/apagado) del switch de un permiso. */
+    public function permisoActivo(Permission $permiso): bool
+    {
+        return $this->estadoEfectivo($permiso->id, $permiso->slug);
+    }
+
+    /** Alterna el switch de un permiso, guardando solo el override necesario respecto a la sugerencia del padre. */
+    public function togglePermiso(int $permisoId, string $slug): void
+    {
+        if ($this->soloLectura) {
+            return;
+        }
+
+        $sugerido = in_array($slug, $this->permisosHeredados, true);
+        $nuevo = ! $this->estadoEfectivo($permisoId, $slug);
+
+        $this->overrides[$permisoId] = $nuevo === $sugerido ? 'heredado' : ($nuevo ? 'grant' : 'deny');
+    }
+
+    private function estadoEfectivo(int $permisoId, string $slug): bool
+    {
+        return match ($this->overrides[$permisoId] ?? 'heredado') {
+            'grant' => true,
+            'deny' => false,
+            default => in_array($slug, $this->permisosHeredados, true),
+        };
     }
 
     protected function rules(): array

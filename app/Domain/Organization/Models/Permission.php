@@ -11,6 +11,17 @@ class Permission extends Model
 {
     use HasFactory;
 
+    /** Etiquetas en español para los grupos del catalogo (vease PermissionSeeder). */
+    public const GRUPO_LABELS = [
+        'departments' => 'Departamentos',
+        'subdepartments' => 'Subdepartamentos',
+        'projects' => 'Proyectos',
+        'tasks' => 'Tareas',
+        'subtasks' => 'Subtareas',
+        'roles' => 'Roles',
+        'users' => 'Usuarios',
+    ];
+
     protected static function newFactory(): PermissionFactory
     {
         return PermissionFactory::new();
@@ -22,6 +33,11 @@ class Permission extends Model
         'descripcion',
         'grupo',
     ];
+
+    public static function grupoLabel(?string $grupo): string
+    {
+        return self::GRUPO_LABELS[$grupo] ?? ucfirst($grupo ?? 'general');
+    }
 
     public function roles(): BelongsToMany
     {

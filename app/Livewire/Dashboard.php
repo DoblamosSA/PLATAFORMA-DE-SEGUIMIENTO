@@ -40,7 +40,7 @@ class Dashboard extends Component
 
         return view('livewire.dashboard', [
             'resumen'    => $metricas->resumen($desde, $hasta),
-            'porTipo'    => $metricas->porTipo($desde, $hasta),
+            'porSubdepartamento' => $metricas->porSubdepartamento($desde, $hasta),
             'porPersona' => $metricas->porPersona($desde, $hasta),
             'proximasVencer' => Task::abiertas()
                 ->whereNotNull('fecha_limite')

@@ -14,6 +14,7 @@ use App\Domain\Organization\Repositories\Eloquent\EloquentDepartmentRepository;
 use App\Domain\Organization\Repositories\Eloquent\EloquentPermissionRepository;
 use App\Domain\Organization\Repositories\Eloquent\EloquentRoleRepository;
 use App\Domain\Organization\Repositories\Eloquent\EloquentSubDepartmentRepository;
+use App\Domain\Organization\Services\RoleContextService;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -31,6 +32,10 @@ class OrganizationServiceProvider extends ServiceProvider
         $this->app->bind(SubDepartmentRepositoryInterface::class, EloquentSubDepartmentRepository::class);
         $this->app->bind(RoleRepositoryInterface::class, EloquentRoleRepository::class);
         $this->app->bind(PermissionRepositoryInterface::class, EloquentPermissionRepository::class);
+
+        // Singleton: sus metodos se llaman repetidas veces por request (nav,
+        // gates, es*() de User) y memoiza candidatos/contexto internamente.
+        $this->app->singleton(RoleContextService::class);
     }
 
     public function boot(): void

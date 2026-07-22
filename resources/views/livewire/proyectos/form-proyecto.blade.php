@@ -26,12 +26,14 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tipo *</label>
-                    <select wire:model="tipo" class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm">
-                        <option value="software">Software</option>
-                        <option value="soporte">Soporte</option>
-                        <option value="infraestructura">Infraestructura</option>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Subdepartamento *</label>
+                    <select wire:model="sub_department_id" class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm">
+                        <option value="">Selecciona un subdepartamento</option>
+                        @foreach ($subDepartamentos as $sd)
+                            <option value="{{ $sd->id }}">{{ $sd->nombre }}</option>
+                        @endforeach
                     </select>
+                    @error('sub_department_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Responsable</label>
@@ -101,7 +103,7 @@
                     Progreso actual: <span class="font-semibold text-gray-800 dark:text-slate-200">{{ $project->progreso }}%</span>
                     · {{ $project->tareas()->count() }} tareas
                     @if (auth()->user()->esAdmin())
-                        · <a href="{{ route('tareas', ['tipo' => '']) }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">ver tareas</a>
+                        · <a href="{{ route('tareas') }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">ver tareas</a>
                     @endif
                 </div>
             @endif

@@ -4,7 +4,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         @forelse ($grupos as $grupo => $permisos)
-            <x-card :title="ucfirst($grupo ?? 'general')">
+            <x-card :title="\App\Domain\Organization\Models\Permission::grupoLabel($grupo)">
                 <ul class="space-y-2">
                     @foreach ($permisos as $permiso)
                         <li class="flex items-start gap-2">

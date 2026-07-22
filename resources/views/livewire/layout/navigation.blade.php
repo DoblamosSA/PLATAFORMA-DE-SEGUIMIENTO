@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Organization\Services\RoleContextService;
 use App\Livewire\Actions\Logout;
 use Livewire\Volt\Component;
 
@@ -14,10 +15,18 @@ new class extends Component
         // restaurar una pantalla autenticada desde memoria.
         $this->redirect('/');
     }
+
+    public function cambiarRol(RoleContextService $roleContext): void
+    {
+        $roleContext->clear();
+
+        $this->redirect(route('role.choose'), navigate: true);
+    }
 }; ?>
 
 @php
     $u = auth()->user();
+    $puedeCambiarRol = app(RoleContextService::class)->hasChoice($u);
     $nav = [
         ['route' => 'dashboard',              'pattern' => 'dashboard',   'label' => 'Dashboard', 'icon' => 'dashboard'],
         ['route' => 'proyectos',              'pattern' => 'proyectos*',  'label' => 'Proyectos', 'icon' => 'folder'],
@@ -154,6 +163,12 @@ new class extends Component
                         <x-icon x-show="!$store.theme.dark" name="sun" class="w-5 h-5" />
                         <x-icon x-show="$store.theme.dark" name="moon" class="w-5 h-5" />
                     </button>
+                    @if ($puedeCambiarRol)
+                        <button wire:click="cambiarRol" title="Cambiar rol" aria-label="Cambiar rol"
+                                class="p-1.5 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white active:scale-95 transition">
+                            <x-icon name="shield-check" class="w-5 h-5" />
+                        </button>
+                    @endif
                     <button wire:click="logout" title="Cerrar sesion" aria-label="Cerrar sesion"
                             class="p-1.5 rounded-lg text-slate-400 hover:bg-white/10 hover:text-rose-300 active:scale-95 transition">
                         <x-icon name="logout" class="w-5 h-5" />

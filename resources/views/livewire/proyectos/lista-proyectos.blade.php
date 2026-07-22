@@ -1,6 +1,6 @@
 <div class="p-4 sm:p-6 lg:p-8 space-y-6 anim-stagger">
 
-    <x-page-header title="Proyectos" subtitle="Software, soporte e infraestructura" icon="folder">
+    <x-page-header title="Proyectos" subtitle="Organizados por subdepartamento" icon="folder">
         <x-slot:actions>
             @if (auth()->user()->puedeCrearProyecto())
                 <a href="{{ route('proyectos.crear') }}" wire:navigate
@@ -11,15 +11,16 @@
         </x-slot:actions>
     </x-page-header>
 
-    {{-- Resumen por area --}}
+    {{-- Resumen por area: no aplica a Super Admin, solo a los demas roles con acceso a esta pantalla --}}
+    @unless (auth()->user()->esSuperAdmin())
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {{-- Total --}}
-        <button type="button" wire:click="$set('tipo', '')"
+        <button type="button" wire:click="$set('sub_department_id', '')"
                 class="group relative overflow-hidden rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md
-                       {{ $tipo === '' ? 'border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-200 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:ring-indigo-500/30' : 'border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20' }}">
+                       {{ $sub_department_id === '' ? 'border-indigo-300 bg-indigo-50/60 ring-2 ring-indigo-200 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:ring-indigo-500/30' : 'border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20' }}">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Todas las areas</p>
+                    <p class="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Todos los subdepartamentos</p>
                     <p class="mt-2 text-3xl font-bold text-slate-800 dark:text-slate-100">{{ $totalProyectos }}</p>
                     <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">proyectos en total</p>
                 </div>
@@ -29,48 +30,42 @@
             </div>
         </button>
 
-        @php
-            $areaMeta = [
-                'software'        => ['Software', 'code', 'from-indigo-500 to-violet-600', 'text-indigo-600 dark:text-indigo-400', 'border-indigo-300 bg-indigo-50/60 ring-indigo-200 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:ring-indigo-500/30'],
-                'soporte'         => ['Soporte', 'support', 'from-teal-500 to-emerald-600', 'text-teal-600 dark:text-teal-400', 'border-teal-300 bg-teal-50/60 ring-teal-200 dark:border-teal-500/40 dark:bg-teal-500/10 dark:ring-teal-500/30'],
-                'infraestructura' => ['Infraestructura', 'server', 'from-cyan-500 to-sky-600', 'text-cyan-600 dark:text-cyan-400', 'border-cyan-300 bg-cyan-50/60 ring-cyan-200 dark:border-cyan-500/40 dark:bg-cyan-500/10 dark:ring-cyan-500/30'],
-            ];
-        @endphp
         @foreach ($resumenAreas as $a)
-            @php [$nombre, $ico, $grad, $txt, $activeCls] = $areaMeta[$a['tipo']]; $sel = $tipo === $a['tipo']; @endphp
-            <button type="button" wire:click="toggleArea('{{ $a['tipo'] }}')"
+            @php $sd = $a['subdepartamento']; $conf = $sd->colores(); $sel = $sub_department_id === (string) $sd->id; @endphp
+            <button type="button" wire:click="toggleSubDepartamento({{ $sd->id }})"
                     class="group relative overflow-hidden rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md
-                           {{ $sel ? $activeCls.' ring-2' : 'border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20' }}">
-                <div class="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br {{ $grad }} opacity-[0.07] transition group-hover:opacity-[0.14]"></div>
+                           {{ $sel ? 'ring-2 ring-blue-300 dark:ring-blue-500/40 border-blue-300 dark:border-blue-500/40 bg-blue-50/60 dark:bg-blue-500/10' : 'border-slate-200/70 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20' }}">
+                <div class="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br {{ $conf['gradiente'] }} opacity-[0.07] transition group-hover:opacity-[0.14]"></div>
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ $nombre }}</p>
-                        <p class="mt-2 text-3xl font-bold {{ $txt }}">{{ $a['total'] }}</p>
+                        <p class="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ $sd->nombre }}</p>
+                        <p class="mt-2 text-3xl font-bold {{ $conf['icono'] }}">{{ $a['total'] }}</p>
                         <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
                             <span class="text-slate-500 dark:text-slate-400">{{ $a['activos'] }} activos</span> · {{ $a['completados'] }} completados
                         </p>
                     </div>
-                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br {{ $grad }} text-white shadow-lg">
-                        <x-icon :name="$ico" class="w-5 h-5" />
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br {{ $conf['gradiente'] }} text-white shadow-lg">
+                        <x-icon :name="$sd->icono" class="w-5 h-5" />
                     </span>
                 </div>
                 @if ($sel)
-                    <span class="mt-3 inline-flex items-center gap-1 text-[11px] font-medium {{ $txt }}">● Filtrando por esta area</span>
+                    <span class="mt-3 inline-flex items-center gap-1 text-[11px] font-medium {{ $conf['icono'] }}">● Filtrando por este subdepartamento</span>
                 @endif
             </button>
         @endforeach
     </div>
+    @endunless
 
     {{-- Filtros --}}
     <x-card>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input type="text" wire:model.live.debounce.300ms="buscar" placeholder="Buscar proyecto..."
                    class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-500 text-sm focus:border-blue-500 focus:ring-blue-500">
-            <select wire:model.live="tipo" class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500">
-                <option value="">Todos los tipos</option>
-                <option value="software">Software</option>
-                <option value="soporte">Soporte</option>
-                <option value="infraestructura">Infraestructura</option>
+            <select wire:model.live="sub_department_id" class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500">
+                <option value="">Todos los subdepartamentos</option>
+                @foreach ($subDepartamentos as $sd)
+                    <option value="{{ $sd->id }}">{{ $sd->nombre }}</option>
+                @endforeach
             </select>
             <select wire:model.live="estado" class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="">Todos los estados</option>
@@ -87,7 +82,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         @forelse ($proyectos as $p)
             @php
-                $ico = ['software'=>'code','soporte'=>'support','infraestructura'=>'server'][$p->tipo] ?? 'folder';
+                $ico = $p->subDepartamento->icono ?? 'folder';
                 $cumplimiento = $p->tareas_completadas_count > 0
                     ? round($p->tareas_a_tiempo_count / $p->tareas_completadas_count * 100, 1)
                     : null;
@@ -114,7 +109,7 @@
                 </div>
 
                 <div class="mt-3 flex gap-2">
-                    <x-badge tipo="tipo" :valor="$p->tipo" />
+                    <x-subdepartamento-badge :subdepartamento="$p->subDepartamento" />
                     <x-badge tipo="prioridad" :valor="$p->prioridad" />
                 </div>
 
