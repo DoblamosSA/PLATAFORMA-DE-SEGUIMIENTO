@@ -2,6 +2,9 @@
 
 namespace App\Livewire\Colaboradores;
 
+use App\Domain\Organization\Models\Department;
+use App\Domain\Organization\Models\Role;
+use App\Domain\Organization\Services\DepartmentService;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -46,6 +49,10 @@ class FormColaborador extends Component
 
     public ?string $horasDiarias = null;
 
+    public string $department_id = '';
+
+    public string $role_id = '';
+
     public function mount(?User $colaborador = null): void
     {
         abort_unless(Auth::user()?->esAdmin(), 403);
@@ -61,7 +68,26 @@ class FormColaborador extends Component
             $this->activo = $colaborador->activo ?? true;
             $this->diasLaborales = $colaborador->dias_laborales ?? [];
             $this->horasDiarias = $colaborador->horas_diarias !== null ? (string) $colaborador->horas_diarias : null;
+
+            $departamento = $colaborador->departments()->first();
+            if ($departamento) {
+                $this->department_id = (string) $departamento->id;
+                $this->role_id = $departamento->pivot->role_id ? (string) $departamento->pivot->role_id : '';
+            }
         }
+    }
+
+    /** Roles asignables dentro del departamento elegido: primarios (globales) + heredados de ese departamento. */
+    public function getRolesDisponiblesProperty()
+    {
+        if (! $this->department_id) {
+            return Role::where('is_primary', true)->orderBy('nombre')->get();
+        }
+
+        return Role::where('is_primary', true)
+            ->orWhere('department_id', $this->department_id)
+            ->orderBy('nombre')
+            ->get();
     }
 
     /** Capacidad semanal en vivo: dias seleccionados x horas diarias. */
@@ -87,6 +113,8 @@ class FormColaborador extends Component
             'diasLaborales' => 'required|array|min:1',
             'diasLaborales.*' => 'in:'.implode(',', User::DIAS),
             'horasDiarias' => 'required|numeric|min:0.01|max:12',
+            'department_id' => 'nullable|exists:departments,id',
+            'role_id' => 'nullable|exists:roles,id',
         ];
     }
 
@@ -132,6 +160,15 @@ class FormColaborador extends Component
         }
 
         $colaborador->save();
+
+        if ($data['department_id']) {
+            app(DepartmentService::class)->assignUserToDepartment(
+                $colaborador,
+                Department::findOrFail($data['department_id']),
+                $data['role_id'] ? Role::find($data['role_id']) : null,
+                esPrincipal: true,
+            );
+        }
 
         AuditLog::registrar(
             $esNuevo ? 'colaborador_creado' : 'colaborador_actualizado',

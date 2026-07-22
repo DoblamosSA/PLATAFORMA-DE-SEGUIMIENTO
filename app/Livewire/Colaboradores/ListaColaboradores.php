@@ -54,6 +54,7 @@ class ListaColaboradores extends Component
         $servicio = app(CapacidadService::class);
 
         $colaboradores = User::query()
+            ->with('departments')
             ->when($this->buscar, fn ($q) => $q->where(fn ($q2) => $q2->where('name', 'like', "%{$this->buscar}%")->orWhere('email', 'like', "%{$this->buscar}%")))
             ->when($this->rol, fn ($q) => $q->where('rol', $this->rol))
             ->when($this->area, fn ($q) => $q->where('area', $this->area))

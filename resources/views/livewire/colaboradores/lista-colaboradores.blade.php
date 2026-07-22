@@ -42,6 +42,7 @@
                     <tr class="text-left">
                         <th class="py-2.5 px-5 font-medium">Colaborador</th>
                         <th class="py-2.5 px-4 font-medium">Rol</th>
+                        <th class="py-2.5 px-4 font-medium">Departamento</th>
                         <th class="py-2.5 px-4 font-medium">Capacidad semanal</th>
                         <th class="py-2.5 px-4 font-medium w-48">Carga (semana actual)</th>
                         <th class="py-2.5 px-4 font-medium">Activo</th>
@@ -61,6 +62,9 @@
                                 </div>
                             </td>
                             <td class="py-2.5 px-4"><x-badge tipo="rol" :valor="$c->rol" /></td>
+                            <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300">
+                                {{ $c->departments->first()?->nombre ?? '—' }}
+                            </td>
                             <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300 tabular-nums">
                                 {{ $c->dias_laborales ? count($c->dias_laborales) . 'd × ' . rtrim(rtrim(number_format((float) $c->horas_diarias, 2), '0'), '.') . 'h = ' . rtrim(rtrim(number_format($c->capacidadSemanal(), 2), '0'), '.') . ' h' : '— sin definir' }}
                             </td>
@@ -86,7 +90,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-10 text-center text-slate-400 dark:text-slate-500">
+                            <td colspan="7" class="py-10 text-center text-slate-400 dark:text-slate-500">
                                 No hay colaboradores con estos filtros.
                                 <a href="{{ route('colaboradores.crear') }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</a>
                             </td>

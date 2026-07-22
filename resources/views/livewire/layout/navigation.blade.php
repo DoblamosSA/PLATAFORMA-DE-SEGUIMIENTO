@@ -29,6 +29,14 @@ new class extends Component
     if ($u->esAdmin()) {
         $nav[] = ['route' => 'colaboradores', 'pattern' => 'colaboradores*', 'label' => 'Colaboradores', 'icon' => 'users'];
     }
+    if ($u->esSuperAdmin() || \Illuminate\Support\Facades\Gate::allows('departments.manage')) {
+        $nav[] = ['route' => 'departamentos', 'pattern' => 'departamentos*', 'label' => 'Departamentos', 'icon' => 'building'];
+        $nav[] = ['route' => 'subdepartamentos', 'pattern' => 'subdepartamentos*', 'label' => 'SubDepartamentos', 'icon' => 'sitemap'];
+    }
+    if ($u->esSuperAdmin() || \Illuminate\Support\Facades\Gate::allows('roles.manage')) {
+        $nav[] = ['route' => 'roles', 'pattern' => 'roles*', 'label' => 'Roles', 'icon' => 'shield-check'];
+        $nav[] = ['route' => 'permisos', 'pattern' => 'permisos*', 'label' => 'Permisos', 'icon' => 'key'];
+    }
 @endphp
 
 <div x-data="{ open: false }">

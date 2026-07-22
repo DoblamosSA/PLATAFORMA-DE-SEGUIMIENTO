@@ -1,0 +1,151 @@
+<?php
+
+namespace App\Livewire\Organization\Roles;
+
+use App\Domain\Organization\DTOs\RoleData;
+use App\Domain\Organization\Exceptions\RoleHierarchyException;
+use App\Domain\Organization\Models\Department;
+use App\Domain\Organization\Models\Permission;
+use App\Domain\Organization\Models\Role;
+use App\Domain\Organization\Repositories\Contracts\PermissionRepositoryInterface;
+use App\Domain\Organization\Services\PermissionResolutionService;
+use App\Domain\Organization\Services\RoleService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
+use Livewire\Attributes\Layout;
+use Livewire\Component;
+
+#[Layout('layouts.app')]
+class FormRole extends Component
+{
+    public ?Role $role = null;
+
+    public bool $soloLectura = false;
+
+    public string $nombre = '';
+
+    public string $parent_role_id = '';
+
+    public string $department_id = '';
+
+    /** Overrides explicitos de este rol, indexados por permission_id: 'grant'|'deny'. Ausente = hereda. */
+    public array $overrides = [];
+
+    public function mount(PermissionRepositoryInterface $permissions, ?Role $role = null): void
+    {
+        abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+
+        foreach ($permissions->all() as $permiso) {
+            $this->overrides[$permiso->id] = 'heredado';
+        }
+
+        if ($role?->exists) {
+            $this->role = $role;
+            $this->soloLectura = $role->is_primary;
+            $this->nombre = $role->nombre;
+            $this->parent_role_id = (string) $role->parent_role_id;
+            $this->department_id = (string) $role->department_id;
+
+            foreach ($role->grantedPermissions as $permiso) {
+                $this->overrides[$permiso->id] = 'grant';
+            }
+            foreach ($role->deniedPermissions as $permiso) {
+                $this->overrides[$permiso->id] = 'deny';
+            }
+        }
+    }
+
+    /** Slugs de permisos que el padre seleccionado concede efectivamente (para la vista previa "heredado"). */
+    public function getPermisosHeredadosProperty(): array
+    {
+        if (! $this->parent_role_id) {
+            return [];
+        }
+
+        $padre = Role::find($this->parent_role_id);
+
+        if (! $padre) {
+            return [];
+        }
+
+        return app(PermissionResolutionService::class)->resolveEffectivePermissions($padre)->permissionSlugs;
+    }
+
+    protected function rules(): array
+    {
+        return [
+            'nombre' => 'required|string|min:2|max:255',
+            'parent_role_id' => 'required|exists:roles,id',
+            'department_id' => 'required|exists:departments,id',
+        ];
+    }
+
+    public function save(RoleService $service, PermissionRepositoryInterface $permissions)
+    {
+        abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+        abort_if($this->soloLectura, 403);
+
+        $data = $this->validate();
+
+        $grantIds = array_keys(array_filter($this->overrides, fn ($v) => $v === 'grant'));
+        $denyIds = array_keys(array_filter($this->overrides, fn ($v) => $v === 'deny'));
+
+        $grantedSlugs = Permission::whereIn('id', $grantIds)->pluck('slug')->all();
+        $revokedSlugs = Permission::whereIn('id', $denyIds)->pluck('slug')->all();
+
+        if ($this->role) {
+            $nuevoPadre = Role::findOrFail($data['parent_role_id']);
+
+            try {
+                $service->updateParent($this->role, $nuevoPadre);
+            } catch (RoleHierarchyException $e) {
+                $this->addError('parent_role_id', $e->getMessage());
+
+                return;
+            }
+
+            $this->role->update([
+                'nombre' => $data['nombre'],
+                'department_id' => $data['department_id'],
+            ]);
+            $service->updatePermissions($this->role, $grantedSlugs, $revokedSlugs);
+        } else {
+            $service->createInheritedRole(new RoleData(
+                id: null,
+                nombre: $data['nombre'],
+                slug: $this->generarSlugUnico($data['nombre']),
+                parentRoleId: (int) $data['parent_role_id'],
+                departmentId: (int) $data['department_id'],
+                isPrimary: false,
+                isDeletable: true,
+            ), $grantedSlugs, $revokedSlugs);
+        }
+
+        session()->flash('ok', $this->role ? 'Rol actualizado.' : 'Rol creado correctamente.');
+
+        return $this->redirect(route('roles'), navigate: true);
+    }
+
+    private function generarSlugUnico(string $nombre): string
+    {
+        $base = Str::slug($nombre);
+        $slug = $base;
+        $i = 1;
+
+        while (Role::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.(++$i);
+        }
+
+        return $slug;
+    }
+
+    public function render(PermissionRepositoryInterface $permissions, RoleService $roleService)
+    {
+        return view('livewire.organization.roles.form-role', [
+            'gruposPermisos' => $permissions->allGroupedByGrupo(),
+            'rolesPadre' => $roleService->assignableParentsFor($this->role),
+            'departamentos' => Department::orderBy('nombre')->get(),
+        ]);
+    }
+}

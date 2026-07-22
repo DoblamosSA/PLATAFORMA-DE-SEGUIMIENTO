@@ -36,6 +36,10 @@
             'alta'       => ['Carga alta', 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'],
             'al_limite'  => ['Al límite', 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'],
         ],
+        'rol_origen' => [
+            'primario' => ['Primario', 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'],
+            'heredado' => ['Heredado', 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300'],
+        ],
     ];
 
     [$texto, $clases] = $mapas[$tipo][$valor] ?? [ucfirst($valor), 'bg-gray-100 text-gray-600 dark:bg-slate-500/15 dark:text-slate-300'];

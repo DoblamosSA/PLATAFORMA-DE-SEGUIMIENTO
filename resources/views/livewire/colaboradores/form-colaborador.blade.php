@@ -96,6 +96,35 @@
                 </div>
             </div>
 
+            {{-- Departamento y rol organizacional --}}
+            <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 p-4 space-y-3">
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Departamento y rol</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="department_id" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Departamento</label>
+                        <select id="department_id" wire:model.live="department_id"
+                                class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Sin asignar</option>
+                            @foreach (\App\Domain\Organization\Models\Department::orderBy('nombre')->get() as $dpto)
+                                <option value="{{ $dpto->id }}">{{ $dpto->nombre }}</option>
+                            @endforeach
+                        </select>
+                        @error('department_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label for="role_id" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Rol en el departamento</label>
+                        <select id="role_id" wire:model="role_id"
+                                class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Sin asignar</option>
+                            @foreach ($this->rolesDisponibles as $rd)
+                                <option value="{{ $rd->id }}">{{ $rd->nombre }}</option>
+                            @endforeach
+                        </select>
+                        @error('role_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+            </div>
+
             {{-- Disponibilidad --}}
             <div class="rounded-xl border border-blue-100 dark:border-blue-500/30 bg-blue-50/40 dark:bg-blue-500/10 p-4 space-y-3">
                 <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Disponibilidad</p>
