@@ -37,7 +37,10 @@
       "Read(//c/Projects/PLATAFORMA-DE-SEGUIMIENTO/**)",
       "Bash(ssh -V)",
       "Bash(python -m py_compile deploy/deploy.py)",
-      "Bash(python -c \"import paramiko\")"
+      "Bash(python -c \"import paramiko\")",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(git push *)"
     ]
   }
 }
