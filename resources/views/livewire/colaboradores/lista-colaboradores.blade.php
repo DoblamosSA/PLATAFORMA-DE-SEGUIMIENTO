@@ -1,6 +1,6 @@
 <div class="p-4 sm:p-6 lg:p-8 space-y-6 anim-stagger">
 
-    <x-page-header title="Colaboradores" subtitle="Equipozzzzzzz, roles y capacidad operativa" icon="users">
+    <x-page-header title="Colaboradores" subtitle="Equipos, roles y capacidad operativa" icon="users">
         <x-slot:actions>
             <a href="{{ route('colaboradores.crear') }}" wire:navigate
                class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
