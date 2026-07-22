@@ -1,0 +1,74 @@
+# Despliegue automatico a produccion en cada push a main.
+#
+# Requiere estos secrets en el repo (Settings > Secrets and variables > Actions):
+#   DEPLOY_SSH_PASS   contrasena SSH del usuario de despliegue
+#                     (o DEPLOY_SSH_KEY con una llave privada, ver README)
+#   ENV_PRODUCTION    contenido completo de deploy/.env.production
+# Opcionales (tienen valores por defecto en deploy/deploy.py):
+#   DEPLOY_SSH_HOST, DEPLOY_SSH_PORT, DEPLOY_SSH_USER
+# Variable opcional (Settings > ... > Variables):
+#   DEPLOY_APP_PORT   puerto host de la app (por defecto 8090)
+#
+# El puerto SSH del servidor debe aceptar conexiones desde internet para
+# que el runner de GitHub pueda alcanzarlo.
+
+name: Desplegar a produccion
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Un despliegue a la vez; los pushes seguidos se encolan (no se cancelan
+# a mitad de build para no dejar el servidor en estado intermedio).
+concurrency:
+  group: deploy-projects
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar secrets
+        env:
+          DEPLOY_SSH_PASS: ${{ secrets.DEPLOY_SSH_PASS }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          ENV_PRODUCTION: ${{ secrets.ENV_PRODUCTION }}
+        run: |
+          faltan=""
+          if [ -z "$DEPLOY_SSH_PASS" ] && [ -z "$DEPLOY_SSH_KEY" ]; then
+            faltan="$faltan DEPLOY_SSH_PASS(o DEPLOY_SSH_KEY)"
+          fi
+          [ -z "$ENV_PRODUCTION" ] && faltan="$faltan ENV_PRODUCTION"
+          if [ -n "$faltan" ]; then
+            echo "Faltan secrets del repositorio:$faltan"
+            echo "Configuralos en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar paramiko
+        run: pip install paramiko
+
+      - name: Reconstruir deploy/.env.production desde el secret
+        env:
+          ENV_PRODUCTION: ${{ secrets.ENV_PRODUCTION }}
+        run: printf '%s\n' "$ENV_PRODUCTION" > deploy/.env.production
+
+      - name: Desplegar
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          DEPLOY_SSH_PASS: ${{ secrets.DEPLOY_SSH_PASS }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_APP_PORT: ${{ vars.DEPLOY_APP_PORT }}
+        run: python deploy/deploy.py

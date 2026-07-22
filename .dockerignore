@@ -11,5 +11,7 @@ database/*.sqlite
 tests
 .env
 .env.backup
+deploy/.env.production
+deploy/.env.deploy
 .phpunit.result.cache
 bootstrap/cache/*.php
