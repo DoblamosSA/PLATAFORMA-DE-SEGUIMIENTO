@@ -87,6 +87,50 @@ new class extends Component
                 @endforeach
             </nav>
 
+            {{-- Notificaciones push: visible hasta que el usuario decida --}}
+            <div x-data="{ permiso: ('Notification' in window) ? Notification.permission : 'unsupported' }"
+                 x-show="permiso === 'default' || permiso === 'denied'" x-cloak class="mt-4">
+                <button x-show="permiso === 'default'"
+                        @click="permiso = await window.activarNotificaciones()"
+                        class="flex w-full items-center gap-3 rounded-xl border border-blue-400/30 bg-blue-500/10 px-3 py-2.5 text-sm font-medium text-blue-200 hover:bg-blue-500/20 active:scale-[0.98] transition">
+                    <x-icon name="bell" class="w-5 h-5 text-blue-300" />
+                    Activar notificaciones
+                </button>
+                <p x-show="permiso === 'denied'" class="flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-[11px] leading-snug text-slate-400">
+                    <x-icon name="bell" class="w-4 h-4 shrink-0 mt-0.5 text-slate-500" />
+                    Notificaciones bloqueadas: habilítalas en el candado de la barra de direcciones.
+                </p>
+            </div>
+
+            {{-- Instalar como PWA (Android/desktop via prompt nativo; iOS con instrucciones) --}}
+            <div x-data="{
+                     instalable: window.pwaDisponible?.() ?? false,
+                     ios: /iphone|ipad|ipod/i.test(navigator.userAgent),
+                     standalone: window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true,
+                     verIos: false,
+                 }"
+                 x-init="window.addEventListener('pwa-instalable', () => instalable = true);
+                         window.addEventListener('pwa-instalada', () => instalable = false)"
+                 x-show="!standalone && (instalable || ios)" x-cloak class="mt-4">
+                <button x-show="instalable"
+                        @click="if (await window.instalarPWA()) instalable = false"
+                        class="flex w-full items-center gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2.5 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 active:scale-[0.98] transition">
+                    <x-icon name="download" class="w-5 h-5 text-emerald-300" />
+                    Instalar aplicación
+                </button>
+                <div x-show="!instalable && ios">
+                    <button @click="verIos = !verIos"
+                            class="flex w-full items-center gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2.5 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 active:scale-[0.98] transition">
+                        <x-icon name="download" class="w-5 h-5 text-emerald-300" />
+                        Instalar aplicación
+                    </button>
+                    <p x-show="verIos" x-transition class="mt-2 rounded-xl bg-white/5 px-3 py-2.5 text-[11px] leading-snug text-slate-400">
+                        En iPhone/iPad: toca <span class="text-slate-200">Compartir</span> (el cuadro con flecha) y luego
+                        <span class="text-slate-200">Añadir a pantalla de inicio</span>.
+                    </p>
+                </div>
+            </div>
+
             {{-- Usuario + logout --}}
             <div class="mt-4 border-t border-white/10 pt-4">
                 <div class="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5">

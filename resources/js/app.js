@@ -53,31 +53,87 @@ const suscribirPush = async (registro) => {
     }
 };
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-        try {
-            const registro = await navigator.serviceWorker.register('/sw.js');
+let pushInicializado = false;
 
-            // Solo en pantallas autenticadas (meta VAPID presente)
-            if (!document.querySelector('meta[name="vapid-public-key"]')) return;
+const configurarPush = async () => {
+    if (!('serviceWorker' in navigator)) return;
 
-            if (Notification.permission === 'granted') {
-                suscribirPush(registro);
-            } else if (Notification.permission === 'default') {
-                // Pedir permiso en el primer gesto del usuario
-                const pedir = async () => {
-                    document.removeEventListener('pointerdown', pedir);
-                    if (await Notification.requestPermission() === 'granted') {
-                        suscribirPush(registro);
-                    }
-                };
-                document.addEventListener('pointerdown', pedir, { once: true });
-            }
-        } catch (e) {
-            console.warn('Service worker: registro fallido', e);
+    try {
+        const registro = await navigator.serviceWorker.register('/sw.js');
+
+        // Solo en pantallas autenticadas (meta VAPID presente) y una vez
+        if (pushInicializado || !document.querySelector('meta[name="vapid-public-key"]')) return;
+        pushInicializado = true;
+
+        if (Notification.permission === 'granted') {
+            suscribirPush(registro);
+        } else if (Notification.permission === 'default') {
+            // Pedir permiso en el primer gesto del usuario
+            const pedir = async () => {
+                if (await Notification.requestPermission() === 'granted') {
+                    suscribirPush(registro);
+                }
+            };
+            document.addEventListener('pointerdown', pedir, { once: true });
         }
-    });
-}
+    } catch (e) {
+        console.warn('Service worker: registro fallido', e);
+    }
+};
+
+/**
+ * Activacion manual desde el boton de la barra lateral. Devuelve el
+ * permiso resultante ('granted' | 'denied' | 'default').
+ */
+window.activarNotificaciones = async () => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return 'denied';
+
+    const permiso = await Notification.requestPermission();
+    if (permiso === 'granted') {
+        const registro = await navigator.serviceWorker.register('/sw.js');
+        await suscribirPush(registro);
+    }
+
+    return permiso;
+};
+
+// Corre en la carga completa Y en cada navegacion SPA (wire:navigate):
+// al entrar por el login (layout sin VAPID) el unico evento 'load' ya
+// paso, asi que sin el segundo listener nunca se pediria el permiso.
+window.addEventListener('load', configurarPush);
+document.addEventListener('livewire:navigated', configurarPush);
+
+/**
+ * Instalacion de la PWA con boton propio: Chrome/Edge (Android y desktop)
+ * disparan beforeinstallprompt, que capturamos para mostrar "Instalar
+ * aplicacion" en el sidebar y lanzar el dialogo nativo al pulsarlo.
+ * En iOS no existe ese evento: el sidebar muestra las instrucciones
+ * manuales (Compartir -> Anadir a pantalla de inicio).
+ */
+let promptInstalacion = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); // evita el mini-banner erratico; lo mostramos nosotros
+    promptInstalacion = e;
+    window.dispatchEvent(new CustomEvent('pwa-instalable'));
+});
+
+window.addEventListener('appinstalled', () => {
+    promptInstalacion = null;
+    window.dispatchEvent(new CustomEvent('pwa-instalada'));
+});
+
+window.pwaDisponible = () => promptInstalacion !== null;
+
+window.instalarPWA = async () => {
+    if (!promptInstalacion) return false;
+    promptInstalacion.prompt();
+    const eleccion = await promptInstalacion.userChoice;
+    if (eleccion.outcome === 'accepted') {
+        promptInstalacion = null;
+    }
+    return eleccion.outcome === 'accepted';
+};
 
 /**
  * Tema claro/oscuro: persiste la eleccion del usuario y expone

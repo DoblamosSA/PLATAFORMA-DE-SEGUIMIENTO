@@ -31,7 +31,7 @@ import time
 # Configuracion. La contrasena NO va en el codigo: se toma de la variable
 # de entorno DEPLOY_SSH_PASS o se pide por teclado al ejecutar.
 # ----------------------------------------------------------------------
-HOST = os.environ.get("DEPLOY_SSH_HOST", "148.222.28.92")
+HOST = os.environ.get("DEPLOY_SSH_HOST", "148.224.28.92")
 PORT_SSH = int(os.environ.get("DEPLOY_SSH_PORT", "59422"))
 USER = os.environ.get("DEPLOY_SSH_USER", "admindoblamos")
 PASS = os.environ.get("DEPLOY_SSH_PASS", "")

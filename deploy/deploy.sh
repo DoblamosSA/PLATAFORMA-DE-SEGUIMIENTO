@@ -9,7 +9,7 @@
 # ------------------------------------------------------------------
 set -e
 
-HOST=148.222.28.92
+HOST=148.224.28.92
 PORT_SSH=59422
 USER=admindoblamos
 DIR_REMOTO=/home/$USER/projects-app

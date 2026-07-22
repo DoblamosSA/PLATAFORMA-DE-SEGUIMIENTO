@@ -9,9 +9,11 @@ if [ ! -f database/database.sqlite ]; then
     chown www-data:www-data database/database.sqlite
 fi
 
-# Clave de aplicacion (primer arranque, queda en el .env montado)
-if ! grep -q '^APP_KEY=base64' .env 2>/dev/null; then
-    php artisan key:generate --force
+# La configuracion llega por variables de entorno (compose env_file);
+# no hay archivo .env dentro del contenedor. APP_KEY es obligatoria.
+if [ -z "$APP_KEY" ]; then
+    echo "ERROR: APP_KEY no esta definida. Fijala en deploy/.env.production"
+    exit 1
 fi
 
 php artisan storage:link 2>/dev/null || true

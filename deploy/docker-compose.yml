@@ -1,6 +1,9 @@
 # Despliegue de "Projects" — un solo servicio, sin tocar nada del resto
-# del servidor. El puerto host se define en deploy/.env.deploy (PUERTO_HOST)
-# tras validar cuales estan libres.
+# del servidor.
+#   - Acceso interno/LAN: puerto host ${PUERTO_HOST} (8090 por defecto).
+#   - Acceso publico: via traefik existente con HTTPS automatico en
+#     https://projects.doblamos.com (requiere el registro DNS A
+#     projects.doblamos.com -> IP publica del servidor).
 services:
   projects:
     build:
@@ -16,6 +19,20 @@ services:
     volumes:
       - projects_db:/var/www/html/database
       - projects_storage:/var/www/html/storage/app
+    networks:
+      - default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.projects.entrypoints=websecure"
+      - "traefik.http.routers.projects.rule=Host(`projects.doblamos.com`)"
+      - "traefik.http.routers.projects.tls.certresolver=letsencrypt"
+      - "traefik.http.services.projects.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy"
+
+networks:
+  proxy:
+    external: true
 
 volumes:
   projects_db:

@@ -22,9 +22,9 @@ RUN composer install --no-dev --no-interaction --no-scripts --prefer-dist --opti
 # --- Etapa 3: runtime ---
 FROM php:8.3-fpm-alpine
 
-RUN apk add --no-cache nginx supervisor sqlite-libs icu-libs \
-    && apk add --no-cache --virtual .build icu-dev \
-    && docker-php-ext-install intl opcache pdo_mysql \
+RUN apk add --no-cache nginx supervisor sqlite-libs icu-libs gmp \
+    && apk add --no-cache --virtual .build icu-dev gmp-dev \
+    && docker-php-ext-install intl opcache pdo_mysql gmp bcmath \
     && apk del .build
 
 COPY deploy/php.ini /usr/local/etc/php/conf.d/app.ini
@@ -36,7 +36,9 @@ COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 
-RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs storage/app/public database \
+RUN rm -f bootstrap/cache/*.php \
+    && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views \
+                storage/logs storage/app/public database \
     && chown -R www-data:www-data storage bootstrap/cache database \
     && chmod +x deploy/entrypoint.sh
 

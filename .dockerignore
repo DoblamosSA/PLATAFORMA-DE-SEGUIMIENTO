@@ -12,3 +12,4 @@ tests
 .env
 .env.backup
 .phpunit.result.cache
+bootstrap/cache/*.php
