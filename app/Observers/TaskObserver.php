@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Livewire\Proyectos\TableroProyecto;
 use App\Models\Task;
 use App\Services\WebPushService;
 use Illuminate\Support\Facades\Auth;
@@ -12,26 +13,55 @@ use Illuminate\Support\Facades\Auth;
  */
 class TaskObserver
 {
+    /**
+     * Campos de mecanica interna: los tocan guardados secundarios de una
+     * misma accion (reubicar la card en el tablero, recalcular horas desde
+     * subtareas, marcas de tiempo automaticas) y no ameritan push propio.
+     */
+    protected const CAMPOS_INTERNOS = [
+        'posicion',
+        'updated_at',
+        'board_column_id',
+        'horas_estimadas',
+        'fecha_inicio_real',
+        'fecha_completada',
+        'cumplida_a_tiempo',
+    ];
+
+    /**
+     * Tareas ya notificadas en esta peticion. Una accion (avanzar, rechazar,
+     * editar) puede guardar la misma tarea varias veces seguidas; solo debe
+     * salir un push, el del primer guardado con cambios de negocio.
+     *
+     * @var array<int, true>
+     */
+    protected static array $notificadas = [];
+
     public function __construct(protected WebPushService $push)
     {
     }
 
     public function created(Task $task): void
     {
+        self::$notificadas[$task->id] = true;
         $this->notificar('Nueva tarea', "creó la tarea «{$task->titulo}»", $task);
     }
 
     public function updated(Task $task): void
     {
-        // Ignorar cambios puramente posicionales del tablero (arrastre dentro
-        // de la misma columna): no aportan informacion al equipo.
-        $cambios = array_diff(array_keys($task->getChanges()), ['posicion', 'updated_at']);
+        if (isset(self::$notificadas[$task->id])) {
+            return;
+        }
+
+        $cambios = array_diff(array_keys($task->getChanges()), self::CAMPOS_INTERNOS);
         if (empty($cambios)) {
             return;
         }
 
+        self::$notificadas[$task->id] = true;
+
         $detalle = $task->wasChanged('estado')
-            ? "cambió «{$task->titulo}» a estado {$task->estado}"
+            ? "cambió «{$task->titulo}» a ".(TableroProyecto::ESTADOS_LABEL[$task->estado] ?? $task->estado)
             : "actualizó la tarea «{$task->titulo}»";
 
         $this->notificar('Tarea actualizada', $detalle, $task);
@@ -39,6 +69,7 @@ class TaskObserver
 
     public function deleted(Task $task): void
     {
+        self::$notificadas[$task->id] = true;
         $this->notificar('Tarea eliminada', "eliminó la tarea «{$task->titulo}»", $task, borrada: true);
     }
 
