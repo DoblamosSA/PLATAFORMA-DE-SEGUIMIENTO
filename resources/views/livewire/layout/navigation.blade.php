@@ -17,13 +17,15 @@ new class extends Component
 }; ?>
 
 @php
+    $u = auth()->user();
     $nav = [
         ['route' => 'dashboard',              'pattern' => 'dashboard',   'label' => 'Dashboard', 'icon' => 'dashboard'],
         ['route' => 'proyectos',              'pattern' => 'proyectos*',  'label' => 'Proyectos', 'icon' => 'folder'],
-        ['route' => 'tareas',                 'pattern' => 'tareas*',     'label' => 'Tareas',    'icon' => 'tasks'],
-        ['route' => 'informes.cumplimiento',  'pattern' => 'informes*',   'label' => 'Informes',  'icon' => 'report'],
     ];
-    $u = auth()->user();
+    if ($u->esAdmin()) {
+        $nav[] = ['route' => 'tareas',        'pattern' => 'tareas*',     'label' => 'Tareas',    'icon' => 'tasks'];
+    }
+    $nav[] = ['route' => 'informes.cumplimiento', 'pattern' => 'informes*', 'label' => 'Informes', 'icon' => 'report'];
     if ($u->esAdmin()) {
         $nav[] = ['route' => 'colaboradores', 'pattern' => 'colaboradores*', 'label' => 'Colaboradores', 'icon' => 'users'];
     }

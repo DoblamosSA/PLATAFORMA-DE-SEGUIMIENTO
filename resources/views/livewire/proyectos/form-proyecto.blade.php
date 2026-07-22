@@ -100,7 +100,9 @@
                 <div class="rounded-lg bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-700 px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
                     Progreso actual: <span class="font-semibold text-gray-800 dark:text-slate-200">{{ $project->progreso }}%</span>
                     · {{ $project->tareas()->count() }} tareas
-                    · <a href="{{ route('tareas', ['tipo' => '']) }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">ver tareas</a>
+                    @if (auth()->user()->esAdmin())
+                        · <a href="{{ route('tareas', ['tipo' => '']) }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">ver tareas</a>
+                    @endif
                 </div>
             @endif
 

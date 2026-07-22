@@ -84,7 +84,7 @@ class TaskObserver
 
         $url = $borrada
             ? ($task->project_id ? "/proyectos/{$task->project_id}/tablero" : '/tareas')
-            : ($task->project_id ? "/proyectos/{$task->project_id}/tablero" : "/tareas/{$task->id}/editar");
+            : ($task->project_id ? "/proyectos/{$task->project_id}/tablero?tarea={$task->id}" : "/tareas/{$task->id}/editar");
 
         $this->push->notificarATodos($actor?->id, $titulo, $cuerpo, $url);
     }

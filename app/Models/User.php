@@ -147,10 +147,10 @@ class User extends Authenticatable
     // Permisos de proyectos/tareas/subtareas/comentarios
     // ---------------------------------------------------------------
 
-    /** Coordinador y evaluador pueden crear tareas (el evaluador solo con tag "certificacion"). */
+    /** El modulo de tareas (crear/editar) es exclusivo del administrador. */
     public function puedeCrearTarea(): bool
     {
-        return $this->esAdmin() || $this->esCoordinador() || $this->esEvaluador();
+        return $this->esAdmin();
     }
 
     /** Solo el administrador y el coordinador pueden crear proyectos. */

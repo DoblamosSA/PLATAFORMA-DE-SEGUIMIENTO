@@ -83,6 +83,13 @@ class TableroProyecto extends Component
         $this->project = $project;
         $this->autorizar();
         $this->project->asegurarColumnas();
+
+        // Deep-link (p. ej. al tocar una notificacion push): ?tarea=ID abre
+        // el panel de detalle de esa tarea. Si ya no existe, queda el tablero.
+        $tareaId = (int) request()->query('tarea');
+        if ($tareaId && Task::where('project_id', $project->id)->whereKey($tareaId)->exists()) {
+            $this->abrirTarea($tareaId);
+        }
     }
 
     // ---------------------------------------------------------------

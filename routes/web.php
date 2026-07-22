@@ -23,9 +23,12 @@ Route::middleware(['auth', \App\Http\Middleware\NoCacheHeaders::class])->group(f
     Route::get('proyectos/{project}/editar', FormProyecto::class)->name('proyectos.editar');
     Route::get('proyectos/{project}/tablero', TableroProyecto::class)->name('proyectos.tablero');
 
-    Route::get('tareas', ListaTareas::class)->name('tareas');
-    Route::get('tareas/nueva', FormTarea::class)->name('tareas.crear');
-    Route::get('tareas/{task}/editar', FormTarea::class)->name('tareas.editar');
+    // Modulo de tareas: solo administradores.
+    Route::middleware('can:admin')->group(function () {
+        Route::get('tareas', ListaTareas::class)->name('tareas');
+        Route::get('tareas/nueva', FormTarea::class)->name('tareas.crear');
+        Route::get('tareas/{task}/editar', FormTarea::class)->name('tareas.editar');
+    });
 
     Route::get('informes/cumplimiento', ReporteMensual::class)->name('informes.cumplimiento');
 

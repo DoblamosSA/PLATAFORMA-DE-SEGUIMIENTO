@@ -130,7 +130,7 @@
                 <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Tareas vencidas</h2>
             </div>
             @forelse ($vencidas as $t)
-                <a href="{{ route('tareas.editar', $t) }}" wire:navigate
+                <a @if (auth()->user()->esAdmin()) href="{{ route('tareas.editar', $t) }}" wire:navigate @endif
                    class="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 -mx-1 transition hover:bg-rose-50/60 dark:hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
                     <div class="min-w-0">
                         <p class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate group-hover:text-rose-700 dark:group-hover:text-rose-400">{{ $t->titulo }}</p>
@@ -149,7 +149,7 @@
                 <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Proximas a vencer</h2>
             </div>
             @forelse ($proximasVencer as $t)
-                <a href="{{ route('tareas.editar', $t) }}" wire:navigate
+                <a @if (auth()->user()->esAdmin()) href="{{ route('tareas.editar', $t) }}" wire:navigate @endif
                    class="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 -mx-1 transition hover:bg-slate-50 dark:hover:bg-slate-800/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                     <div class="min-w-0">
                         <p class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate group-hover:text-blue-700 dark:group-hover:text-blue-400">{{ $t->titulo }}</p>
