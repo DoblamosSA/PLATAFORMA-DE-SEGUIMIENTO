@@ -128,10 +128,6 @@ class FormRole extends Component
 
     protected function rules(): array
     {
-        if ($this->esPrimario()) {
-            return [];
-        }
-
         return [
             'nombre' => 'required|string|min:2|max:255',
             'parent_role_id' => 'required|exists:roles,id',
@@ -144,9 +140,12 @@ class FormRole extends Component
         abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
         abort_if($this->soloLectura, 403);
 
-        $data = $this->validate();
-
         $esPrimario = $this->esPrimario();
+
+        // Los roles primarios son globales: no tienen nombre/padre/departamento
+        // editables (esos inputs ni se muestran), asi que no hay nada que validar.
+        $data = $esPrimario ? [] : $this->validate();
+
         if (! $esPrimario) {
             $idsBloqueados = Permission::whereIn('grupo', self::GRUPOS_BLOQUEADOS_EN_HEREDADOS)->pluck('id')->all();
             foreach ($idsBloqueados as $id) {
