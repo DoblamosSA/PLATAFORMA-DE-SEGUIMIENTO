@@ -46,7 +46,11 @@
                             <td class="py-2.5 px-5 text-right">
                                 <div class="flex items-center justify-end gap-1">
                                     @if ($r->is_primary)
-                                        <x-row-action variant="ver" wire:click="abrirEditar({{ $r->id }})" label="Ver permisos de {{ $r->nombre }}" />
+                                        @if (auth()->user()->esSuperAdmin())
+                                            <x-row-action variant="editar" wire:click="abrirEditar({{ $r->id }})" label="Editar {{ $r->nombre }}" />
+                                        @else
+                                            <x-row-action variant="ver" wire:click="abrirEditar({{ $r->id }})" label="Ver permisos de {{ $r->nombre }}" />
+                                        @endif
                                     @else
                                         <x-row-action variant="editar" wire:click="abrirEditar({{ $r->id }})" label="Editar {{ $r->nombre }}" />
                                         <x-row-action variant="duplicar" wire:click="duplicar({{ $r->id }})" label="Duplicar {{ $r->nombre }}" />
@@ -73,7 +77,7 @@
 
     <div>{{ $roles->links() }}</div>
 
-    <x-form-modal :show="$mostrarModal" :title="$editando?->is_primary ? 'Ver rol: '.$editando->nombre : ($editando ? 'Editar rol' : 'Nuevo rol heredado')" wire-close="cerrarModal" max-width="4xl">
+    <x-form-modal :show="$mostrarModal" :title="$editando?->is_primary ? ((auth()->user()->esSuperAdmin() ? 'Editar rol: ' : 'Ver rol: ').$editando->nombre) : ($editando ? 'Editar rol' : 'Nuevo rol heredado')" wire-close="cerrarModal" max-width="4xl">
         @if ($mostrarModal)
             <livewire:organization.roles.form-role :role="$editando" :en-modal="true" :key="'form-rol-'.($editando?->id ?? 'nuevo')" />
         @endif

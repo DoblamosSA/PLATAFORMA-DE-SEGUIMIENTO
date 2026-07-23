@@ -48,7 +48,10 @@
             <p class="bg-slate-50 dark:bg-slate-800/60 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ \App\Domain\Organization\Models\Permission::grupoLabel($grupo) }}</p>
             <div class="divide-y divide-slate-100 dark:divide-slate-800">
                 @foreach ($permisos as $permiso)
-                    @php $activo = $this->permisoActivo($permiso); @endphp
+                    @php
+                        $activo = $this->permisoActivo($permiso);
+                        $bloqueado = $this->permisoBloqueado($permiso);
+                    @endphp
                     <div class="flex items-center justify-between gap-4 px-4 py-2.5">
                         <div class="min-w-0">
                             <p class="text-sm text-slate-700 dark:text-slate-200">{{ $permiso->nombre }}</p>
@@ -56,8 +59,9 @@
                         </div>
                         <button type="button"
                                 wire:click="togglePermiso({{ $permiso->id }}, '{{ $permiso->slug }}')"
-                                @disabled($soloLectura)
+                                @disabled($bloqueado)
                                 role="switch" aria-checked="{{ $activo ? 'true' : 'false' }}" aria-label="{{ $permiso->nombre }}"
+                                title="{{ $bloqueado && ! $soloLectura ? 'Este permiso solo se puede conceder desde un rol primario.' : '' }}"
                                 class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 disabled:cursor-not-allowed {{ $activo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700' }}">
                             <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform {{ $activo ? 'translate-x-6' : 'translate-x-1' }}"></span>
                         </button>

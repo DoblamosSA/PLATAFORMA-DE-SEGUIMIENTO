@@ -19,6 +19,9 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class FormRole extends Component
 {
+    /** Grupos de permisos que un rol heredado (no primario) nunca puede otorgar/revocar, para que no escale privilegios sobre departamentos o usuarios. */
+    private const GRUPOS_BLOQUEADOS_EN_HEREDADOS = ['departments', 'users'];
+
     public ?Role $role = null;
 
     public bool $enModal = false;
@@ -46,7 +49,7 @@ class FormRole extends Component
 
         if ($role?->exists) {
             $this->role = $role;
-            $this->soloLectura = $role->is_primary;
+            $this->soloLectura = $role->is_primary && ! Auth::user()->esSuperAdmin();
             $this->nombre = $role->nombre;
             $this->parent_role_id = (string) $role->parent_role_id;
             $this->department_id = (string) $role->department_id;
@@ -82,10 +85,29 @@ class FormRole extends Component
         return $this->estadoEfectivo($permiso->id, $permiso->slug);
     }
 
+    /**
+     * True si el switch de este permiso no se puede tocar: el formulario entero
+     * es de solo lectura, o es un rol heredado intentando tocar un grupo
+     * reservado (departamentos/usuarios) que solo los roles primarios pueden
+     * conceder.
+     */
+    public function permisoBloqueado(Permission $permiso): bool
+    {
+        if ($this->soloLectura) {
+            return true;
+        }
+
+        $esPrimario = $this->role?->is_primary ?? false;
+
+        return ! $esPrimario && in_array($permiso->grupo, self::GRUPOS_BLOQUEADOS_EN_HEREDADOS, true);
+    }
+
     /** Alterna el switch de un permiso, guardando solo el override necesario respecto a la sugerencia del padre. */
     public function togglePermiso(int $permisoId, string $slug): void
     {
-        if ($this->soloLectura) {
+        $permiso = Permission::find($permisoId);
+
+        if (! $permiso || $this->permisoBloqueado($permiso)) {
             return;
         }
 
@@ -119,6 +141,14 @@ class FormRole extends Component
         abort_if($this->soloLectura, 403);
 
         $data = $this->validate();
+
+        $esPrimario = $this->role?->is_primary ?? false;
+        if (! $esPrimario) {
+            $idsBloqueados = Permission::whereIn('grupo', self::GRUPOS_BLOQUEADOS_EN_HEREDADOS)->pluck('id')->all();
+            foreach ($idsBloqueados as $id) {
+                unset($this->overrides[$id]);
+            }
+        }
 
         $grantIds = array_keys(array_filter($this->overrides, fn ($v) => $v === 'grant'));
         $denyIds = array_keys(array_filter($this->overrides, fn ($v) => $v === 'deny'));
