@@ -17,6 +17,21 @@ if [ -z "$APP_KEY" ]; then
 fi
 
 php artisan storage:link 2>/dev/null || true
+
+# Reporta si hay migraciones pendientes antes de aplicarlas, para que
+# quede visible en el log del pipeline de despliegue.
+if php artisan migrate:status > /tmp/migrate_status.txt 2>&1; then
+    PENDIENTES=$(grep -c 'Pending' /tmp/migrate_status.txt || true)
+    if [ "${PENDIENTES:-0}" -gt 0 ]; then
+        echo "==> $PENDIENTES migracion(es) pendiente(s) detectada(s), aplicando..."
+    else
+        echo "==> No hay migraciones pendientes, continuando..."
+    fi
+else
+    echo "==> Base de datos nueva, aplicando migraciones iniciales..."
+fi
+rm -f /tmp/migrate_status.txt
+
 php artisan migrate --force
 php artisan config:cache
 php artisan route:cache

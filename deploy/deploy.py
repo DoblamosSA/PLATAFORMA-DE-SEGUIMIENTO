@@ -30,6 +30,10 @@ Que hace, en orden:
   6. Verifica que el contenedor quedo arriba y que /login responde
      HTTP 200/302 (reintenta ~60 s mientras corren migraciones); si no
      responde, muestra los logs del contenedor y termina con error.
+
+En CI, despues de este script corre deploy/migrate.py como paso aparte
+("Validacion y ejecucion de migraciones"), que confirma explicitamente
+si quedo algo pendiente y lo aplica.
 """
 
 import os
@@ -38,16 +42,8 @@ import tarfile
 import tempfile
 import time
 
-# ----------------------------------------------------------------------
-# Configuracion. Las credenciales NO van en el codigo: se toman de las
-# variables de entorno (en CI, de los secrets del repo). En ejecucion
-# manual sin DEPLOY_SSH_PASS, la contrasena se pide por teclado.
-# ----------------------------------------------------------------------
-HOST = os.environ.get("DEPLOY_SSH_HOST") or "148.224.28.92"
-PORT_SSH = int(os.environ.get("DEPLOY_SSH_PORT") or "59422")
-USER = os.environ.get("DEPLOY_SSH_USER") or "admindoblamos"
-PASS = os.environ.get("DEPLOY_SSH_PASS") or ""
-KEY = os.environ.get("DEPLOY_SSH_KEY") or ""  # llave privada (contenido PEM), opcional
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _ssh import HOST, PORT_SSH, USER, conectar, ejecutar  # noqa: E402
 
 try:
     PUERTO_APP = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("DEPLOY_APP_PORT") or "8090")
@@ -72,54 +68,6 @@ def excluido(ruta_rel: str) -> bool:
     if ruta_rel.startswith("database/") and ruta_rel.endswith(".sqlite"):
         return True
     return any(ruta_rel == e or ruta_rel.startswith(e + "/") for e in EXCLUIR)
-
-
-def conectar():
-    try:
-        import paramiko
-    except ImportError:
-        print("Falta la libreria paramiko. Instalala con:  pip install paramiko")
-        sys.exit(1)
-
-    global PASS
-    pkey = None
-    if KEY:
-        import io
-        for tipo in (paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey):
-            try:
-                pkey = tipo.from_private_key(io.StringIO(KEY))
-                break
-            except paramiko.SSHException:
-                continue
-        if pkey is None:
-            print("ERROR: DEPLOY_SSH_KEY no es una llave privada valida (Ed25519/RSA/ECDSA).")
-            sys.exit(1)
-    elif not PASS:
-        if not sys.stdin.isatty():
-            print("ERROR: define DEPLOY_SSH_PASS (o DEPLOY_SSH_KEY) en el entorno.")
-            print("No hay terminal interactiva para pedir la contrasena.")
-            sys.exit(1)
-        import getpass
-        PASS = getpass.getpass(f"Contrasena SSH de {USER}@{HOST}: ")
-
-    print(f"==> Conectando a {HOST}:{PORT_SSH} como {USER}...")
-    cliente = paramiko.SSHClient()
-    cliente.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    cliente.connect(HOST, port=PORT_SSH, username=USER,
-                    password=PASS or None, pkey=pkey, timeout=25)
-    return cliente
-
-
-def ejecutar(cliente, comando: str, mostrar: bool = True, timeout: int = 1800) -> tuple[int, str]:
-    """Ejecuta un comando remoto transmitiendo la salida en vivo."""
-    stdin, stdout, stderr = cliente.exec_command(comando, timeout=timeout, get_pty=True)
-    salida = []
-    for linea in iter(stdout.readline, ""):
-        salida.append(linea)
-        if mostrar:
-            print("    " + linea.rstrip())
-    codigo = stdout.channel.recv_exit_status()
-    return codigo, "".join(salida)
 
 
 def main():

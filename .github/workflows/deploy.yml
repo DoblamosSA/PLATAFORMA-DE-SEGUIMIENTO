@@ -72,3 +72,12 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_APP_PORT: ${{ vars.DEPLOY_APP_PORT }}
         run: python deploy/deploy.py
+
+      - name: Validacion y ejecucion de migraciones
+        env:
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          DEPLOY_SSH_PASS: ${{ secrets.DEPLOY_SSH_PASS }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: python deploy/migrate.py
