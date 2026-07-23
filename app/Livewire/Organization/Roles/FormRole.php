@@ -24,8 +24,6 @@ class FormRole extends Component
 
     public ?Role $role = null;
 
-    public bool $enModal = false;
-
     public bool $soloLectura = false;
 
     public string $nombre = '';
@@ -37,11 +35,9 @@ class FormRole extends Component
     /** Overrides explicitos de este rol, indexados por permission_id: 'grant'|'deny'. Ausente = hereda. */
     public array $overrides = [];
 
-    public function mount(PermissionRepositoryInterface $permissions, ?Role $role = null, bool $enModal = false): void
+    public function mount(PermissionRepositoryInterface $permissions, ?Role $role = null): void
     {
         abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
-
-        $this->enModal = $enModal;
 
         foreach ($permissions->all() as $permiso) {
             $this->overrides[$permiso->id] = 'heredado';
@@ -186,18 +182,7 @@ class FormRole extends Component
 
         session()->flash('ok', $this->role ? 'Rol actualizado.' : 'Rol creado correctamente.');
 
-        if ($this->enModal) {
-            $this->dispatch('cerrar-modal-rol');
-
-            return;
-        }
-
         return $this->redirect(route('roles'), navigate: true);
-    }
-
-    public function cancelar(): void
-    {
-        $this->dispatch('cerrar-modal-rol');
     }
 
     private function generarSlugUnico(string $nombre): string

@@ -5,6 +5,7 @@ use App\Livewire\Dashboard;
 use App\Livewire\Informes\ReporteMensual;
 use App\Livewire\Organization\Departamentos\ListaDepartamentos;
 use App\Livewire\Organization\Permisos\ListaPermisos;
+use App\Livewire\Organization\Roles\FormRole;
 use App\Livewire\Organization\Roles\ListaRoles;
 use App\Livewire\Organization\SubDepartamentos\ListaSubDepartamentos;
 use App\Livewire\Proyectos\ListaProyectos;
@@ -48,9 +49,14 @@ Route::middleware(['auth', \App\Http\Middleware\NoCacheHeaders::class])->group(f
     Route::get('subdepartamentos/nuevo', ListaSubDepartamentos::class)->name('subdepartamentos.crear');
     Route::get('subdepartamentos/{subDepartment}/editar', ListaSubDepartamentos::class)->name('subdepartamentos.editar');
 
+    // A diferencia de los demas modulos, roles.crear/editar NO abren un modal:
+    // el formulario de roles necesita varias idas y vueltas al servidor antes
+    // de guardar (selector de rol padre en vivo + docenas de toggles de
+    // permisos), y ese patron es fragil cuando el componente se monta
+    // dinamicamente dentro de un modal en vez de ser la raiz de la pagina.
     Route::get('roles', ListaRoles::class)->name('roles');
-    Route::get('roles/nuevo', ListaRoles::class)->name('roles.crear');
-    Route::get('roles/{role}/editar', ListaRoles::class)->name('roles.editar');
+    Route::get('roles/nuevo', FormRole::class)->name('roles.crear');
+    Route::get('roles/{role}/editar', FormRole::class)->name('roles.editar');
 
     Route::get('permisos', ListaPermisos::class)->name('permisos');
 

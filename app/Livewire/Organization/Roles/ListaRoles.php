@@ -8,7 +8,6 @@ use App\Domain\Organization\Services\RoleService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -21,48 +20,9 @@ class ListaRoles extends Component
     #[Url]
     public string $buscar = '';
 
-    public bool $mostrarModal = false;
-
-    public ?Role $editando = null;
-
-    public bool $llegoPorRutaDirecta = false;
-
-    public function mount(?Role $role = null): void
+    public function mount(): void
     {
         abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
-
-        if (request()->routeIs('roles.crear')) {
-            $this->mostrarModal = true;
-            $this->llegoPorRutaDirecta = true;
-        } elseif ($role?->exists) {
-            $this->mostrarModal = true;
-            $this->editando = $role;
-            $this->llegoPorRutaDirecta = true;
-        }
-    }
-
-    public function abrirCrear(): void
-    {
-        $this->editando = null;
-        $this->mostrarModal = true;
-    }
-
-    public function abrirEditar(int $roleId): void
-    {
-        $this->editando = Role::findOrFail($roleId);
-        $this->mostrarModal = true;
-    }
-
-    #[On('cerrar-modal-rol')]
-    public function cerrarModal(): void
-    {
-        $this->mostrarModal = false;
-        $this->editando = null;
-
-        if ($this->llegoPorRutaDirecta) {
-            $this->llegoPorRutaDirecta = false;
-            $this->redirect(route('roles'), navigate: true);
-        }
     }
 
     public function updating($name): void
