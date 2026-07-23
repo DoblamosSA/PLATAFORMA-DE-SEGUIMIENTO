@@ -11,6 +11,7 @@ final readonly class DepartmentData
         public string $nombre,
         public string $slug,
         public ?string $descripcion,
+        public ?int $responsableId = null,
         public bool $activo = true,
     ) {}
 
@@ -21,6 +22,7 @@ final readonly class DepartmentData
             nombre: $department->nombre,
             slug: $department->slug,
             descripcion: $department->descripcion,
+            responsableId: $department->responsable_id,
             activo: $department->activo,
         );
     }
@@ -32,6 +34,7 @@ final readonly class DepartmentData
             'nombre' => $this->nombre,
             'slug' => $this->slug,
             'descripcion' => $this->descripcion,
+            'responsable_id' => $this->responsableId,
             'activo' => $this->activo,
         ];
     }

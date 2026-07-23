@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Factories\DepartmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -23,6 +24,7 @@ class Department extends Model
         'nombre',
         'slug',
         'descripcion',
+        'responsable_id',
         'activo',
     ];
 
@@ -31,6 +33,12 @@ class Department extends Model
         return [
             'activo' => 'boolean',
         ];
+    }
+
+    /** Responsable del departamento: siempre un Administrador. */
+    public function responsable(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsable_id');
     }
 
     public function subDepartments(): HasMany

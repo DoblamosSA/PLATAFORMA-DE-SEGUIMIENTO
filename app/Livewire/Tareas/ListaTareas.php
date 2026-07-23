@@ -9,6 +9,7 @@ use App\Models\TaskActivity;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -32,6 +33,54 @@ class ListaTareas extends Component
 
     #[Url]
     public bool $soloVencidas = false;
+
+    /** Proyecto pre-seleccionado via query string (?project=ID), ej. desde "Asignar tarea" en un proyecto. */
+    #[Url(as: 'project')]
+    public ?int $proyectoPreseleccionadoId = null;
+
+    public bool $mostrarModal = false;
+
+    public ?Task $editando = null;
+
+    public bool $llegoPorRutaDirecta = false;
+
+    public function mount(?Task $task = null): void
+    {
+        if (request()->routeIs('tareas.crear')) {
+            $this->mostrarModal = true;
+            $this->llegoPorRutaDirecta = true;
+        } elseif ($task?->exists) {
+            $this->mostrarModal = true;
+            $this->editando = $task;
+            $this->llegoPorRutaDirecta = true;
+        }
+    }
+
+    public function abrirCrear(): void
+    {
+        $this->editando = null;
+        $this->proyectoPreseleccionadoId = null;
+        $this->mostrarModal = true;
+    }
+
+    public function abrirEditar(int $taskId): void
+    {
+        $this->editando = Task::findOrFail($taskId);
+        $this->mostrarModal = true;
+    }
+
+    #[On('cerrar-modal-tarea')]
+    public function cerrarModal(): void
+    {
+        $this->mostrarModal = false;
+        $this->editando = null;
+        $this->proyectoPreseleccionadoId = null;
+
+        if ($this->llegoPorRutaDirecta) {
+            $this->llegoPorRutaDirecta = false;
+            $this->redirect(route('tareas'), navigate: true);
+        }
+    }
 
     public function updating($name): void
     {

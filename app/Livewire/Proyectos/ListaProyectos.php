@@ -6,6 +6,7 @@ use App\Domain\Organization\Models\SubDepartment;
 use App\Models\Project;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -23,6 +24,34 @@ class ListaProyectos extends Component
 
     #[Url]
     public string $estado = '';
+
+    public bool $mostrarModal = false;
+
+    public bool $llegoPorRutaDirecta = false;
+
+    public function mount(): void
+    {
+        if (request()->routeIs('proyectos.crear')) {
+            $this->mostrarModal = true;
+            $this->llegoPorRutaDirecta = true;
+        }
+    }
+
+    public function abrirCrear(): void
+    {
+        $this->mostrarModal = true;
+    }
+
+    #[On('cerrar-modal-proyecto')]
+    public function cerrarModal(): void
+    {
+        $this->mostrarModal = false;
+
+        if ($this->llegoPorRutaDirecta) {
+            $this->llegoPorRutaDirecta = false;
+            $this->redirect(route('proyectos'), navigate: true);
+        }
+    }
 
     public function updating($name): void
     {

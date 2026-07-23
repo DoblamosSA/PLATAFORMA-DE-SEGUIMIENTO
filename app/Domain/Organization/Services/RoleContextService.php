@@ -45,6 +45,14 @@ class RoleContextService
         }
 
         foreach ($user->rolesGlobales()->get() as $role) {
+            // Super Administrador no es una identidad distinta cuando el usuario
+            // ya es Administrador por el campo legado: admin ya implica
+            // super-admin (ver esSuperAdmin()), asi que no se ofrece como
+            // opcion separada para elegir (evita el selector para todo admin).
+            if ($role->slug === 'super-admin' && $user->rol === 'admin') {
+                continue;
+            }
+
             $key = "global:{$role->id}";
             $candidates[$key] = [
                 'key' => $key,

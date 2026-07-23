@@ -3,10 +3,10 @@
     <x-page-header title="Proyectos" subtitle="Organizados por subdepartamento" icon="folder">
         <x-slot:actions>
             @if (auth()->user()->puedeCrearProyecto())
-                <a href="{{ route('proyectos.crear') }}" wire:navigate
+                <button type="button" wire:click="abrirCrear"
                    class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
                     <x-icon name="plus" class="w-4 h-4" /> Nuevo proyecto
-                </a>
+                </button>
             @endif
         </x-slot:actions>
     </x-page-header>
@@ -161,4 +161,10 @@
     </div>
 
     <div>{{ $proyectos->links() }}</div>
+
+    <x-form-modal :show="$mostrarModal" title="Nuevo proyecto" wire-close="cerrarModal" max-width="3xl">
+        @if ($mostrarModal)
+            <livewire:proyectos.form-proyecto :en-modal="true" :key="'form-proyecto-nuevo'" />
+        @endif
+    </x-form-modal>
 </div>

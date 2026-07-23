@@ -2,10 +2,10 @@
 
     <x-page-header title="Departamentos" subtitle="Estructura organizacional de la empresa" icon="building">
         <x-slot:actions>
-            <a href="{{ route('departamentos.crear') }}" wire:navigate
+            <button type="button" wire:click="abrirCrear"
                class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
                 <x-icon name="plus" class="w-4 h-4" /> Nuevo departamento
-            </a>
+            </button>
         </x-slot:actions>
     </x-page-header>
 
@@ -25,6 +25,7 @@
                 <thead class="bg-slate-50 dark:bg-slate-800/60 text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     <tr class="text-left">
                         <th class="py-2.5 px-5 font-medium">Departamento</th>
+                        <th class="py-2.5 px-4 font-medium">Responsable</th>
                         <th class="py-2.5 px-4 font-medium">SubDepartamentos</th>
                         <th class="py-2.5 px-4 font-medium">Usuarios</th>
                         <th class="py-2.5 px-4 font-medium">Estado</th>
@@ -40,6 +41,7 @@
                                     <p class="text-xs text-slate-400 dark:text-slate-500 truncate max-w-xs">{{ $d->descripcion }}</p>
                                 @endif
                             </td>
+                            <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300">{{ $d->responsable?->name ?? '— sin asignar —' }}</td>
                             <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300 tabular-nums">{{ $d->sub_departments_count }}</td>
                             <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300 tabular-nums">{{ $d->users_count }}</td>
                             <td class="py-2.5 px-4">
@@ -51,7 +53,7 @@
                             </td>
                             <td class="py-2.5 px-5 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    <x-row-action variant="editar" :href="route('departamentos.editar', $d)" label="Editar {{ $d->nombre }}" />
+                                    <x-row-action variant="editar" wire:click="abrirEditar({{ $d->id }})" label="Editar {{ $d->nombre }}" />
                                     <x-row-action variant="eliminar" wire:click="eliminar({{ $d->id }})"
                                                   :confirm="'¿Eliminar el departamento &quot;'.$d->nombre.'&quot;? Esta acción no se puede deshacer.'"
                                                   label="Eliminar {{ $d->nombre }}" />
@@ -60,9 +62,9 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5">
+                            <td colspan="6">
                                 <x-empty-state icon="building" mensaje="No hay departamentos todavía.">
-                                    <a href="{{ route('departamentos.crear') }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</a>
+                                    <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
                                 </x-empty-state>
                             </td>
                         </tr>
@@ -73,4 +75,10 @@
     </div>
 
     <div>{{ $departamentos->links() }}</div>
+
+    <x-form-modal :show="$mostrarModal" :title="$editando ? 'Editar departamento' : 'Nuevo departamento'" wire-close="cerrarModal" max-width="2xl">
+        @if ($mostrarModal)
+            <livewire:organization.departamentos.form-departamento :department="$editando" :en-modal="true" :key="'form-departamento-'.($editando?->id ?? 'nuevo')" />
+        @endif
+    </x-form-modal>
 </div>

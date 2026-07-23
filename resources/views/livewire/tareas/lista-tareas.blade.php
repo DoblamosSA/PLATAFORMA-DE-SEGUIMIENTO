@@ -3,10 +3,10 @@
     <x-page-header title="Tareas / Actividades" subtitle="Gestiona y da seguimiento a todas las actividades" icon="tasks">
         <x-slot:actions>
             @if (auth()->user()->puedeCrearTarea())
-                <a href="{{ route('tareas.crear') }}" wire:navigate
+                <button type="button" wire:click="abrirCrear"
                    class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
                     <x-icon name="plus" class="w-4 h-4" /> Nueva tarea
-                </a>
+                </button>
             @endif
         </x-slot:actions>
     </x-page-header>
@@ -67,8 +67,8 @@
                     @forelse ($tareas as $t)
                         <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                             <td class="py-3 px-5">
-                                <a href="{{ route('tareas.editar', $t) }}" wire:navigate
-                                   class="font-medium text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400">{{ $t->titulo }}</a>
+                                <button type="button" wire:click="abrirEditar({{ $t->id }})"
+                                   class="font-medium text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 text-left">{{ $t->titulo }}</button>
                                 <span class="block text-xs text-slate-400 dark:text-slate-500">{{ $t->proyecto?->nombre ?? 'Sin proyecto' }}</span>
                             </td>
                             <td class="py-3 px-4 text-slate-600 dark:text-slate-400">{{ $t->asignado?->name ?? '—' }}</td>
@@ -112,4 +112,10 @@
     </div>
 
     <div>{{ $tareas->links() }}</div>
+
+    <x-form-modal :show="$mostrarModal" :title="$editando ? 'Editar tarea' : 'Nueva tarea'" wire-close="cerrarModal" max-width="4xl">
+        @if ($mostrarModal)
+            <livewire:tareas.form-tarea :task="$editando" :project-id="$proyectoPreseleccionadoId" :en-modal="true" :key="'form-tarea-'.($editando?->id ?? 'nuevo')" />
+        @endif
+    </x-form-modal>
 </div>

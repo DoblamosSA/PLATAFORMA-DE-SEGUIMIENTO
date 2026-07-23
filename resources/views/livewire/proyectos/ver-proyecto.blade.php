@@ -38,10 +38,10 @@
                     <x-icon name="tasks" class="w-4 h-4" /> Administrar tareas
                 </a>
             @endif
-            <a href="{{ route('proyectos.editar', $project) }}" wire:navigate
+            <button type="button" wire:click="abrirEditar"
                class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition">
                 Editar
-            </a>
+            </button>
             @if (auth()->user()->esSuperAdmin())
                 <button x-on:click="$dispatch('confirm-modal', {
                             title: 'Eliminar',
@@ -78,7 +78,7 @@
         {{-- Equipo --}}
         <x-card class="lg:col-span-1">
             <x-slot:actions>
-                <a href="{{ route('proyectos.editar', $project) }}" wire:navigate class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Gestionar</a>
+                <button type="button" wire:click="abrirEditar" class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Gestionar</button>
             </x-slot:actions>
             <x-slot:title>Equipo ({{ count($equipo) }})</x-slot:title>
             @forelse ($equipo as $m)
@@ -164,4 +164,10 @@
             </div>
         </div>
     </div>
+
+    <x-form-modal :show="$mostrarModalEditar" title="Editar proyecto" wire-close="cerrarModalEditar" max-width="3xl">
+        @if ($mostrarModalEditar)
+            <livewire:proyectos.form-proyecto :project="$project" :en-modal="true" :key="'form-proyecto-'.$project->id" />
+        @endif
+    </x-form-modal>
 </div>

@@ -8,6 +8,7 @@ use App\Models\Task;
 use App\Services\CapacidadService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
@@ -15,11 +16,38 @@ class VerProyecto extends Component
 {
     public Project $project;
 
+    public bool $mostrarModalEditar = false;
+
+    /** True si el modal se abrio por la URL directa proyectos.editar: al cerrar hay que volver a la URL del detalle. */
+    public bool $llegoPorRutaDirecta = false;
+
     public function mount(Project $project): void
     {
         abort_unless($project->usuarioPuedeGestionar(Auth::user()), 403);
 
         $this->project = $project;
+
+        if (request()->routeIs('proyectos.editar')) {
+            $this->mostrarModalEditar = true;
+            $this->llegoPorRutaDirecta = true;
+        }
+    }
+
+    public function abrirEditar(): void
+    {
+        $this->mostrarModalEditar = true;
+    }
+
+    #[On('cerrar-modal-proyecto')]
+    public function cerrarModalEditar(): void
+    {
+        $this->mostrarModalEditar = false;
+        $this->project->refresh();
+
+        if ($this->llegoPorRutaDirecta) {
+            $this->llegoPorRutaDirecta = false;
+            $this->redirect(route('proyectos.ver', $this->project), navigate: true);
+        }
     }
 
     /**
