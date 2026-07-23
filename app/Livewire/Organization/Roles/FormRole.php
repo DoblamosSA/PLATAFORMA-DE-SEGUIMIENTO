@@ -93,9 +93,7 @@ class FormRole extends Component
             return true;
         }
 
-        $esPrimario = $this->role?->is_primary ?? false;
-
-        return ! $esPrimario && in_array($permiso->grupo, self::GRUPOS_BLOQUEADOS_EN_HEREDADOS, true);
+        return ! $this->esPrimario() && in_array($permiso->grupo, self::GRUPOS_BLOQUEADOS_EN_HEREDADOS, true);
     }
 
     /** Alterna el switch de un permiso, guardando solo el override necesario respecto a la sugerencia del padre. */
@@ -122,8 +120,18 @@ class FormRole extends Component
         };
     }
 
+    /** Los roles primarios son globales: no tienen nombre editable, no heredan de otro rol y no pertenecen a un departamento. Solo su matriz de permisos se puede ajustar. */
+    private function esPrimario(): bool
+    {
+        return $this->role?->is_primary ?? false;
+    }
+
     protected function rules(): array
     {
+        if ($this->esPrimario()) {
+            return [];
+        }
+
         return [
             'nombre' => 'required|string|min:2|max:255',
             'parent_role_id' => 'required|exists:roles,id',
@@ -138,7 +146,7 @@ class FormRole extends Component
 
         $data = $this->validate();
 
-        $esPrimario = $this->role?->is_primary ?? false;
+        $esPrimario = $this->esPrimario();
         if (! $esPrimario) {
             $idsBloqueados = Permission::whereIn('grupo', self::GRUPOS_BLOQUEADOS_EN_HEREDADOS)->pluck('id')->all();
             foreach ($idsBloqueados as $id) {
@@ -152,7 +160,9 @@ class FormRole extends Component
         $grantedSlugs = Permission::whereIn('id', $grantIds)->pluck('slug')->all();
         $revokedSlugs = Permission::whereIn('id', $denyIds)->pluck('slug')->all();
 
-        if ($this->role) {
+        if ($esPrimario) {
+            $service->updatePermissions($this->role, $grantedSlugs, $revokedSlugs);
+        } elseif ($this->role) {
             $nuevoPadre = Role::findOrFail($data['parent_role_id']);
 
             try {

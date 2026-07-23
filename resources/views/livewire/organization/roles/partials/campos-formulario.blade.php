@@ -1,39 +1,40 @@
-@if ($soloLectura)
+@if ($role?->is_primary)
     <div class="rounded-xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 px-4 py-3 text-sm text-indigo-700 dark:text-indigo-400">
-        Este es un rol primario: es de solo lectura y no puede editarse ni eliminarse.
+        Este es un rol primario: es global, no hereda de otro rol ni pertenece a un departamento.
+        {{ $soloLectura ? 'Es de solo lectura y no puede editarse ni eliminarse.' : 'Solo se puede ajustar su matriz de permisos.' }}
+    </div>
+@else
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+            <label for="nombre" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Nombre *</label>
+            <input id="nombre" type="text" wire:model="nombre" @disabled($soloLectura)
+                   class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm disabled:opacity-60 focus:border-blue-500 focus:ring-blue-500">
+            @error('nombre') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+        </div>
+        <div>
+            <label for="parent_role_id" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Rol padre *</label>
+            <select id="parent_role_id" wire:model.live="parent_role_id" @disabled($soloLectura)
+                    class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm disabled:opacity-60">
+                <option value="">Selecciona un rol</option>
+                @foreach ($rolesPadre as $rp)
+                    <option value="{{ $rp->id }}">{{ $rp->nombre }}</option>
+                @endforeach
+            </select>
+            @error('parent_role_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+        </div>
+        <div>
+            <label for="department_id" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Departamento *</label>
+            <select id="department_id" wire:model="department_id" @disabled($soloLectura)
+                    class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm disabled:opacity-60">
+                <option value="">Selecciona un departamento</option>
+                @foreach ($departamentos as $d)
+                    <option value="{{ $d->id }}">{{ $d->nombre }}</option>
+                @endforeach
+            </select>
+            @error('department_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+        </div>
     </div>
 @endif
-
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <div>
-        <label for="nombre" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Nombre *</label>
-        <input id="nombre" type="text" wire:model="nombre" @disabled($soloLectura)
-               class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm disabled:opacity-60 focus:border-blue-500 focus:ring-blue-500">
-        @error('nombre') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
-    </div>
-    <div>
-        <label for="parent_role_id" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Rol padre *</label>
-        <select id="parent_role_id" wire:model.live="parent_role_id" @disabled($soloLectura)
-                class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm disabled:opacity-60">
-            <option value="">Selecciona un rol</option>
-            @foreach ($rolesPadre as $rp)
-                <option value="{{ $rp->id }}">{{ $rp->nombre }}</option>
-            @endforeach
-        </select>
-        @error('parent_role_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
-    </div>
-    <div>
-        <label for="department_id" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Departamento *</label>
-        <select id="department_id" wire:model="department_id" @disabled($soloLectura)
-                class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm disabled:opacity-60">
-            <option value="">Selecciona un departamento</option>
-            @foreach ($departamentos as $d)
-                <option value="{{ $d->id }}">{{ $d->nombre }}</option>
-            @endforeach
-        </select>
-        @error('department_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
-    </div>
-</div>
 
 <div class="space-y-4">
     <div>
