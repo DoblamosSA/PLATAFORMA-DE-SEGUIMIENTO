@@ -19,7 +19,7 @@
 
 @if ($show)
     <div class="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto"
-         x-data x-on:keydown.escape.window="$wire.{{ $wireClose }}()" wire:transition>
+         x-data x-on:keydown.escape.window="$wire.{{ $wireClose }}()">
         <div class="absolute inset-0 bg-slate-900/50 dark:bg-black/60 backdrop-blur-sm" wire:click="{{ $wireClose }}"></div>
 
         <div class="relative w-full {{ $anchoClase }} my-8 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl dark:shadow-black/50 border border-slate-200/70 dark:border-slate-800">
