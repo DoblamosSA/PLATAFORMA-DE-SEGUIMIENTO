@@ -40,7 +40,10 @@
       "Bash(python -c \"import paramiko\")",
       "Bash(git fetch *)",
       "Bash(git rebase *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Read(//c/Users/D.DIAZ/AppData/Local/Temp/claude/c--Projects-PLATAFORMA-DE-SEGUIMIENTO/7dd4d1e5-be42-44aa-ab83-0eca939ac4c5/scratchpad/**)",
+      "Bash(git checkout *)",
+      "Bash(taskkill //PID 7012 //F)"
     ],
     "additionalDirectories": [
       "C:\\Users\\D.DIAZ\\AppData\\Local\\Temp\\claude\\c--Projects-PLATAFORMA-DE-SEGUIMIENTO\\7dd4d1e5-be42-44aa-ab83-0eca939ac4c5\\scratchpad"
