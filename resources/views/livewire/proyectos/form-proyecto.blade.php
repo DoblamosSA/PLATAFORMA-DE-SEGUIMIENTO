@@ -1,15 +1,17 @@
 @if ($enModal)
-    <form wire:submit="save" class="space-y-5">
-        @include('livewire.proyectos.partials.campos-formulario')
+    <div>
+        <form wire:submit="save" class="space-y-5">
+            @include('livewire.proyectos.partials.campos-formulario')
 
-        <div class="flex items-center gap-3 pt-2">
-            <button type="submit"
-                    class="rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
-                {{ $project ? 'Guardar cambios' : 'Crear proyecto' }}
-            </button>
-            <button type="button" wire:click="cancelar" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition">Cancelar</button>
-        </div>
-    </form>
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit"
+                        class="rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
+                    {{ $project ? 'Guardar cambios' : 'Crear proyecto' }}
+                </button>
+                <button type="button" wire:click="cancelar" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition">Cancelar</button>
+            </div>
+        </form>
+    </div>
 @else
     <div class="p-4 sm:p-6 lg:p-8">
         <div class="max-w-3xl mx-auto space-y-5 anim-fade-up">
