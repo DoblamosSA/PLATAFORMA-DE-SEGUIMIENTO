@@ -3,10 +3,13 @@ set -e
 
 cd /var/www/html
 
-# BD SQLite en el volumen (primer arranque)
-if [ ! -f database/database.sqlite ]; then
-    touch database/database.sqlite
-    chown www-data:www-data database/database.sqlite
+# BD SQLite en el volumen (primer arranque). Vive en database/data/, NO en
+# database/ directamente, para no tapar database/migrations/ (codigo de la
+# imagen) con el contenido congelado del volumen.
+mkdir -p database/data
+if [ ! -f database/data/database.sqlite ]; then
+    touch database/data/database.sqlite
+    chown www-data:www-data database/data/database.sqlite
 fi
 
 # La configuracion llega por variables de entorno (compose env_file);

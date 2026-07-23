@@ -16,8 +16,14 @@ services:
       - "${PUERTO_HOST:-8090}:80"
     env_file:
       - .env.production
+    environment:
+      # El volumen projects_db solo debe cubrir el archivo de datos, no
+      # database/ completa (que tambien contiene migrations/, codigo de
+      # la app): si se monta la carpeta entera, las migraciones nuevas
+      # quedan atrapadas en el snapshot del volumen y nunca se aplican.
+      DB_DATABASE: /var/www/html/database/data/database.sqlite
     volumes:
-      - projects_db:/var/www/html/database
+      - projects_db:/var/www/html/database/data
       - projects_storage:/var/www/html/storage/app
     networks:
       - default
