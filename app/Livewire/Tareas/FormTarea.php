@@ -53,6 +53,13 @@ class FormTarea extends Component
         // Crear requiere 'tasks.create'; editar requiere 'tasks.edit'.
         abort_unless(! $task?->exists ? Auth::user()?->puedeCrearTarea() : Auth::user()?->puedeEditarTarea(), 403);
 
+        // Los departamentos son independientes entre si: editar una tarea de
+        // otro departamento no es posible aunque se tenga el permiso global
+        // 'tasks.edit' (salvo SuperAdmin).
+        if ($task?->exists && ! Auth::user()->esSuperAdmin()) {
+            abort_unless($task->subDepartamento?->department_id === Auth::user()->departments()->first()?->id, 403);
+        }
+
         $this->enModal = $enModal;
 
         if ($task?->exists) {
@@ -124,7 +131,12 @@ class FormTarea extends Component
             }
         }
 
-        return User::where('activo', true)->with('subDepartments')->orderBy('name')->get();
+        $user = Auth::user();
+        $miDepartamentoId = $user->departments()->first()?->id;
+
+        return User::where('activo', true)->with('subDepartments')
+            ->when(! $user->esSuperAdmin(), fn ($q) => $q->whereHas('departments', fn ($q2) => $q2->where('departments.id', $miDepartamentoId)))
+            ->orderBy('name')->get();
     }
 
     protected function rules(): array
@@ -472,10 +484,15 @@ class FormTarea extends Component
         $empleados = $this->empleadosDisponibles();
         $empleados->each(fn (User $e) => $e->setAttribute('carga', $servicio->cargaSemanaActual($e)));
 
+        $user = Auth::user();
+        $miDepartamentoId = $user->departments()->first()?->id;
+
         return view('livewire.tareas.form-tarea', [
-            'proyectos' => Project::orderBy('nombre')->get(),
+            'proyectos' => Project::visiblesPara($user)->orderBy('nombre')->get(),
             'empleados' => $empleados,
-            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
+            'subDepartamentos' => SubDepartment::where('activo', true)
+                ->when(! $user->esSuperAdmin(), fn ($q) => $q->where('department_id', $miDepartamentoId))
+                ->orderBy('nombre')->get(),
             'bitacora' => $this->task?->actividades()->with('user')->limit(20)->get() ?? collect(),
             'slaHoras' => $this->slaHoras,
             'esAdmin' => $this->esAdmin,

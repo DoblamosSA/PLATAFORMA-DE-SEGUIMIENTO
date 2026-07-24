@@ -72,20 +72,39 @@ class ListaProyectos extends Component
 
     /**
      * Conteo de proyectos por subdepartamento, con desglose activos/completados.
+     * Respeta el mismo aislamiento por departamento que Project::visiblesPara().
      *
      * @return array<int, array<string, mixed>>
      */
     private function resumenAreas(): array
     {
-        $totales      = Project::selectRaw('sub_department_id, COUNT(*) as c')->groupBy('sub_department_id')->pluck('c', 'sub_department_id');
-        $completados  = Project::where('estado', 'completado')->selectRaw('sub_department_id, COUNT(*) as c')->groupBy('sub_department_id')->pluck('c', 'sub_department_id');
+        $user = Auth::user();
 
-        return SubDepartment::where('activo', true)->orderBy('nombre')->get()->map(fn (SubDepartment $sd) => [
+        $totales      = Project::visiblesPara($user)->selectRaw('sub_department_id, COUNT(*) as c')->groupBy('sub_department_id')->pluck('c', 'sub_department_id');
+        $completados  = Project::visiblesPara($user)->where('estado', 'completado')->selectRaw('sub_department_id, COUNT(*) as c')->groupBy('sub_department_id')->pluck('c', 'sub_department_id');
+
+        return $this->subDepartamentosVisibles()->map(fn (SubDepartment $sd) => [
             'subdepartamento' => $sd,
             'total'       => (int) ($totales[$sd->id] ?? 0),
             'completados' => (int) ($completados[$sd->id] ?? 0),
             'activos'     => (int) ($totales[$sd->id] ?? 0) - (int) ($completados[$sd->id] ?? 0),
         ])->all();
+    }
+
+    /**
+     * Subdepartamentos que el usuario puede ver/filtrar: SuperAdmin ve todos,
+     * el resto solo los de su propio departamento (los departamentos son
+     * independientes entre si, tambien para esta lista de referencia).
+     */
+    private function subDepartamentosVisibles()
+    {
+        $user = Auth::user();
+        $miDepartamentoId = $user->departments()->first()?->id;
+
+        return SubDepartment::where('activo', true)
+            ->when(! $user->esSuperAdmin(), fn ($q) => $q->where('department_id', $miDepartamentoId))
+            ->orderBy('nombre')
+            ->get();
     }
 
     public function render()
@@ -112,8 +131,8 @@ class ListaProyectos extends Component
         return view('livewire.proyectos.lista-proyectos', [
             'proyectos'    => $proyectos,
             'resumenAreas' => $this->resumenAreas(),
-            'totalProyectos' => Project::count(),
-            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
+            'totalProyectos' => Project::visiblesPara(Auth::user())->count(),
+            'subDepartamentos' => $this->subDepartamentosVisibles(),
         ]);
     }
 }

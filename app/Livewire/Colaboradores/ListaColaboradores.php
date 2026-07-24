@@ -139,8 +139,19 @@ class ListaColaboradores extends Component
     {
         $servicio = app(CapacidadService::class);
 
+        $miDepartamentoId = auth()->user()->departments()->first()?->id;
+
         $colaboradores = User::query()
             ->with(['departments', 'subDepartments'])
+            // Los departamentos son independientes entre si: un colaborador que
+            // no es SuperAdmin solo ve a los de su propio departamento, y nunca
+            // a los SuperAdmin (ni por el rol legado 'admin' ni por el rol
+            // global 'super-admin'). Un SuperAdmin sí ve a todos, de todos los
+            // departamentos.
+            ->when(! auth()->user()->esSuperAdmin(), fn ($q) => $q
+                ->where('rol', '!=', 'admin')
+                ->whereDoesntHave('rolesGlobales', fn ($q2) => $q2->where('slug', 'super-admin'))
+                ->whereHas('departments', fn ($q2) => $q2->where('departments.id', $miDepartamentoId)))
             ->when($this->buscar, fn ($q) => $q->where(fn ($q2) => $q2->where('name', 'like', "%{$this->buscar}%")->orWhere('email', 'like', "%{$this->buscar}%")))
             ->when($this->rol, fn ($q) => $q->where('rol', $this->rol))
             ->when($this->sub_department_id, fn ($q) => $q->whereHas('subDepartments', fn ($q2) => $q2->where('sub_departments.id', $this->sub_department_id)))

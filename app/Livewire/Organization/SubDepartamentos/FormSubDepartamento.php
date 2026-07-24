@@ -6,6 +6,7 @@ use App\Domain\Organization\DTOs\SubDepartmentData;
 use App\Domain\Organization\Models\Department;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Services\SubDepartmentService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -130,8 +131,14 @@ class FormSubDepartamento extends Component
 
     public function render()
     {
+        $user = Auth::user();
+        $miDepartamentoId = $user->departments()->first()?->id;
+
+        // Los departamentos son independientes entre si: salvo SuperAdmin,
+        // solo se puede crear/reasignar un subdepartamento al propio departamento.
         return view('livewire.organization.sub-departamentos.form-sub-departamento', [
-            'departamentos' => Department::orderBy('nombre')->get(),
+            'departamentos' => Department::when(! $user->esSuperAdmin(), fn ($q) => $q->where('id', $miDepartamentoId))
+                ->orderBy('nombre')->get(),
         ]);
     }
 }

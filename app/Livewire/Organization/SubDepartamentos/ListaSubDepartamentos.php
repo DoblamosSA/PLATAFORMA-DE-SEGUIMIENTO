@@ -6,6 +6,7 @@ use App\Domain\Organization\Exceptions\SubDepartmentNotDeletableException;
 use App\Domain\Organization\Models\Department;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Services\SubDepartmentService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -105,9 +106,15 @@ class ListaSubDepartamentos extends Component
 
     public function render()
     {
+        $user = Auth::user();
+        $miDepartamentoId = $user->departments()->first()?->id;
+
         $subDepartamentos = SubDepartment::query()
             ->with('department')
             ->withCount('users')
+            // Los departamentos son independientes entre si: salvo SuperAdmin,
+            // solo se ven los subdepartamentos del propio departamento.
+            ->when(! $user->esSuperAdmin(), fn ($q) => $q->where('department_id', $miDepartamentoId))
             ->when($this->buscar, fn ($q) => $q->where('nombre', 'like', "%{$this->buscar}%"))
             ->when($this->departamento, fn ($q) => $q->where('department_id', $this->departamento))
             ->orderBy('nombre')
@@ -115,7 +122,8 @@ class ListaSubDepartamentos extends Component
 
         return view('livewire.organization.sub-departamentos.lista-sub-departamentos', [
             'subDepartamentos' => $subDepartamentos,
-            'departamentos' => Department::orderBy('nombre')->get(),
+            'departamentos' => Department::when(! $user->esSuperAdmin(), fn ($q) => $q->where('id', $miDepartamentoId))
+                ->orderBy('nombre')->get(),
         ]);
     }
 }

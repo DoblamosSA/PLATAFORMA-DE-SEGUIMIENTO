@@ -59,21 +59,20 @@ class Project extends Model
     }
 
     /**
-     * Limita el listado a los proyectos donde el usuario tiene acceso: el
-     * admin ve todos; el resto solo los suyos (responsable o integrante del
-     * equipo). El acceso al detalle/tablero ya se valida aparte con
-     * usuarioPuedeGestionar().
+     * Limita el listado a los proyectos del departamento del usuario: los
+     * departamentos son independientes entre si, asi que nadie ve proyectos
+     * de un departamento distinto al suyo (ser responsable o integrante del
+     * equipo no es excepcion). Unico bypass universal: SuperAdmin.
      */
     public function scopeVisiblesPara(Builder $query, User $user): Builder
     {
-        if ($user->esAdmin()) {
+        if ($user->esSuperAdmin()) {
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($user) {
-            $q->where('responsable_id', $user->id)
-                ->orWhereHas('equipo', fn (Builder $q2) => $q2->where('users.id', $user->id));
-        });
+        $departamentoId = $user->departments()->first()?->id;
+
+        return $query->whereHas('subDepartamento', fn (Builder $q) => $q->where('department_id', $departamentoId));
     }
 
     public function tareas(): HasMany
@@ -156,6 +155,17 @@ class Project extends Model
     public function usuarioPuedeGestionar(?User $user): bool
     {
         if (! $user) {
+            return false;
+        }
+
+        if ($user->esSuperAdmin()) {
+            return true;
+        }
+
+        // Los departamentos son independientes entre si: sin importar permiso,
+        // rol de responsable o membresia de equipo, un proyecto de otro
+        // departamento nunca es gestionable (ni visible por URL directa).
+        if ($this->subDepartamento?->department_id !== $user->departments()->first()?->id) {
             return false;
         }
 

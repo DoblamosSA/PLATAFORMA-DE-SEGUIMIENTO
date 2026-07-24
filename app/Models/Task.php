@@ -128,21 +128,21 @@ class Task extends Model
     }
 
     /**
-     * Limita el listado a las tareas visibles para el usuario: admin y
-     * coordinador ven todas; colaborador y evaluador solo las suyas o las
-     * de los proyectos donde participan.
+     * Limita el listado a las tareas del departamento del usuario: los
+     * departamentos son independientes entre si, asi que nadie ve tareas de
+     * un departamento distinto al suyo (ser responsable, asignado o
+     * integrante del equipo del proyecto no es excepcion). Unico bypass
+     * universal: SuperAdmin.
      */
     public function scopeVisiblesPara(Builder $q, User $user): Builder
     {
-        if ($user->esCoordinador()) {
+        if ($user->esSuperAdmin()) {
             return $q;
         }
 
-        return $q->where(function (Builder $q2) use ($user) {
-            $q2->where('asignado_id', $user->id)
-                ->orWhereHas('proyecto.equipo', fn (Builder $q3) => $q3->where('users.id', $user->id))
-                ->orWhereHas('proyecto', fn (Builder $q3) => $q3->where('responsable_id', $user->id));
-        });
+        $departamentoId = $user->departments()->first()?->id;
+
+        return $q->whereHas('subDepartamento', fn (Builder $q2) => $q2->where('department_id', $departamentoId));
     }
 
     // ---------------------------------------------------------------

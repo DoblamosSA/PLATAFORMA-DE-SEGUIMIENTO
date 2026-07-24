@@ -50,6 +50,7 @@ class ListaTareas extends Component
             $this->mostrarModal = true;
             $this->llegoPorRutaDirecta = true;
         } elseif ($task?->exists) {
+            $this->autorizarAccesoDepartamento($task);
             $this->mostrarModal = true;
             $this->editando = $task;
             $this->llegoPorRutaDirecta = true;
@@ -65,8 +66,26 @@ class ListaTareas extends Component
 
     public function abrirEditar(int $taskId): void
     {
-        $this->editando = Task::findOrFail($taskId);
+        $task = Task::findOrFail($taskId);
+        $this->autorizarAccesoDepartamento($task);
+
+        $this->editando = $task;
         $this->mostrarModal = true;
+    }
+
+    /**
+     * Los departamentos son independientes entre si: sin importar el permiso
+     * global que tenga, nadie opera sobre una tarea de otro departamento
+     * (salvo SuperAdmin, que ve/gestiona todo).
+     */
+    private function autorizarAccesoDepartamento(Task $task): void
+    {
+        $u = Auth::user();
+
+        abort_unless(
+            $u && ($u->esSuperAdmin() || $task->subDepartamento?->department_id === $u->departments()->first()?->id),
+            403
+        );
     }
 
     /** El toast se dispara aqui (no en FormTarea): ver el comentario en FormTarea::cancelar(). */
@@ -99,6 +118,7 @@ class ListaTareas extends Component
     public function avanzar(int $taskId): void
     {
         $task = Task::findOrFail($taskId);
+        $this->autorizarAccesoDepartamento($task);
 
         $u = Auth::user();
         abort_unless($u && ($u->esCoordinador() || $task->asignado_id === $u->id), 403);
@@ -153,6 +173,7 @@ class ListaTareas extends Component
     public function eliminar(int $taskId): void
     {
         $task = Task::findOrFail($taskId);
+        $this->autorizarAccesoDepartamento($task);
 
         abort_unless(Auth::user()?->puedeEliminarTarea($task), 403);
 
@@ -169,9 +190,12 @@ class ListaTareas extends Component
 
     public function render()
     {
+        $user = Auth::user();
+        $miDepartamentoId = $user->departments()->first()?->id;
+
         $tareas = Task::query()
             ->with(['asignado', 'proyecto', 'subDepartamento'])
-            ->visiblesPara(Auth::user())
+            ->visiblesPara($user)
             ->when($this->buscar, fn ($q) => $q->where('titulo', 'like', "%{$this->buscar}%"))
             ->when($this->estado, fn ($q) => $q->where('estado', $this->estado))
             ->when($this->sub_department_id, fn ($q) => $q->where('sub_department_id', $this->sub_department_id))
@@ -183,8 +207,15 @@ class ListaTareas extends Component
 
         return view('livewire.tareas.lista-tareas', [
             'tareas' => $tareas,
-            'empleados' => User::where('activo', true)->orderBy('name')->get(),
-            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
+            // Los departamentos son independientes entre si: los dropdowns de
+            // filtro tampoco deben listar gente/subdepartamentos de otro
+            // departamento salvo para SuperAdmin.
+            'empleados' => User::where('activo', true)
+                ->when(! $user->esSuperAdmin(), fn ($q) => $q->whereHas('departments', fn ($q2) => $q2->where('departments.id', $miDepartamentoId)))
+                ->orderBy('name')->get(),
+            'subDepartamentos' => SubDepartment::where('activo', true)
+                ->when(! $user->esSuperAdmin(), fn ($q) => $q->where('department_id', $miDepartamentoId))
+                ->orderBy('nombre')->get(),
         ]);
     }
 }

@@ -37,8 +37,10 @@ class FormProyecto extends Component
 
     public function mount(?Project $project = null, bool $enModal = false): void
     {
-        // Solo el administrador y el coordinador pueden crear proyectos nuevos.
-        abort_unless(! $project?->exists ? Auth::user()?->puedeCrearProyecto() : true, 403);
+        // Crear: requiere el permiso granular. Editar: el proyecto debe ser
+        // gestionable por el usuario (usuarioPuedeGestionar ya exige que sea
+        // de su propio departamento, salvo SuperAdmin).
+        abort_unless(! $project?->exists ? Auth::user()?->puedeCrearProyecto() : $project->usuarioPuedeGestionar(Auth::user()), 403);
 
         $this->enModal = $enModal;
 
@@ -133,13 +135,24 @@ class FormProyecto extends Component
 
     public function render()
     {
+        $user = Auth::user();
+        $miDepartamentoId = $user->departments()->first()?->id;
+
+        // Los departamentos son independientes entre si: quien no es
+        // SuperAdmin solo puede elegir lider/equipo/subdepartamento de su
+        // propio departamento al crear o editar un proyecto.
         return view('livewire.proyectos.form-proyecto', [
             'lideres' => User::where('activo', true)
                 ->whereIn('rol', ['admin', 'lider'])
+                ->when(! $user->esSuperAdmin(), fn ($q) => $q->whereHas('departments', fn ($q2) => $q2->where('departments.id', $miDepartamentoId)))
                 ->orderBy('name')
                 ->get(),
-            'empleados' => User::where('activo', true)->with('subDepartments')->orderBy('name')->get(),
-            'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
+            'empleados' => User::where('activo', true)->with('subDepartments')
+                ->when(! $user->esSuperAdmin(), fn ($q) => $q->whereHas('departments', fn ($q2) => $q2->where('departments.id', $miDepartamentoId)))
+                ->orderBy('name')->get(),
+            'subDepartamentos' => SubDepartment::where('activo', true)
+                ->when(! $user->esSuperAdmin(), fn ($q) => $q->where('department_id', $miDepartamentoId))
+                ->orderBy('nombre')->get(),
         ]);
     }
 }
