@@ -1,6 +1,50 @@
 import './bootstrap';
 import Sortable from 'sortablejs';
 
+window.toastNotifications = (initial = []) => ({
+    toasts: [],
+    init() {
+        initial.forEach((toast) => this.add(toast));
+    },
+    add({ type = 'info', message = '' }) {
+        if (!message) return;
+
+        const toast = { id: Date.now() + Math.random(), type, message, visible: true };
+        this.toasts.push(toast);
+        window.setTimeout(() => this.remove(toast.id), type === 'error' ? 7000 : 4500);
+    },
+    remove(id) {
+        const toast = this.toasts.find((item) => item.id === id);
+        if (!toast) return;
+        toast.visible = false;
+        window.setTimeout(() => {
+            this.toasts = this.toasts.filter((item) => item.id !== id);
+        }, 200);
+    },
+});
+
+// Las validaciones y addError() de cualquier componente Livewire llegan en
+// el snapshot de respuesta. Se muestra una única notificación por mensaje.
+document.addEventListener('livewire:init', () => {
+    let previousErrors = new Set();
+
+    Livewire.hook('commit', ({ succeed }) => {
+        succeed(({ snapshot }) => {
+            const parsedSnapshot = JSON.parse(snapshot);
+            const currentErrors = new Set(Object.values(parsedSnapshot.memo.errors ?? {}).flat());
+
+            currentErrors.forEach((message) => {
+                if (previousErrors.has(message)) return;
+                window.dispatchEvent(new CustomEvent('app-toast', {
+                    detail: { type: 'error', message },
+                }));
+            });
+
+            previousErrors = currentErrors;
+        });
+    });
+});
+
 /**
  * Guardia de sesion contra el back/forward cache (bfcache): al pulsar
  * "atras" el navegador puede restaurar una pantalla completa desde memoria
@@ -162,23 +206,6 @@ document.addEventListener('alpine:init', () => {
  */
 document.addEventListener('livewire:navigated', () => {
     document.documentElement.classList.toggle('dark', window.Alpine?.store('theme')?.dark ?? false);
-});
-
-/**
- * Reinicia las animaciones de apertura (page-enter y anim-*) en cada
- * navegacion SPA (wire:navigate): si Livewire conserva los elementos y
- * solo actualiza su contenido, la animacion CSS no volveria a correr sin
- * quitar y re-agregar la clase con un reflow de por medio.
- */
-document.addEventListener('livewire:navigated', () => {
-    const selector = '#main-content, .anim-fade-in, .anim-fade-up, .anim-fade-right, .anim-stagger, .anim-stagger-x';
-    document.querySelectorAll(selector).forEach((el) => {
-        const clases = [...el.classList].filter((c) => c === 'page-enter' || c.startsWith('anim-'));
-        if (!clases.length) return;
-        el.classList.remove(...clases);
-        void el.offsetWidth; // fuerza reflow para reiniciar la animacion CSS
-        el.classList.add(...clases);
-    });
 });
 
 /**

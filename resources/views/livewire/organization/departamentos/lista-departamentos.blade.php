@@ -9,10 +9,6 @@
         </x-slot:actions>
     </x-page-header>
 
-    @if (session('ok'))
-        <div class="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{{ session('ok') }}</div>
-    @endif
-
     <x-card>
         <input type="text" wire:model.live.debounce.300ms="buscar" placeholder="Buscar por nombre..."
                aria-label="Buscar departamento"

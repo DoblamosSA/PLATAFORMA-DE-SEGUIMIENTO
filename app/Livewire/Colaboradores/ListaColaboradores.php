@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\CapacidadService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -25,9 +26,48 @@ class ListaColaboradores extends Component
     #[Url]
     public string $area = '';
 
-    public function mount(): void
+    public bool $mostrarModal = false;
+
+    public ?User $editando = null;
+
+    public bool $llegoPorRutaDirecta = false;
+
+    public function mount(?User $colaborador = null): void
     {
         abort_unless(Auth::user()?->esAdmin(), 403);
+
+        if (request()->routeIs('colaboradores.crear')) {
+            $this->mostrarModal = true;
+            $this->llegoPorRutaDirecta = true;
+        } elseif ($colaborador?->exists) {
+            $this->mostrarModal = true;
+            $this->editando = $colaborador;
+            $this->llegoPorRutaDirecta = true;
+        }
+    }
+
+    public function abrirCrear(): void
+    {
+        $this->editando = null;
+        $this->mostrarModal = true;
+    }
+
+    public function abrirEditar(int $userId): void
+    {
+        $this->editando = User::findOrFail($userId);
+        $this->mostrarModal = true;
+    }
+
+    #[On('cerrar-modal-colaborador')]
+    public function cerrarModal(): void
+    {
+        $this->mostrarModal = false;
+        $this->editando = null;
+
+        if ($this->llegoPorRutaDirecta) {
+            $this->llegoPorRutaDirecta = false;
+            $this->redirect(route('colaboradores'), navigate: true);
+        }
     }
 
     public function updating($name): void

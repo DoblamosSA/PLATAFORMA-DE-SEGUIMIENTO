@@ -29,8 +29,9 @@
 }
 
 /* ---------------------------------------------------------------
-   Entrada de contenido al navegar (fade + desplazamiento leve).
-   Se reinicia en cada navegacion via wire:navigate (ver app.js).
+   Las vistas Livewire se reemplazan al navegar. Estas clases se usan
+   ampliamente en las pantallas, pero no deben ocultar su contenido:
+   iniciar una nueva vista con opacity: 0 producia un pantallazo blanco.
    --------------------------------------------------------------- */
 @keyframes page-enter {
     from {
@@ -44,15 +45,11 @@
 }
 
 .page-enter {
-    animation: page-enter 220ms ease-out;
+    animation: none;
 }
 
-/* ---------------------------------------------------------------
-   Animaciones de apertura por pantalla. Se aplican al elemento raiz
-   (o secciones) de cada vista y se reinician en cada wire:navigate
-   (ver app.js). "both" mantiene el estado inicial oculto mientras
-   corre el retraso escalonado.
-   --------------------------------------------------------------- */
+/* Las animaciones de apertura se desactivan en vistas autenticadas para
+   que el contenido entrante se pinte de inmediato. */
 @keyframes anim-fade-in {
     from { opacity: 0; }
     to   { opacity: 1; }
@@ -68,29 +65,15 @@
     to   { opacity: 1; transform: translateX(0); }
 }
 
-.anim-fade-in    { animation: anim-fade-in 450ms ease-out both; }
-.anim-fade-up    { animation: anim-fade-up 450ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-.anim-fade-right { animation: anim-fade-right 450ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-fade-in,
+.anim-fade-up,
+.anim-fade-right,
+.anim-stagger > *,
+.anim-stagger-x > * {
+    animation: none;
+}
 
 /* Escalonado: los hijos directos entran en cascada (fade-up). */
-.anim-stagger > * {
-    animation: anim-fade-up 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Variante horizontal: los hijos entran en cascada hacia la derecha
-   (columnas del tablero Kanban). */
-.anim-stagger-x > * {
-    animation: anim-fade-right 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.anim-stagger > *:nth-child(2), .anim-stagger-x > *:nth-child(2) { animation-delay: 70ms; }
-.anim-stagger > *:nth-child(3), .anim-stagger-x > *:nth-child(3) { animation-delay: 140ms; }
-.anim-stagger > *:nth-child(4), .anim-stagger-x > *:nth-child(4) { animation-delay: 210ms; }
-.anim-stagger > *:nth-child(5), .anim-stagger-x > *:nth-child(5) { animation-delay: 280ms; }
-.anim-stagger > *:nth-child(6), .anim-stagger-x > *:nth-child(6) { animation-delay: 350ms; }
-.anim-stagger > *:nth-child(7), .anim-stagger-x > *:nth-child(7) { animation-delay: 420ms; }
-.anim-stagger > *:nth-child(n+8), .anim-stagger-x > *:nth-child(n+8) { animation-delay: 490ms; }
-
 /* Apaga toda animacion/transicion (incluidas las de Alpine x-transition:
    modal, dropdown, panel lateral) para quien prefiera menos movimiento. */
 @media (prefers-reduced-motion: reduce) {

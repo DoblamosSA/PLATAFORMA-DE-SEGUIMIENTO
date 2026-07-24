@@ -75,6 +75,7 @@ class FormDepartamento extends Component
         $esNuevo ? $service->create($dto) : $service->update($this->department, $dto);
 
         session()->flash('ok', $esNuevo ? 'Departamento creado correctamente.' : 'Departamento actualizado.');
+        $this->dispatch('app-toast', type: 'success', message: $esNuevo ? 'Departamento creado correctamente.' : 'Departamento actualizado.');
 
         if ($this->enModal) {
             $this->dispatch('cerrar-modal-departamento');

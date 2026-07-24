@@ -76,6 +76,7 @@ class ListaDepartamentos extends Component
         app(DepartmentService::class)->delete($department);
 
         session()->flash('ok', 'Departamento eliminado.');
+        $this->dispatch('app-toast', type: 'success', message: 'Departamento eliminado.');
     }
 
     public function render()

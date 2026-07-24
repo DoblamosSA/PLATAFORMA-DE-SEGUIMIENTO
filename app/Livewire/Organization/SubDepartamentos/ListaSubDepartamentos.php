@@ -7,6 +7,7 @@ use App\Domain\Organization\Models\Department;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Services\SubDepartmentService;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -22,9 +23,49 @@ class ListaSubDepartamentos extends Component
     #[Url]
     public string $departamento = '';
 
-    public function mount(): void
+    public bool $mostrarModal = false;
+
+    public ?SubDepartment $editando = null;
+
+    /** True si el modal se abrio por una URL directa (subdepartamentos.crear/editar): al cerrar hay que volver a /subdepartamentos. */
+    public bool $llegoPorRutaDirecta = false;
+
+    public function mount(?SubDepartment $subDepartment = null): void
     {
         $this->authorize('viewAny', SubDepartment::class);
+
+        if (request()->routeIs('subdepartamentos.crear')) {
+            $this->mostrarModal = true;
+            $this->llegoPorRutaDirecta = true;
+        } elseif ($subDepartment?->exists) {
+            $this->mostrarModal = true;
+            $this->editando = $subDepartment;
+            $this->llegoPorRutaDirecta = true;
+        }
+    }
+
+    public function abrirCrear(): void
+    {
+        $this->editando = null;
+        $this->mostrarModal = true;
+    }
+
+    public function abrirEditar(int $subDepartmentId): void
+    {
+        $this->editando = SubDepartment::findOrFail($subDepartmentId);
+        $this->mostrarModal = true;
+    }
+
+    #[On('cerrar-modal-subdepartamento')]
+    public function cerrarModal(): void
+    {
+        $this->mostrarModal = false;
+        $this->editando = null;
+
+        if ($this->llegoPorRutaDirecta) {
+            $this->llegoPorRutaDirecta = false;
+            $this->redirect(route('subdepartamentos'), navigate: true);
+        }
     }
 
     public function updating($name): void
@@ -41,11 +82,13 @@ class ListaSubDepartamentos extends Component
             app(SubDepartmentService::class)->delete($subDepartment);
         } catch (SubDepartmentNotDeletableException $e) {
             session()->flash('error', $e->getMessage());
+            $this->dispatch('app-toast', type: 'error', message: $e->getMessage());
 
             return;
         }
 
         session()->flash('ok', 'Subdepartamento eliminado.');
+        $this->dispatch('app-toast', type: 'success', message: 'Subdepartamento eliminado.');
     }
 
     public function render()

@@ -8,6 +8,7 @@ use App\Domain\Organization\Services\RoleService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -20,9 +21,48 @@ class ListaRoles extends Component
     #[Url]
     public string $buscar = '';
 
-    public function mount(): void
+    public bool $mostrarModal = false;
+
+    public ?Role $editando = null;
+
+    public bool $llegoPorRutaDirecta = false;
+
+    public function mount(?Role $role = null): void
     {
         abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+
+        if (request()->routeIs('roles.crear')) {
+            $this->mostrarModal = true;
+            $this->llegoPorRutaDirecta = true;
+        } elseif ($role?->exists) {
+            $this->mostrarModal = true;
+            $this->editando = $role;
+            $this->llegoPorRutaDirecta = true;
+        }
+    }
+
+    public function abrirCrear(): void
+    {
+        $this->editando = null;
+        $this->mostrarModal = true;
+    }
+
+    public function abrirEditar(int $roleId): void
+    {
+        $this->editando = Role::findOrFail($roleId);
+        $this->mostrarModal = true;
+    }
+
+    #[On('cerrar-modal-rol')]
+    public function cerrarModal(): void
+    {
+        $this->mostrarModal = false;
+        $this->editando = null;
+
+        if ($this->llegoPorRutaDirecta) {
+            $this->llegoPorRutaDirecta = false;
+            $this->redirect(route('roles'), navigate: true);
+        }
     }
 
     public function updating($name): void
@@ -38,6 +78,7 @@ class ListaRoles extends Component
         $copia = $service->duplicateRole($rol);
 
         session()->flash('ok', 'Rol duplicado. Ajusta el nombre y los permisos de la copia.');
+        $this->dispatch('app-toast', type: 'success', message: 'Rol duplicado. Ajusta el nombre y los permisos de la copia.');
 
         return $this->redirect(route('roles.editar', $copia), navigate: true);
     }
@@ -49,8 +90,10 @@ class ListaRoles extends Component
         try {
             $service->deleteRole(Role::findOrFail($roleId));
             session()->flash('ok', 'Rol eliminado.');
+            $this->dispatch('app-toast', type: 'success', message: 'Rol eliminado.');
         } catch (RoleNotDeletableException $e) {
             session()->flash('error', $e->getMessage());
+            $this->dispatch('app-toast', type: 'error', message: $e->getMessage());
         }
     }
 

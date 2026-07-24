@@ -2,19 +2,12 @@
 
     <x-page-header title="Roles" subtitle="Roles primarios (solo lectura) y roles heredados" icon="shield-check">
         <x-slot:actions>
-            <a href="{{ route('roles.crear') }}" wire:navigate
+            <button type="button" wire:click="abrirCrear"
                class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
                 <x-icon name="plus" class="w-4 h-4" /> Nuevo rol heredado
-            </a>
+            </button>
         </x-slot:actions>
     </x-page-header>
-
-    @if (session('ok'))
-        <div class="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{{ session('ok') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">{{ session('error') }}</div>
-    @endif
 
     <x-card>
         <input type="text" wire:model.live.debounce.300ms="buscar" placeholder="Buscar por nombre..."
@@ -47,12 +40,12 @@
                                 <div class="flex items-center justify-end gap-1">
                                     @if ($r->is_primary)
                                         @if (auth()->user()->esSuperAdmin())
-                                            <x-row-action variant="editar" :href="route('roles.editar', $r)" label="Editar {{ $r->nombre }}" />
+                                            <x-row-action variant="editar" wire:click="abrirEditar({{ $r->id }})" label="Editar {{ $r->nombre }}" />
                                         @else
-                                            <x-row-action variant="ver" :href="route('roles.editar', $r)" label="Ver permisos de {{ $r->nombre }}" />
+                                            <x-row-action variant="ver" wire:click="abrirEditar({{ $r->id }})" label="Ver permisos de {{ $r->nombre }}" />
                                         @endif
                                     @else
-                                        <x-row-action variant="editar" :href="route('roles.editar', $r)" label="Editar {{ $r->nombre }}" />
+                                        <x-row-action variant="editar" wire:click="abrirEditar({{ $r->id }})" label="Editar {{ $r->nombre }}" />
                                         <x-row-action variant="duplicar" wire:click="duplicar({{ $r->id }})" label="Duplicar {{ $r->nombre }}" />
                                         @if ($r->is_deletable)
                                             <x-row-action variant="eliminar" wire:click="eliminar({{ $r->id }})"
@@ -76,4 +69,10 @@
     </div>
 
     <div>{{ $roles->links() }}</div>
+
+    <x-form-modal :show="$mostrarModal" :title="$editando?->is_primary ? ((auth()->user()->esSuperAdmin() ? 'Editar rol: ' : 'Ver rol: ').$editando->nombre) : ($editando ? 'Editar rol' : 'Nuevo rol heredado')" wire-close="cerrarModal" max-width="4xl">
+        @if ($mostrarModal)
+            <livewire:organization.roles.form-role :role="$editando" :en-modal="true" :key="'form-rol-'.($editando?->id ?? 'nuevo')" />
+        @endif
+    </x-form-modal>
 </div>

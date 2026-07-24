@@ -2,19 +2,12 @@
 
     <x-page-header title="SubDepartamentos" subtitle="Divisiones dentro de cada departamento" icon="sitemap">
         <x-slot:actions>
-            <a href="{{ route('subdepartamentos.crear') }}" wire:navigate
+            <button type="button" wire:click="abrirCrear"
                class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
                 <x-icon name="plus" class="w-4 h-4" /> Nuevo subdepartamento
-            </a>
+            </button>
         </x-slot:actions>
     </x-page-header>
-
-    @if (session('ok'))
-        <div class="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{{ session('ok') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">{{ session('error') }}</div>
-    @endif
 
     <x-card>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -62,7 +55,7 @@
                             </td>
                             <td class="py-2.5 px-5 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    <x-row-action variant="editar" :href="route('subdepartamentos.editar', $sd)" label="Editar {{ $sd->nombre }}" />
+                                    <x-row-action variant="editar" wire:click="abrirEditar({{ $sd->id }})" label="Editar {{ $sd->nombre }}" />
                                     <x-row-action variant="eliminar" wire:click="eliminar({{ $sd->id }})"
                                                   :confirm="'¿Eliminar el subdepartamento &quot;'.$sd->nombre.'&quot;? Esta acción no se puede deshacer.'"
                                                   label="Eliminar {{ $sd->nombre }}" />
@@ -73,7 +66,7 @@
                         <tr>
                             <td colspan="5">
                                 <x-empty-state icon="sitemap" mensaje="No hay subdepartamentos todavía.">
-                                    <a href="{{ route('subdepartamentos.crear') }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</a>
+                                    <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
                                 </x-empty-state>
                             </td>
                         </tr>
@@ -84,4 +77,10 @@
     </div>
 
     <div>{{ $subDepartamentos->links() }}</div>
+
+    <x-form-modal :show="$mostrarModal" :title="$editando ? 'Editar subdepartamento' : 'Nuevo subdepartamento'" wire-close="cerrarModal" max-width="2xl">
+        @if ($mostrarModal)
+            <livewire:organization.sub-departamentos.form-sub-departamento :sub-department="$editando" :en-modal="true" :key="'form-subdepartamento-'.($editando?->id ?? 'nuevo')" />
+        @endif
+    </x-form-modal>
 </div>

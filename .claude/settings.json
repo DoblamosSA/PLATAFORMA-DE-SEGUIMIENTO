@@ -43,7 +43,8 @@
       "Bash(git push *)",
       "Read(//c/Users/D.DIAZ/AppData/Local/Temp/claude/c--Projects-PLATAFORMA-DE-SEGUIMIENTO/7dd4d1e5-be42-44aa-ab83-0eca939ac4c5/scratchpad/**)",
       "Bash(git checkout *)",
-      "Bash(taskkill //PID 7012 //F)"
+      "Bash(taskkill //PID 7012 //F)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8123/login)"
     ],
     "additionalDirectories": [
       "C:\\Users\\D.DIAZ\\AppData\\Local\\Temp\\claude\\c--Projects-PLATAFORMA-DE-SEGUIMIENTO\\7dd4d1e5-be42-44aa-ab83-0eca939ac4c5\\scratchpad"

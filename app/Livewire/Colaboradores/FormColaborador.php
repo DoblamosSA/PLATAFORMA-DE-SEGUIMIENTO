@@ -22,6 +22,8 @@ class FormColaborador extends Component
 
     public ?User $colaborador = null;
 
+    public bool $enModal = false;
+
     public string $name = '';
 
     public string $email = '';
@@ -53,9 +55,11 @@ class FormColaborador extends Component
 
     public string $role_id = '';
 
-    public function mount(?User $colaborador = null): void
+    public function mount(?User $colaborador = null, bool $enModal = false): void
     {
         abort_unless(Auth::user()?->esAdmin(), 403);
+
+        $this->enModal = $enModal;
 
         if ($colaborador?->exists) {
             $this->colaborador = $colaborador;
@@ -191,7 +195,18 @@ class FormColaborador extends Component
         session()->flash('ok', $esNuevo ? 'Colaborador creado correctamente.' : 'Colaborador actualizado.');
         $this->dispatch('app-toast', type: 'success', message: $esNuevo ? 'Colaborador creado correctamente.' : 'Colaborador actualizado.');
 
+        if ($this->enModal) {
+            $this->dispatch('cerrar-modal-colaborador');
+
+            return;
+        }
+
         return $this->redirect(route('colaboradores'), navigate: true);
+    }
+
+    public function cancelar(): void
+    {
+        $this->dispatch('cerrar-modal-colaborador');
     }
 
     public function render()

@@ -16,6 +16,8 @@ class FormSubDepartamento extends Component
 {
     public ?SubDepartment $subDepartment = null;
 
+    public bool $enModal = false;
+
     public string $department_id = '';
 
     public string $nombre = '';
@@ -28,9 +30,11 @@ class FormSubDepartamento extends Component
 
     public bool $activo = true;
 
-    public function mount(?SubDepartment $subDepartment = null): void
+    public function mount(?SubDepartment $subDepartment = null, bool $enModal = false): void
     {
         $this->authorize($subDepartment?->exists ? 'update' : 'create', $subDepartment ?? SubDepartment::class);
+
+        $this->enModal = $enModal;
 
         if ($subDepartment?->exists) {
             $this->subDepartment = $subDepartment;
@@ -83,8 +87,20 @@ class FormSubDepartamento extends Component
         $esNuevo ? $service->create($dto) : $service->update($this->subDepartment, $dto);
 
         session()->flash('ok', $esNuevo ? 'Subdepartamento creado correctamente.' : 'Subdepartamento actualizado.');
+        $this->dispatch('app-toast', type: 'success', message: $esNuevo ? 'Subdepartamento creado correctamente.' : 'Subdepartamento actualizado.');
+
+        if ($this->enModal) {
+            $this->dispatch('cerrar-modal-subdepartamento');
+
+            return;
+        }
 
         return $this->redirect(route('subdepartamentos'), navigate: true);
+    }
+
+    public function cancelar(): void
+    {
+        $this->dispatch('cerrar-modal-subdepartamento');
     }
 
     private function generarSlugUnico(int $departmentId, string $nombre): string
