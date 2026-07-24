@@ -2,19 +2,12 @@
 
     <x-page-header title="Colaboradores" subtitle="Equipos, roles y capacidad operativa" icon="users">
         <x-slot:actions>
-            <button type="button" wire:click="abrirCrear"
+            <a href="{{ route('colaboradores.crear') }}" wire:navigate
                class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
                 <x-icon name="plus" class="w-4 h-4" /> Nuevo colaborador
-            </button>
+            </a>
         </x-slot:actions>
     </x-page-header>
-
-    @if (session('ok'))
-        <div class="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{{ session('ok') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">{{ session('error') }}</div>
-    @endif
 
     {{-- Filtros --}}
     <x-card>
@@ -86,7 +79,7 @@
                             </td>
                             <td class="py-2.5 px-5 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    <x-row-action variant="editar" wire:click="abrirEditar({{ $c->id }})" label="Editar {{ $c->name }}" />
+                                    <x-row-action variant="editar" :href="route('colaboradores.editar', $c)" label="Editar {{ $c->name }}" />
                                     @if ($c->id !== auth()->id() && ! $c->esSuperAdmin())
                                         <x-row-action variant="eliminar" wire:click="eliminar({{ $c->id }})"
                                                       :confirm="'¿Eliminar a &quot;'.$c->name.'&quot;? Esta acción no se puede deshacer.'"
@@ -99,7 +92,7 @@
                         <tr>
                             <td colspan="7" class="py-10 text-center text-slate-400 dark:text-slate-500">
                                 No hay colaboradores con estos filtros.
-                                <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
+                                <a href="{{ route('colaboradores.crear') }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</a>
                             </td>
                         </tr>
                     @endforelse
@@ -109,10 +102,4 @@
     </div>
 
     <div>{{ $colaboradores->links() }}</div>
-
-    <x-form-modal :show="$mostrarModal" :title="$editando ? 'Editar colaborador' : 'Nuevo colaborador'" wire-close="cerrarModal" max-width="3xl">
-        @if ($mostrarModal)
-            <livewire:colaboradores.form-colaborador :colaborador="$editando" :en-modal="true" :key="'form-colaborador-'.($editando?->id ?? 'nuevo')" />
-        @endif
-    </x-form-modal>
 </div>

@@ -20,9 +20,8 @@ class FormTarea extends Component
 {
     public ?Task $task = null;
 
-    public bool $enModal = false;
-
-    // Proyecto pre-seleccionado (por el padre, tipicamente desde ?project=ID)
+    // Proyecto pre-seleccionado (via query string ?project=ID), tipicamente
+    // desde el boton "Asignar tarea" en el detalle de un proyecto.
     public ?int $project_id = null;
 
     // Campos del formulario
@@ -48,12 +47,10 @@ class FormTarea extends Component
 
     public string $observacionFecha = '';
 
-    public function mount(?Task $task = null, ?int $projectId = null, bool $enModal = false): void
+    public function mount(?Task $task = null): void
     {
         // Solo coordinador/evaluador/admin pueden crear tareas nuevas.
         abort_unless(! $task?->exists ? Auth::user()?->puedeCrearTarea() : true, 403);
-
-        $this->enModal = $enModal;
 
         if ($task?->exists) {
             $this->task = $task;
@@ -67,7 +64,7 @@ class FormTarea extends Component
             $this->fechaInicioInput = $task->fecha_inicio?->format('Y-m-d');
             $this->fechaLimiteInput = $task->fecha_limite?->format('Y-m-d\TH:i');
             $this->tag = $task->tag ?? '';
-        } elseif ($projectId) {
+        } elseif ($projectId = request()->integer('project')) {
             $this->project_id = $projectId;
         }
 
@@ -202,12 +199,7 @@ class FormTarea extends Component
         $proyecto?->recalcularProgreso();
 
         session()->flash('ok', 'Tarea eliminada.');
-
-        if ($this->enModal) {
-            $this->dispatch('cerrar-modal-tarea');
-
-            return;
-        }
+        $this->dispatch('app-toast', type: 'success', message: 'Tarea eliminada.');
 
         return $proyectoId
             ? $this->redirect(route('proyectos.ver', $proyectoId), navigate: true)
@@ -419,12 +411,7 @@ class FormTarea extends Component
         $task->proyecto?->recalcularProgreso();
 
         session()->flash('ok', $esNueva ? 'Tarea creada correctamente.' : 'Tarea actualizada.');
-
-        if ($this->enModal) {
-            $this->dispatch('cerrar-modal-tarea');
-
-            return;
-        }
+        $this->dispatch('app-toast', type: 'success', message: $esNueva ? 'Tarea creada correctamente.' : 'Tarea actualizada.');
 
         // Volver al detalle del proyecto si la tarea pertenece a uno
         if ($task->project_id) {
@@ -432,11 +419,6 @@ class FormTarea extends Component
         }
 
         return $this->redirect(route('tareas'), navigate: true);
-    }
-
-    public function cancelar(): void
-    {
-        $this->dispatch('cerrar-modal-tarea');
     }
 
     protected function registrar(Task $task, string $accion, string $detalle): void

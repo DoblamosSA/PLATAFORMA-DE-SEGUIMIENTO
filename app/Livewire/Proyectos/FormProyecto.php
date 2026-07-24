@@ -14,8 +14,6 @@ class FormProyecto extends Component
 {
     public ?Project $project = null;
 
-    public bool $enModal = false;
-
     public string $nombre = '';
 
     public string $descripcion = '';
@@ -35,12 +33,10 @@ class FormProyecto extends Component
     /** IDs de los usuarios que integran el equipo del proyecto. */
     public array $equipo = [];
 
-    public function mount(?Project $project = null, bool $enModal = false): void
+    public function mount(?Project $project = null): void
     {
         // Solo el administrador y el coordinador pueden crear proyectos nuevos.
         abort_unless(! $project?->exists ? Auth::user()?->puedeCrearProyecto() : true, 403);
-
-        $this->enModal = $enModal;
 
         if ($project?->exists) {
             $this->project = $project;
@@ -96,19 +92,9 @@ class FormProyecto extends Component
         $project->equipo()->sync($equipo);
 
         session()->flash('ok', $esNuevo ? 'Proyecto creado.' : 'Proyecto actualizado.');
-
-        if ($this->enModal) {
-            $this->dispatch('cerrar-modal-proyecto');
-
-            return;
-        }
+        $this->dispatch('app-toast', type: 'success', message: $esNuevo ? 'Proyecto creado.' : 'Proyecto actualizado.');
 
         return $this->redirect(route('proyectos.ver', $project), navigate: true);
-    }
-
-    public function cancelar(): void
-    {
-        $this->dispatch('cerrar-modal-proyecto');
     }
 
     public function render()

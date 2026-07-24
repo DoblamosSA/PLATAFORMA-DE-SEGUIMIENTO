@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Services\CapacidadService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -26,48 +25,9 @@ class ListaColaboradores extends Component
     #[Url]
     public string $area = '';
 
-    public bool $mostrarModal = false;
-
-    public ?User $editando = null;
-
-    public bool $llegoPorRutaDirecta = false;
-
-    public function mount(?User $colaborador = null): void
+    public function mount(): void
     {
         abort_unless(Auth::user()?->esAdmin(), 403);
-
-        if (request()->routeIs('colaboradores.crear')) {
-            $this->mostrarModal = true;
-            $this->llegoPorRutaDirecta = true;
-        } elseif ($colaborador?->exists) {
-            $this->mostrarModal = true;
-            $this->editando = $colaborador;
-            $this->llegoPorRutaDirecta = true;
-        }
-    }
-
-    public function abrirCrear(): void
-    {
-        $this->editando = null;
-        $this->mostrarModal = true;
-    }
-
-    public function abrirEditar(int $userId): void
-    {
-        $this->editando = User::findOrFail($userId);
-        $this->mostrarModal = true;
-    }
-
-    #[On('cerrar-modal-colaborador')]
-    public function cerrarModal(): void
-    {
-        $this->mostrarModal = false;
-        $this->editando = null;
-
-        if ($this->llegoPorRutaDirecta) {
-            $this->llegoPorRutaDirecta = false;
-            $this->redirect(route('colaboradores'), navigate: true);
-        }
     }
 
     public function updating($name): void
@@ -95,6 +55,7 @@ class ListaColaboradores extends Component
 
         if ($userId === Auth::id()) {
             session()->flash('error', 'No puedes eliminar tu propia cuenta.');
+            $this->dispatch('app-toast', type: 'error', message: 'No puedes eliminar tu propia cuenta.');
 
             return;
         }
@@ -103,6 +64,7 @@ class ListaColaboradores extends Component
 
         if ($colaborador->esSuperAdmin()) {
             session()->flash('error', 'No puedes eliminar una cuenta de Super Administrador.');
+            $this->dispatch('app-toast', type: 'error', message: 'No puedes eliminar una cuenta de Super Administrador.');
 
             return;
         }
@@ -113,6 +75,7 @@ class ListaColaboradores extends Component
         AuditLog::registrar('colaborador_eliminado', $colaborador, "Colaborador {$nombre} eliminado.");
 
         session()->flash('ok', 'Colaborador eliminado.');
+        $this->dispatch('app-toast', type: 'success', message: 'Colaborador eliminado.');
     }
 
     public function render()
