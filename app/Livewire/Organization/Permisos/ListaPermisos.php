@@ -3,7 +3,6 @@
 namespace App\Livewire\Organization\Permisos;
 
 use App\Domain\Organization\Repositories\Contracts\PermissionRepositoryInterface;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -13,7 +12,7 @@ class ListaPermisos extends Component
 {
     public function mount(): void
     {
-        abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+        abort_unless(Gate::allows('roles.view'), 403);
     }
 
     public function render(PermissionRepositoryInterface $permissions)

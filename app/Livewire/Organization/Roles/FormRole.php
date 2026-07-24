@@ -39,7 +39,9 @@ class FormRole extends Component
 
     public function mount(PermissionRepositoryInterface $permissions, ?Role $role = null, bool $enModal = false): void
     {
-        abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+        // Abrir el formulario (crear o editar) solo requiere poder VER roles;
+        // save() vuelve a validar segun sea creacion o edicion.
+        abort_unless(Gate::allows('roles.view'), 403);
 
         $this->enModal = $enModal;
 
@@ -80,7 +82,9 @@ class FormRole extends Component
 
     public function save(RoleService $service, PermissionRepositoryInterface $permissions)
     {
-        abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+        // Puro permiso granular: 'roles.create' al crear, 'roles.edit' al
+        // editar (rol primario o heredado existente).
+        abort_unless(Gate::allows($this->role ? 'roles.edit' : 'roles.create'), 403);
         abort_if($this->soloLectura, 403);
 
         $esPrimario = $this->esPrimario();

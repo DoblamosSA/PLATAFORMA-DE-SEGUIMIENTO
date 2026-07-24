@@ -96,6 +96,7 @@
         <div>
             <label for="sub_department_id" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Subdepartamento *</label>
             <select id="sub_department_id" x-model="subdepto" :disabled="!depto"
+                    x-init="$nextTick(() => $el.value = subdepto)"
                     class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed">
                 <option value="" x-text="depto ? 'Selecciona…' : 'Elige un departamento primero'"></option>
                 <template x-for="s in subdepartamentos" :key="s.id">
@@ -107,6 +108,7 @@
         <div>
             <label for="role_id" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Rol en el departamento</label>
             <select id="role_id" x-model="rol" :disabled="!depto"
+                    x-init="$nextTick(() => $el.value = rol)"
                     class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed">
                 <option value="">Sin asignar</option>
                 <template x-for="r in roles" :key="r.id">

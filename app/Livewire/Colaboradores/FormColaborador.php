@@ -8,7 +8,7 @@ use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Services\DepartmentService;
 use App\Models\AuditLog;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -58,7 +58,9 @@ class FormColaborador extends Component
 
     public function mount(?User $colaborador = null, bool $enModal = false): void
     {
-        abort_unless(Auth::user()?->esAdmin(), 403);
+        // Crear/editar es una mutacion: puro permiso granular 'users.manage'
+        // (el bypass universal es esSuperAdmin(), ya cubierto por Gate::before).
+        abort_unless(Gate::allows('users.manage'), 403);
 
         $this->enModal = $enModal;
 

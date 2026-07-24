@@ -5,7 +5,6 @@ namespace App\Livewire\Organization\Roles;
 use App\Domain\Organization\Exceptions\RoleNotDeletableException;
 use App\Domain\Organization\Models\Role;
 use App\Domain\Organization\Services\RoleService;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -29,12 +28,14 @@ class ListaRoles extends Component
 
     public function mount(?Role $role = null): void
     {
-        abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+        abort_unless(Gate::allows('roles.view'), 403);
 
         if (request()->routeIs('roles.crear')) {
+            abort_unless(Gate::allows('roles.create'), 403);
             $this->mostrarModal = true;
             $this->llegoPorRutaDirecta = true;
         } elseif ($role?->exists) {
+            abort_unless($role->is_primary ? Gate::allows('roles.view') : Gate::allows('roles.edit'), 403);
             $this->mostrarModal = true;
             $this->editando = $role;
             $this->llegoPorRutaDirecta = true;
@@ -43,13 +44,21 @@ class ListaRoles extends Component
 
     public function abrirCrear(): void
     {
+        abort_unless(Gate::allows('roles.create'), 403);
+
         $this->editando = null;
         $this->mostrarModal = true;
     }
 
     public function abrirEditar(int $roleId): void
     {
-        $this->editando = Role::findOrFail($roleId);
+        $role = Role::findOrFail($roleId);
+
+        // Ver un rol primario como solo-lectura (sin ser SuperAdmin) sigue
+        // requiriendo 'roles.view'; editar uno heredado requiere 'roles.edit'.
+        abort_unless($role->is_primary ? Gate::allows('roles.view') : Gate::allows('roles.edit'), 403);
+
+        $this->editando = $role;
         $this->mostrarModal = true;
     }
 
@@ -77,7 +86,8 @@ class ListaRoles extends Component
 
     public function duplicar(int $roleId, RoleService $service)
     {
-        abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+        // Duplicar crea un rol nuevo (una copia).
+        abort_unless(Gate::allows('roles.create'), 403);
 
         $rol = Role::findOrFail($roleId);
         $copia = $service->duplicateRole($rol);
@@ -90,7 +100,7 @@ class ListaRoles extends Component
 
     public function eliminar(int $roleId, RoleService $service): void
     {
-        abort_unless(Auth::user()?->esSuperAdmin() || Gate::allows('roles.manage'), 403);
+        abort_unless(Gate::allows('roles.delete'), 403);
 
         try {
             $service->deleteRole(Role::findOrFail($roleId));

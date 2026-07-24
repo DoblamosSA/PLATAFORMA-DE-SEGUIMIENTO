@@ -26,9 +26,11 @@ Route::middleware(['auth', \App\Http\Middleware\NoCacheHeaders::class])->group(f
     Route::get('proyectos/{project}/editar', VerProyecto::class)->name('proyectos.editar');
     Route::get('proyectos/{project}/tablero', TableroProyecto::class)->name('proyectos.tablero');
 
-    // Modulo de tareas: solo administradores. tareas.crear/editar abren el
-    // modal del formulario sobre la lista.
-    Route::middleware('can:admin')->group(function () {
+    // Modulo de tareas: administradores (legado) o quien tenga el permiso
+    // granular 'tasks.view' via su rol de departamento, primario o heredado
+    // (ver Gate::define('tasks.access', ...) en OrganizationServiceProvider).
+    // tareas.crear/editar abren el modal del formulario sobre la lista.
+    Route::middleware('can:tasks.access')->group(function () {
         Route::get('tareas', ListaTareas::class)->name('tareas');
         Route::get('tareas/nueva', ListaTareas::class)->name('tareas.crear');
         Route::get('tareas/{task}/editar', ListaTareas::class)->name('tareas.editar');

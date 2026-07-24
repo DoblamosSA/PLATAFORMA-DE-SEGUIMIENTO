@@ -185,37 +185,52 @@ class User extends Authenticatable
     // Permisos de proyectos/tareas/subtareas/comentarios
     // ---------------------------------------------------------------
 
-    /** El modulo de tareas (crear/editar) es exclusivo del administrador. */
+    /** Crear tareas requiere el permiso granular 'tasks.create' (via rol de departamento, primario o heredado). */
     public function puedeCrearTarea(): bool
     {
-        return $this->esAdmin();
+        return $this->hasPermission('tasks.create');
     }
 
-    /** Solo el administrador y el coordinador pueden crear proyectos. */
+    /** Editar tareas requiere el permiso granular 'tasks.edit'. */
+    public function puedeEditarTarea(): bool
+    {
+        return $this->hasPermission('tasks.edit');
+    }
+
+    /** Crear proyectos requiere el permiso granular 'projects.create'. */
     public function puedeCrearProyecto(): bool
     {
-        return $this->esCoordinador(); // esCoordinador() ya incluye al admin
+        return $this->hasPermission('projects.create');
     }
 
-    /** El coordinador solo puede eliminar una tarea si no tiene subtareas; el admin siempre puede. */
+    /**
+     * Eliminar una tarea requiere el permiso granular 'tasks.delete'. Quien
+     * ademas tenga rol admin puede eliminar aunque la tarea tenga subtareas;
+     * el resto (ej. coordinador con 'tasks.delete') solo si no tiene.
+     */
     public function puedeEliminarTarea(Task $task): bool
     {
+        if (! $this->hasPermission('tasks.delete')) {
+            return false;
+        }
+
         if ($this->esAdmin()) {
             return true;
         }
 
-        return $this->esCoordinador() && ! $task->subtareas()->exists();
+        return ! $task->subtareas()->exists();
     }
 
-    /** Cualquier rol con acceso al proyecto puede crear subtareas. */
+    /** Crear subtareas requiere el permiso granular 'subtasks.create'. */
     public function puedeCrearSubtarea(): bool
     {
-        return $this->esAdmin() || $this->esCoordinador() || $this->esColaborador() || $this->esEvaluador();
+        return $this->hasPermission('subtasks.create');
     }
 
+    /** Eliminar subtareas requiere el permiso granular 'subtasks.delete'. */
     public function puedeEliminarSubtarea(): bool
     {
-        return $this->esAdmin();
+        return $this->hasPermission('subtasks.delete');
     }
 
     public function puedeCrearComentario(): bool

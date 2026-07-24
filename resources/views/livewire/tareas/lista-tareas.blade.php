@@ -63,8 +63,12 @@
                     @forelse ($tareas as $t)
                         <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                             <td class="py-3 px-5">
-                                <button type="button" wire:click="abrirEditar({{ $t->id }})"
-                                   class="font-medium text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 text-left">{{ $t->titulo }}</button>
+                                @if (auth()->user()->puedeEditarTarea())
+                                    <button type="button" wire:click="abrirEditar({{ $t->id }})"
+                                       class="font-medium text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 text-left">{{ $t->titulo }}</button>
+                                @else
+                                    <span class="font-medium text-slate-800 dark:text-slate-200">{{ $t->titulo }}</span>
+                                @endif
                                 <span class="block text-xs text-slate-400 dark:text-slate-500">{{ $t->proyecto?->nombre ?? 'Sin proyecto' }}</span>
                             </td>
                             <td class="py-3 px-4 text-slate-600 dark:text-slate-400">{{ $t->asignado?->name ?? '—' }}</td>
@@ -82,7 +86,7 @@
                                 @endif
                             </td>
                             <td class="py-3 px-5 text-right">
-                                @if (auth()->user()->esAdmin())
+                                @if (auth()->user()->puedeEliminarTarea($t))
                                     <div class="flex items-center justify-end gap-1">
                                         <x-row-action variant="eliminar" wire:click="eliminar({{ $t->id }})"
                                                       :confirm="'¿Eliminar la tarea &quot;'.$t->titulo.'&quot;? Esta acción no se puede deshacer.'"

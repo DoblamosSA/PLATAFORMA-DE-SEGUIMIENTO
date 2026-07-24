@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\CapacidadService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -35,12 +36,16 @@ class ListaColaboradores extends Component
 
     public function mount(?User $colaborador = null): void
     {
-        abort_unless(Auth::user()?->esAdmin(), 403);
+        // Acceso de lectura: puro permiso granular 'users.view' (el bypass
+        // universal es esSuperAdmin(), ya cubierto por Gate::before).
+        abort_unless(Gate::allows('users.view'), 403);
 
         if (request()->routeIs('colaboradores.crear')) {
+            abort_unless(Gate::allows('users.manage'), 403);
             $this->mostrarModal = true;
             $this->llegoPorRutaDirecta = true;
         } elseif ($colaborador?->exists) {
+            abort_unless(Gate::allows('users.manage'), 403);
             $this->mostrarModal = true;
             $this->editando = $colaborador;
             $this->llegoPorRutaDirecta = true;
@@ -49,12 +54,16 @@ class ListaColaboradores extends Component
 
     public function abrirCrear(): void
     {
+        abort_unless(Gate::allows('users.manage'), 403);
+
         $this->editando = null;
         $this->mostrarModal = true;
     }
 
     public function abrirEditar(int $userId): void
     {
+        abort_unless(Gate::allows('users.manage'), 403);
+
         $this->editando = User::findOrFail($userId);
         $this->mostrarModal = true;
     }
@@ -83,7 +92,8 @@ class ListaColaboradores extends Component
 
     public function toggleActivo(int $userId): void
     {
-        abort_unless(Auth::user()?->esAdmin(), 403);
+        // Mutacion: puro permiso granular 'users.manage'.
+        abort_unless(Gate::allows('users.manage'), 403);
 
         $colaborador = User::findOrFail($userId);
         $colaborador->update(['activo' => ! $colaborador->activo]);
@@ -97,7 +107,8 @@ class ListaColaboradores extends Component
 
     public function eliminar(int $userId): void
     {
-        abort_unless(Auth::user()?->esAdmin(), 403);
+        // Mutacion: puro permiso granular 'users.manage'.
+        abort_unless(Gate::allows('users.manage'), 403);
 
         if ($userId === Auth::id()) {
             session()->flash('error', 'No puedes eliminar tu propia cuenta.');

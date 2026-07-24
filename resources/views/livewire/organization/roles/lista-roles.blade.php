@@ -2,10 +2,12 @@
 
     <x-page-header title="Roles" subtitle="Roles primarios (solo lectura) y roles heredados" icon="shield-check">
         <x-slot:actions>
-            <button type="button" wire:click="abrirCrear"
-               class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
-                <x-icon name="plus" class="w-4 h-4" /> Nuevo rol heredado
-            </button>
+            @can('roles.create')
+                <button type="button" wire:click="abrirCrear"
+                   class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
+                    <x-icon name="plus" class="w-4 h-4" /> Nuevo rol heredado
+                </button>
+            @endcan
         </x-slot:actions>
     </x-page-header>
 
@@ -45,13 +47,19 @@
                                             <x-row-action variant="ver" wire:click="abrirEditar({{ $r->id }})" label="Ver permisos de {{ $r->nombre }}" />
                                         @endif
                                     @else
-                                        <x-row-action variant="editar" wire:click="abrirEditar({{ $r->id }})" label="Editar {{ $r->nombre }}" />
-                                        <x-row-action variant="duplicar" wire:click="duplicar({{ $r->id }})" label="Duplicar {{ $r->nombre }}" />
-                                        @if ($r->is_deletable)
-                                            <x-row-action variant="eliminar" wire:click="eliminar({{ $r->id }})"
-                                                          :confirm="'¿Eliminar el rol &quot;'.$r->nombre.'&quot;? Esta acción no se puede deshacer.'"
-                                                          label="Eliminar {{ $r->nombre }}" />
-                                        @endif
+                                        @can('roles.edit')
+                                            <x-row-action variant="editar" wire:click="abrirEditar({{ $r->id }})" label="Editar {{ $r->nombre }}" />
+                                        @endcan
+                                        @can('roles.create')
+                                            <x-row-action variant="duplicar" wire:click="duplicar({{ $r->id }})" label="Duplicar {{ $r->nombre }}" />
+                                        @endcan
+                                        @can('roles.delete')
+                                            @if ($r->is_deletable)
+                                                <x-row-action variant="eliminar" wire:click="eliminar({{ $r->id }})"
+                                                              :confirm="'¿Eliminar el rol &quot;'.$r->nombre.'&quot;? Esta acción no se puede deshacer.'"
+                                                              label="Eliminar {{ $r->nombre }}" />
+                                            @endif
+                                        @endcan
                                     @endif
                                 </div>
                             </td>

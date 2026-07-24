@@ -34,16 +34,6 @@ class RoleContextService
 
         $candidates = [];
 
-        if ($user->rol) {
-            $candidates['legacy'] = [
-                'key' => 'legacy',
-                'label' => $user->rolLabel(),
-                'type' => 'legacy',
-                'role_id' => null,
-                'department_id' => null,
-            ];
-        }
-
         foreach ($user->rolesGlobales()->get() as $role) {
             // Super Administrador no es una identidad distinta cuando el usuario
             // ya es Administrador por el campo legado: admin ya implica
@@ -77,6 +67,24 @@ class RoleContextService
                 'type' => 'department',
                 'role_id' => $roleId,
                 'department_id' => $department->id,
+            ];
+        }
+
+        // El rol legado (users.rol) solo cuenta como identidad elegible
+        // cuando el usuario TODAVIA no tiene ningun rol real asignado
+        // (global o de departamento): es el unico respaldo para cuentas que
+        // no se han migrado al RBAC nuevo. El formulario de colaborador ya
+        // no permite editar este campo (queda congelado), asi que si ya
+        // tiene un rol real, ofrecerlo como una identidad mas obligaria a
+        // elegir rol en cada login sin sentido (un rol "fantasma" que nunca
+        // cambia, junto al rol real que si se gestiona).
+        if (empty($candidates) && $user->rol) {
+            $candidates['legacy'] = [
+                'key' => 'legacy',
+                'label' => $user->rolLabel(),
+                'type' => 'legacy',
+                'role_id' => null,
+                'department_id' => null,
             ];
         }
 

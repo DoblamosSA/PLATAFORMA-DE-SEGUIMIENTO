@@ -2,10 +2,12 @@
 
     <x-page-header title="Colaboradores" subtitle="Equipos, roles y capacidad operativa" icon="users">
         <x-slot:actions>
-            <button type="button" wire:click="abrirCrear"
-               class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
-                <x-icon name="plus" class="w-4 h-4" /> Nuevo colaborador
-            </button>
+            @can('users.manage')
+                <button type="button" wire:click="abrirCrear"
+                   class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
+                    <x-icon name="plus" class="w-4 h-4" /> Nuevo colaborador
+                </button>
+            @endcan
         </x-slot:actions>
     </x-page-header>
 
@@ -68,23 +70,33 @@
                                 <x-carga-bar :porcentaje="$c->carga['porcentaje']" :estado="$c->carga['estado']" />
                             </td>
                             <td class="py-2.5 px-4">
-                                <button wire:click="toggleActivo({{ $c->id }})"
-                                        aria-pressed="{{ $c->activo ? 'true' : 'false' }}"
-                                        aria-label="{{ $c->activo ? 'Desactivar' : 'Activar' }} a {{ $c->name }}"
-                                        class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
-                                               {{ $c->activo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' }}">
-                                    <span class="h-1.5 w-1.5 rounded-full {{ $c->activo ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
-                                    {{ $c->activo ? 'Activo' : 'Inactivo' }}
-                                </button>
+                                @can('users.manage')
+                                    <button wire:click="toggleActivo({{ $c->id }})"
+                                            aria-pressed="{{ $c->activo ? 'true' : 'false' }}"
+                                            aria-label="{{ $c->activo ? 'Desactivar' : 'Activar' }} a {{ $c->name }}"
+                                            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+                                                   {{ $c->activo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' }}">
+                                        <span class="h-1.5 w-1.5 rounded-full {{ $c->activo ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
+                                        {{ $c->activo ? 'Activo' : 'Inactivo' }}
+                                    </button>
+                                @else
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium
+                                                 {{ $c->activo ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' }}">
+                                        <span class="h-1.5 w-1.5 rounded-full {{ $c->activo ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
+                                        {{ $c->activo ? 'Activo' : 'Inactivo' }}
+                                    </span>
+                                @endcan
                             </td>
                             <td class="py-2.5 px-5 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    <x-row-action variant="editar" wire:click="abrirEditar({{ $c->id }})" label="Editar {{ $c->name }}" />
-                                    @if ($c->id !== auth()->id() && ! $c->esSuperAdmin())
-                                        <x-row-action variant="eliminar" wire:click="eliminar({{ $c->id }})"
-                                                      :confirm="'¿Eliminar a &quot;'.$c->name.'&quot;? Esta acción no se puede deshacer.'"
-                                                      label="Eliminar {{ $c->name }}" />
-                                    @endif
+                                    @can('users.manage')
+                                        <x-row-action variant="editar" wire:click="abrirEditar({{ $c->id }})" label="Editar {{ $c->name }}" />
+                                        @if ($c->id !== auth()->id() && ! $c->esSuperAdmin())
+                                            <x-row-action variant="eliminar" wire:click="eliminar({{ $c->id }})"
+                                                          :confirm="'¿Eliminar a &quot;'.$c->name.'&quot;? Esta acción no se puede deshacer.'"
+                                                          label="Eliminar {{ $c->name }}" />
+                                        @endif
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -92,7 +104,9 @@
                         <tr>
                             <td colspan="7" class="py-10 text-center text-slate-400 dark:text-slate-500">
                                 No hay colaboradores con estos filtros.
-                                <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
+                                @can('users.manage')
+                                    <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
+                                @endcan
                             </td>
                         </tr>
                     @endforelse

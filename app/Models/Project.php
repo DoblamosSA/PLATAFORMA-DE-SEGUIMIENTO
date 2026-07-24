@@ -149,8 +149,9 @@ class Project extends Model
     }
 
     /**
-     * Solo el admin, el responsable o un integrante del equipo pueden
-     * administrar el tablero, mover cards o comentar.
+     * Quien tenga el permiso granular 'projects.edit', el responsable, o un
+     * integrante del equipo pueden administrar el tablero, mover cards o
+     * comentar.
      */
     public function usuarioPuedeGestionar(?User $user): bool
     {
@@ -158,7 +159,7 @@ class Project extends Model
             return false;
         }
 
-        if ($user->esAdmin() || $this->responsable_id === $user->id) {
+        if ($user->hasPermission('projects.edit') || $this->responsable_id === $user->id) {
             return true;
         }
 

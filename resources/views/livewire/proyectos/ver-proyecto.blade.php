@@ -137,7 +137,7 @@
                         @forelse ($tareas as $t)
                             <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                                 <td class="py-2.5 px-5">
-                                    <a @if (auth()->user()->esAdmin()) href="{{ route('tareas.editar', $t) }}" wire:navigate @endif
+                                    <a @if (auth()->user()->puedeEditarTarea()) href="{{ route('tareas.editar', $t) }}" wire:navigate @endif
                                        class="font-medium text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400">{{ $t->titulo }}</a>
                                     <div class="mt-0.5"><x-badge tipo="prioridad" :valor="$t->prioridad" /></div>
                                 </td>

@@ -50,8 +50,8 @@ class FormTarea extends Component
 
     public function mount(?Task $task = null, ?int $projectId = null, bool $enModal = false): void
     {
-        // Solo coordinador/evaluador/admin pueden crear tareas nuevas.
-        abort_unless(! $task?->exists ? Auth::user()?->puedeCrearTarea() : true, 403);
+        // Crear requiere 'tasks.create'; editar requiere 'tasks.edit'.
+        abort_unless(! $task?->exists ? Auth::user()?->puedeCrearTarea() : Auth::user()?->puedeEditarTarea(), 403);
 
         $this->enModal = $enModal;
 
@@ -234,7 +234,7 @@ class FormTarea extends Component
         $esNueva = ! $this->task;
 
         // Re-chequeo defensivo de permisos en el servidor (no solo en mount).
-        abort_unless($esNueva ? Auth::user()?->puedeCrearTarea() : true, 403);
+        abort_unless($esNueva ? Auth::user()?->puedeCrearTarea() : Auth::user()?->puedeEditarTarea(), 403);
 
         $reglas = $this->rules();
 

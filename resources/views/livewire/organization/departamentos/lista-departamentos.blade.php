@@ -2,10 +2,12 @@
 
     <x-page-header title="Departamentos" subtitle="Estructura organizacional de la empresa" icon="building">
         <x-slot:actions>
-            <button type="button" wire:click="abrirCrear"
-               class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
-                <x-icon name="plus" class="w-4 h-4" /> Nuevo departamento
-            </button>
+            @can('create', \App\Domain\Organization\Models\Department::class)
+                <button type="button" wire:click="abrirCrear"
+                   class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
+                    <x-icon name="plus" class="w-4 h-4" /> Nuevo departamento
+                </button>
+            @endcan
         </x-slot:actions>
     </x-page-header>
 
@@ -49,10 +51,14 @@
                             </td>
                             <td class="py-2.5 px-5 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    <x-row-action variant="editar" wire:click="abrirEditar({{ $d->id }})" label="Editar {{ $d->nombre }}" />
-                                    <x-row-action variant="eliminar" wire:click="eliminar({{ $d->id }})"
-                                                  :confirm="'¿Eliminar el departamento &quot;'.$d->nombre.'&quot;? Esta acción no se puede deshacer.'"
-                                                  label="Eliminar {{ $d->nombre }}" />
+                                    @can('update', $d)
+                                        <x-row-action variant="editar" wire:click="abrirEditar({{ $d->id }})" label="Editar {{ $d->nombre }}" />
+                                    @endcan
+                                    @can('delete', $d)
+                                        <x-row-action variant="eliminar" wire:click="eliminar({{ $d->id }})"
+                                                      :confirm="'¿Eliminar el departamento &quot;'.$d->nombre.'&quot;? Esta acción no se puede deshacer.'"
+                                                      label="Eliminar {{ $d->nombre }}" />
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -60,7 +66,9 @@
                         <tr>
                             <td colspan="6">
                                 <x-empty-state icon="building" mensaje="No hay departamentos todavía.">
-                                    <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
+                                    @can('create', \App\Domain\Organization\Models\Department::class)
+                                        <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
+                                    @endcan
                                 </x-empty-state>
                             </td>
                         </tr>

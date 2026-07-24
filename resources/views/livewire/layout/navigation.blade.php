@@ -31,18 +31,24 @@ new class extends Component
         ['route' => 'dashboard',              'pattern' => 'dashboard',   'label' => 'Dashboard', 'icon' => 'dashboard'],
         ['route' => 'proyectos',              'pattern' => 'proyectos*',  'label' => 'Proyectos', 'icon' => 'folder'],
     ];
-    if ($u->esAdmin()) {
+    // Cada item del menu se arma segun el permiso granular efectivo del rol
+    // (primario o heredado) del usuario. El bypass universal es solo
+    // esSuperAdmin(), ya cubierto automaticamente por Gate::before arriba -
+    // el enum legado 'admin'/esAdmin() ya no da acceso libre por si solo.
+    if (\Illuminate\Support\Facades\Gate::allows('tasks.view')) {
         $nav[] = ['route' => 'tareas',        'pattern' => 'tareas*',     'label' => 'Tareas',    'icon' => 'tasks'];
     }
     $nav[] = ['route' => 'informes.cumplimiento', 'pattern' => 'informes*', 'label' => 'Informes', 'icon' => 'report'];
-    if ($u->esAdmin()) {
+    if (\Illuminate\Support\Facades\Gate::allows('users.view')) {
         $nav[] = ['route' => 'colaboradores', 'pattern' => 'colaboradores*', 'label' => 'Colaboradores', 'icon' => 'users'];
     }
-    if ($u->esSuperAdmin() || \Illuminate\Support\Facades\Gate::allows('departments.manage')) {
+    if (\Illuminate\Support\Facades\Gate::allows('departments.view')) {
         $nav[] = ['route' => 'departamentos', 'pattern' => 'departamentos*', 'label' => 'Departamentos', 'icon' => 'building'];
+    }
+    if (\Illuminate\Support\Facades\Gate::allows('subdepartments.view')) {
         $nav[] = ['route' => 'subdepartamentos', 'pattern' => 'subdepartamentos*', 'label' => 'SubDepartamentos', 'icon' => 'sitemap'];
     }
-    if ($u->esSuperAdmin() || \Illuminate\Support\Facades\Gate::allows('roles.manage')) {
+    if (\Illuminate\Support\Facades\Gate::allows('roles.view')) {
         $nav[] = ['route' => 'roles', 'pattern' => 'roles*', 'label' => 'Roles', 'icon' => 'shield-check'];
         $nav[] = ['route' => 'permisos', 'pattern' => 'permisos*', 'label' => 'Permisos', 'icon' => 'key'];
     }

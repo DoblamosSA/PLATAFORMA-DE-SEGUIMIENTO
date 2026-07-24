@@ -35,9 +35,11 @@ class ListaSubDepartamentos extends Component
         $this->authorize('viewAny', SubDepartment::class);
 
         if (request()->routeIs('subdepartamentos.crear')) {
+            $this->authorize('create', SubDepartment::class);
             $this->mostrarModal = true;
             $this->llegoPorRutaDirecta = true;
         } elseif ($subDepartment?->exists) {
+            $this->authorize('update', $subDepartment);
             $this->mostrarModal = true;
             $this->editando = $subDepartment;
             $this->llegoPorRutaDirecta = true;
@@ -46,13 +48,18 @@ class ListaSubDepartamentos extends Component
 
     public function abrirCrear(): void
     {
+        $this->authorize('create', SubDepartment::class);
+
         $this->editando = null;
         $this->mostrarModal = true;
     }
 
     public function abrirEditar(int $subDepartmentId): void
     {
-        $this->editando = SubDepartment::findOrFail($subDepartmentId);
+        $subDepartment = SubDepartment::findOrFail($subDepartmentId);
+        $this->authorize('update', $subDepartment);
+
+        $this->editando = $subDepartment;
         $this->mostrarModal = true;
     }
 

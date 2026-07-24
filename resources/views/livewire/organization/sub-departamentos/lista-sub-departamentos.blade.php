@@ -2,10 +2,12 @@
 
     <x-page-header title="SubDepartamentos" subtitle="Divisiones dentro de cada departamento" icon="sitemap">
         <x-slot:actions>
-            <button type="button" wire:click="abrirCrear"
-               class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
-                <x-icon name="plus" class="w-4 h-4" /> Nuevo subdepartamento
-            </button>
+            @can('create', \App\Domain\Organization\Models\SubDepartment::class)
+                <button type="button" wire:click="abrirCrear"
+                   class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
+                    <x-icon name="plus" class="w-4 h-4" /> Nuevo subdepartamento
+                </button>
+            @endcan
         </x-slot:actions>
     </x-page-header>
 
@@ -55,10 +57,14 @@
                             </td>
                             <td class="py-2.5 px-5 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    <x-row-action variant="editar" wire:click="abrirEditar({{ $sd->id }})" label="Editar {{ $sd->nombre }}" />
-                                    <x-row-action variant="eliminar" wire:click="eliminar({{ $sd->id }})"
-                                                  :confirm="'¿Eliminar el subdepartamento &quot;'.$sd->nombre.'&quot;? Esta acción no se puede deshacer.'"
-                                                  label="Eliminar {{ $sd->nombre }}" />
+                                    @can('update', $sd)
+                                        <x-row-action variant="editar" wire:click="abrirEditar({{ $sd->id }})" label="Editar {{ $sd->nombre }}" />
+                                    @endcan
+                                    @can('delete', $sd)
+                                        <x-row-action variant="eliminar" wire:click="eliminar({{ $sd->id }})"
+                                                      :confirm="'¿Eliminar el subdepartamento &quot;'.$sd->nombre.'&quot;? Esta acción no se puede deshacer.'"
+                                                      label="Eliminar {{ $sd->nombre }}" />
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -66,7 +72,9 @@
                         <tr>
                             <td colspan="5">
                                 <x-empty-state icon="sitemap" mensaje="No hay subdepartamentos todavía.">
-                                    <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
+                                    @can('create', \App\Domain\Organization\Models\SubDepartment::class)
+                                        <button type="button" wire:click="abrirCrear" class="text-blue-600 dark:text-blue-400 hover:underline">Crear el primero</button>
+                                    @endcan
                                 </x-empty-state>
                             </td>
                         </tr>
