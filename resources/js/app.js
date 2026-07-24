@@ -209,6 +209,23 @@ document.addEventListener('livewire:navigated', () => {
 });
 
 /**
+ * Reinicia las animaciones de apertura (page-enter y anim-*) en cada
+ * navegacion SPA (wire:navigate): si Livewire conserva los elementos y
+ * solo actualiza su contenido, la animacion CSS no volveria a correr sin
+ * quitar y re-agregar la clase con un reflow de por medio.
+ */
+document.addEventListener('livewire:navigated', () => {
+    const selector = '#main-content, .anim-fade-in, .anim-fade-up, .anim-fade-right, .anim-stagger, .anim-stagger-x';
+    document.querySelectorAll(selector).forEach((el) => {
+        const clases = [...el.classList].filter((c) => c === 'page-enter' || c.startsWith('anim-'));
+        if (!clases.length) return;
+        el.classList.remove(...clases);
+        void el.offsetWidth; // fuerza reflow para reiniciar la animacion CSS
+        el.classList.add(...clases);
+    });
+});
+
+/**
  * Inicializa el arrastre de cards en una columna del tablero Kanban.
  * Al soltar una card notifica al componente Livewire (moverTarea) con la
  * columna destino y el orden resultante de esa columna.
