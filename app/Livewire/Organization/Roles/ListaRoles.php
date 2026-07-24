@@ -5,6 +5,7 @@ namespace App\Livewire\Organization\Roles;
 use App\Domain\Organization\Exceptions\RoleNotDeletableException;
 use App\Domain\Organization\Models\Role;
 use App\Domain\Organization\Services\RoleService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -35,7 +36,7 @@ class ListaRoles extends Component
             $this->mostrarModal = true;
             $this->llegoPorRutaDirecta = true;
         } elseif ($role?->exists) {
-            abort_unless($role->is_primary ? Gate::allows('roles.view') : Gate::allows('roles.edit'), 403);
+            $this->autorizarAccesoRol($role);
             $this->mostrarModal = true;
             $this->editando = $role;
             $this->llegoPorRutaDirecta = true;
@@ -53,13 +54,28 @@ class ListaRoles extends Component
     public function abrirEditar(int $roleId): void
     {
         $role = Role::findOrFail($roleId);
-
-        // Ver un rol primario como solo-lectura (sin ser SuperAdmin) sigue
-        // requiriendo 'roles.view'; editar uno heredado requiere 'roles.edit'.
-        abort_unless($role->is_primary ? Gate::allows('roles.view') : Gate::allows('roles.edit'), 403);
+        $this->autorizarAccesoRol($role);
 
         $this->editando = $role;
         $this->mostrarModal = true;
+    }
+
+    /**
+     * Los departamentos son independientes entre si: quien no es SuperAdmin
+     * nunca ve ni gestiona roles primarios (son globales) ni roles de otro
+     * departamento, solo los de su propio departamento. Dentro de esa
+     * restriccion, ver un rol heredado propio sigue requiriendo 'roles.view'
+     * y editarlo 'roles.edit'.
+     */
+    private function autorizarAccesoRol(Role $role): void
+    {
+        $u = Auth::user();
+
+        if (! $u->esSuperAdmin()) {
+            abort_unless($role->department_id === $u->departments()->first()?->id, 403);
+        }
+
+        abort_unless($role->is_primary ? Gate::allows('roles.view') : Gate::allows('roles.edit'), 403);
     }
 
     /** El toast se dispara aqui (no en FormRole): ver el comentario en FormRole::cancelar(). */
@@ -90,6 +106,8 @@ class ListaRoles extends Component
         abort_unless(Gate::allows('roles.create'), 403);
 
         $rol = Role::findOrFail($roleId);
+        $this->autorizarAccesoRol($rol);
+
         $copia = $service->duplicateRole($rol);
 
         session()->flash('ok', 'Rol duplicado. Ajusta el nombre y los permisos de la copia.');
@@ -102,8 +120,11 @@ class ListaRoles extends Component
     {
         abort_unless(Gate::allows('roles.delete'), 403);
 
+        $rol = Role::findOrFail($roleId);
+        $this->autorizarAccesoRol($rol);
+
         try {
-            $service->deleteRole(Role::findOrFail($roleId));
+            $service->deleteRole($rol);
             session()->flash('ok', 'Rol eliminado.');
             $this->dispatch('app-toast', type: 'success', message: 'Rol eliminado.');
         } catch (RoleNotDeletableException $e) {
@@ -114,8 +135,15 @@ class ListaRoles extends Component
 
     public function render()
     {
+        $u = Auth::user();
+        $miDepartamentoId = $u->departments()->first()?->id;
+
         $roles = Role::query()
             ->with(['parent', 'department'])
+            // Los departamentos son independientes entre si: quien no es
+            // SuperAdmin no ve roles primarios (globales) ni de otro
+            // departamento, solo los propios.
+            ->when(! $u->esSuperAdmin(), fn ($q) => $q->where('department_id', $miDepartamentoId))
             ->when($this->buscar, fn ($q) => $q->where('nombre', 'like', "%{$this->buscar}%"))
             ->orderByDesc('is_primary')
             ->orderBy('nombre')

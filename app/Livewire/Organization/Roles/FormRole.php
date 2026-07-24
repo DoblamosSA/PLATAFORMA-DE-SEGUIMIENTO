@@ -203,10 +203,16 @@ class FormRole extends Component
             (string) $p->id => in_array($p->grupo, self::GRUPOS_BLOQUEADOS_EN_HEREDADOS, true),
         ])->all();
 
+        $u = Auth::user();
+        $miDepartamentoId = $u->departments()->first()?->id;
+
         return view('livewire.organization.roles.form-role', [
             'gruposPermisos' => $permissions->allGroupedByGrupo(),
             'rolesPadre' => $rolesPadre,
-            'departamentos' => Department::orderBy('nombre')->get(),
+            // Los departamentos son independientes entre si: salvo SuperAdmin,
+            // un rol heredado solo puede crearse/reasignarse al propio departamento.
+            'departamentos' => Department::when(! $u->esSuperAdmin(), fn ($q) => $q->where('id', $miDepartamentoId))
+                ->orderBy('nombre')->get(),
             'permisosPorPadre' => $permisosPorPadre,
             'gruposBloqueadosPorPermiso' => $gruposBloqueadosPorPermiso,
             'esPrimario' => $this->esPrimario(),
