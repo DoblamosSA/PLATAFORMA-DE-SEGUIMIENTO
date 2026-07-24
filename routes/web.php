@@ -7,6 +7,7 @@ use App\Livewire\Organization\Departamentos\ListaDepartamentos;
 use App\Livewire\Organization\Permisos\ListaPermisos;
 use App\Livewire\Organization\Roles\FormRole;
 use App\Livewire\Organization\Roles\ListaRoles;
+use App\Livewire\Organization\SubDepartamentos\FormSubDepartamento;
 use App\Livewire\Organization\SubDepartamentos\ListaSubDepartamentos;
 use App\Livewire\Proyectos\ListaProyectos;
 use App\Livewire\Proyectos\TableroProyecto;
@@ -45,9 +46,13 @@ Route::middleware(['auth', \App\Http\Middleware\NoCacheHeaders::class])->group(f
     Route::get('departamentos/nuevo', ListaDepartamentos::class)->name('departamentos.crear');
     Route::get('departamentos/{department}/editar', ListaDepartamentos::class)->name('departamentos.editar');
 
+    // subdepartamentos.crear/editar son pagina completa (no modal): el
+    // formulario tiene selectores de icono/color por wire:click, y ese patron
+    // de varias idas y vueltas antes de guardar es fragil cuando el
+    // componente se monta dinamicamente dentro de un modal (ver roles.crear).
     Route::get('subdepartamentos', ListaSubDepartamentos::class)->name('subdepartamentos');
-    Route::get('subdepartamentos/nuevo', ListaSubDepartamentos::class)->name('subdepartamentos.crear');
-    Route::get('subdepartamentos/{subDepartment}/editar', ListaSubDepartamentos::class)->name('subdepartamentos.editar');
+    Route::get('subdepartamentos/nuevo', FormSubDepartamento::class)->name('subdepartamentos.crear');
+    Route::get('subdepartamentos/{subDepartment}/editar', FormSubDepartamento::class)->name('subdepartamentos.editar');
 
     // A diferencia de los demas modulos, roles.crear/editar NO abren un modal:
     // el formulario de roles necesita varias idas y vueltas al servidor antes
