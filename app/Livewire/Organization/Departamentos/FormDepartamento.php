@@ -51,7 +51,7 @@ class FormDepartamento extends Component
         return [
             'nombre' => ['required', 'string', 'min:2', 'max:255', Rule::unique('departments', 'nombre')->ignore($this->department?->id)],
             'descripcion' => 'nullable|string|max:1000',
-            'responsable_id' => ['required', Rule::exists('users', 'id')->where('rol', 'admin')],
+            'responsable_id' => ['nullable', Rule::exists('users', 'id')->where('rol', 'admin')],
             'activo' => 'boolean',
         ];
     }
@@ -68,7 +68,7 @@ class FormDepartamento extends Component
             nombre: $data['nombre'],
             slug: $slug,
             descripcion: $data['descripcion'] ?: null,
-            responsableId: (int) $data['responsable_id'],
+            responsableId: $data['responsable_id'] ? (int) $data['responsable_id'] : null,
             activo: $data['activo'],
         );
 
