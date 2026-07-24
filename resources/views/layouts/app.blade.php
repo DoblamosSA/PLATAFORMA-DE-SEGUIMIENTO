@@ -28,7 +28,12 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="h-full font-sans antialiased text-slate-700 dark:text-slate-300">
+    {{-- El color de fondo vive tambien en el <body> (no solo en el contenedor
+         interno): al navegar con wire:navigate, salir de una pantalla pesada
+         (ej. dashboard) desmonta y reconstruye el DOM, y sin fondo en el body
+         se veria un fotograma blanco por defecto antes de pintar el contenedor
+         (pantallazo blanco en modo oscuro). --}}
+    <body class="h-full font-sans antialiased text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-950">
         <div class="min-h-full bg-slate-100/80 dark:bg-slate-950"
              style="background-image: radial-gradient(60rem 60rem at 110% -10%, rgba(59,130,246,0.08), transparent 60%), radial-gradient(50rem 50rem at -10% 110%, rgba(14,165,233,0.07), transparent 55%);">
 

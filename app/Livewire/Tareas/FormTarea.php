@@ -118,13 +118,13 @@ class FormTarea extends Component
     public function empleadosDisponibles()
     {
         if ($this->project_id) {
-            $proyecto = Project::with('equipo')->find($this->project_id);
+            $proyecto = Project::with('equipo.subDepartments')->find($this->project_id);
             if ($proyecto && $proyecto->equipo->isNotEmpty()) {
                 return $proyecto->equipo->sortBy('name')->values();
             }
         }
 
-        return User::where('activo', true)->orderBy('name')->get();
+        return User::where('activo', true)->with('subDepartments')->orderBy('name')->get();
     }
 
     protected function rules(): array

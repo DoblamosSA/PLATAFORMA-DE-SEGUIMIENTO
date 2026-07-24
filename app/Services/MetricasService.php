@@ -138,6 +138,7 @@ class MetricasService
     public function porPersona(Carbon $desde, Carbon $hasta): Collection
     {
         return User::where('activo', true)
+            ->with('subDepartments')
             ->get()
             ->map(function (User $u) use ($desde, $hasta) {
                 $base = Task::where('asignado_id', $u->id)

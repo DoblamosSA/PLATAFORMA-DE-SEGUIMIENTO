@@ -4,6 +4,7 @@ namespace App\Livewire\Colaboradores;
 
 use App\Domain\Organization\Models\Department;
 use App\Domain\Organization\Models\Role;
+use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Services\DepartmentService;
 use App\Models\AuditLog;
 use App\Models\User;
@@ -32,8 +33,6 @@ class FormColaborador extends Component
 
     public string $rol = 'tecnico';
 
-    public string $area = 'general';
-
     public string $cargo = '';
 
     public bool $activo = true;
@@ -53,6 +52,8 @@ class FormColaborador extends Component
 
     public string $department_id = '';
 
+    public string $sub_department_id = '';
+
     public string $role_id = '';
 
     public function mount(?User $colaborador = null, bool $enModal = false): void
@@ -67,7 +68,6 @@ class FormColaborador extends Component
             $this->email = $colaborador->email;
             $this->telefono = $colaborador->telefono ?? '';
             $this->rol = $colaborador->rol ?? 'tecnico';
-            $this->area = $colaborador->area ?? 'general';
             $this->cargo = $colaborador->cargo ?? '';
             $this->activo = $colaborador->activo ?? true;
             $this->diasLaborales = $colaborador->dias_laborales ?? [];
@@ -78,28 +78,12 @@ class FormColaborador extends Component
                 $this->department_id = (string) $departamento->id;
                 $this->role_id = $departamento->pivot->role_id ? (string) $departamento->pivot->role_id : '';
             }
+
+            $subDepartamento = $colaborador->subDepartments()->first();
+            if ($subDepartamento) {
+                $this->sub_department_id = (string) $subDepartamento->id;
+            }
         }
-    }
-
-    /**
-     * Roles asignables dentro del departamento elegido: primarios (globales) + heredados de ese departamento.
-     * Super Administrador es un rol global, no un rol de departamento, por lo que nunca aparece aqui.
-     */
-    public function getRolesDisponiblesProperty()
-    {
-        $query = $this->department_id
-            ? Role::where('is_primary', true)->orWhere('department_id', $this->department_id)
-            : Role::where('is_primary', true);
-
-        return $query->orderBy('nombre')->get()
-            ->reject(fn (Role $r) => $r->slug === 'super-admin')
-            ->values();
-    }
-
-    /** Capacidad semanal en vivo: dias seleccionados x horas diarias. */
-    public function getCapacidadSemanalProperty(): float
-    {
-        return count($this->diasLaborales) * (float) ($this->horasDiarias ?? 0);
     }
 
     protected function rules(): array
@@ -109,8 +93,6 @@ class FormColaborador extends Component
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($this->colaborador?->id)],
             'telefono' => 'nullable|string|max:30',
             'foto' => 'nullable|image|max:2048',
-            'rol' => 'required|in:'.implode(',', array_keys(User::ROLES_LABEL)),
-            'area' => 'required|in:software,soporte,infraestructura,general',
             'cargo' => 'nullable|string|max:255',
             'activo' => 'boolean',
             'password' => $this->colaborador
@@ -119,7 +101,9 @@ class FormColaborador extends Component
             'diasLaborales' => 'required|array|min:1',
             'diasLaborales.*' => 'in:'.implode(',', User::DIAS),
             'horasDiarias' => 'required|numeric|min:0.01|max:12',
-            'department_id' => 'nullable|exists:departments,id',
+            'department_id' => 'required|exists:departments,id',
+            // El subdepartamento (antes "area") debe pertenecer al departamento elegido.
+            'sub_department_id' => ['required', Rule::exists('sub_departments', 'id')->where('department_id', $this->department_id)],
             'role_id' => 'nullable|exists:roles,id',
         ];
     }
@@ -132,6 +116,9 @@ class FormColaborador extends Component
             'horasDiarias.required' => 'Las horas diarias son obligatorias.',
             'horasDiarias.min' => 'Las horas diarias deben ser mayores a 0.',
             'horasDiarias.max' => 'Las horas diarias no pueden superar 12.',
+            'department_id.required' => 'Selecciona un departamento.',
+            'sub_department_id.required' => 'Selecciona un subdepartamento.',
+            'sub_department_id.exists' => 'El subdepartamento no pertenece al departamento seleccionado.',
         ];
     }
 
@@ -156,8 +143,10 @@ class FormColaborador extends Component
             'name' => $data['name'],
             'email' => $data['email'],
             'telefono' => $data['telefono'] ?: null,
-            'rol' => $data['rol'],
-            'area' => $data['area'],
+            // El rol global ya no se edita en este formulario: se conserva el
+            // valor actual (o el default 'tecnico' al crear). El rol que se
+            // gestiona aqui es el de departamento (role_id).
+            'rol' => $this->rol,
             'cargo' => $data['cargo'] ?: null,
             'activo' => $data['activo'],
             'dias_laborales' => $data['diasLaborales'],
@@ -177,14 +166,16 @@ class FormColaborador extends Component
 
         $colaborador->save();
 
-        if ($data['department_id']) {
-            app(DepartmentService::class)->assignUserToDepartment(
-                $colaborador,
-                Department::findOrFail($data['department_id']),
-                $data['role_id'] ? Role::find($data['role_id']) : null,
-                esPrincipal: true,
-            );
-        }
+        app(DepartmentService::class)->assignUserToDepartment(
+            $colaborador,
+            Department::findOrFail($data['department_id']),
+            $data['role_id'] ? Role::find($data['role_id']) : null,
+            esPrincipal: true,
+        );
+
+        // El subdepartamento (antes "area") se guarda en la relacion pivote;
+        // el colaborador pertenece a un unico subdepartamento a la vez.
+        $colaborador->subDepartments()->sync([$data['sub_department_id']]);
 
         AuditLog::registrar(
             $esNuevo ? 'colaborador_creado' : 'colaborador_actualizado',
@@ -211,8 +202,38 @@ class FormColaborador extends Component
 
     public function render()
     {
+        $departamentos = Department::orderBy('nombre')->get(['id', 'nombre']);
+
+        $subPorDepto = SubDepartment::where('activo', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'department_id'])
+            ->groupBy('department_id');
+
+        // Los roles primarios son globales; se ofrecen en cualquier departamento.
+        $rolesPrimarios = Role::where('is_primary', true)
+            ->where('slug', '!=', 'super-admin')
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
+
+        $rolesPorDepto = Role::whereNotNull('department_id')
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'department_id'])
+            ->groupBy('department_id');
+
+        // Estructura por departamento para la cascada en el cliente (Alpine):
+        // { [departmentId]: { subdepartamentos: [{id,nombre}], roles: [{id,nombre}] } }
+        $cascada = $departamentos->mapWithKeys(fn (Department $d) => [
+            (string) $d->id => [
+                'subdepartamentos' => ($subPorDepto[$d->id] ?? collect())
+                    ->map(fn ($s) => ['id' => (string) $s->id, 'nombre' => $s->nombre])->values(),
+                'roles' => $rolesPrimarios->concat($rolesPorDepto[$d->id] ?? collect())
+                    ->map(fn ($r) => ['id' => (string) $r->id, 'nombre' => $r->nombre])->values(),
+            ],
+        ]);
+
         return view('livewire.colaboradores.form-colaborador', [
-            'capacidadSemanal' => $this->capacidadSemanal,
+            'departamentos' => $departamentos,
+            'cascada' => $cascada,
         ]);
     }
 }

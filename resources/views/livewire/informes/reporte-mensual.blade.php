@@ -122,7 +122,7 @@
                                 <tr>
                                     <td class="py-2 pr-3">
                                         <span class="font-medium text-gray-700 dark:text-slate-200">{{ $r['usuario']->name }}</span>
-                                        <span class="block text-xs text-gray-400 dark:text-slate-500 capitalize">{{ $r['usuario']->area }}</span>
+                                        <span class="block text-xs text-gray-400 dark:text-slate-500">{{ $r['usuario']->subDepartamentoNombre() }}</span>
                                     </td>
                                     <td class="py-2 px-3 text-center text-gray-600 dark:text-slate-400">{{ $r['a_tiempo'] }}/{{ $r['completadas'] }}</td>
                                     <td class="py-2 px-3 text-center {{ $r['vencidas'] > 0 ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-gray-400 dark:text-slate-600' }}">{{ $r['vencidas'] }}</td>

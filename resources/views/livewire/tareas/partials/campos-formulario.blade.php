@@ -31,7 +31,7 @@
         <select id="asignado_id" wire:model.live="asignado_id" class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm">
             <option value="">— Sin asignar —</option>
             @foreach ($empleados as $e)
-                <option value="{{ $e->id }}">{{ $e->name }} ({{ ucfirst($e->area) }}) · {{ $e->carga['porcentaje'] }}% carga</option>
+                <option value="{{ $e->id }}">{{ $e->name }} ({{ $e->subDepartamentoNombre() }}) · {{ $e->carga['porcentaje'] }}% carga</option>
             @endforeach
         </select>
         @if ($project_id && $empleados->isEmpty())

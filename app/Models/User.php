@@ -132,6 +132,15 @@ class User extends Authenticatable
         return collect(explode(' ', $this->name))->take(2)->map(fn ($p) => mb_substr($p, 0, 1))->implode('');
     }
 
+    /**
+     * Nombre del subdepartamento del colaborador (lo que antes se mostraba como
+     * "área"). Devuelve un guion cuando aun no tiene subdepartamento asignado.
+     */
+    public function subDepartamentoNombre(): string
+    {
+        return $this->subDepartments->first()?->nombre ?? '—';
+    }
+
     // ---------------------------------------------------------------
     // Disponibilidad y capacidad operativa
     // ---------------------------------------------------------------

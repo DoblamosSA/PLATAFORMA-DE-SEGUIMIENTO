@@ -81,7 +81,7 @@ new class extends Component
                     <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-600 text-white font-bold shadow-lg shadow-blue-900/50">P</span>
                     <div class="leading-tight">
                         <p class="font-semibold text-white">Projects</p>
-                        <p class="text-[11px] text-slate-400">Proyectos & SLA</p>
+                        <p class="text-[11px] text-slate-400">Proyectos & Departamentos</p>
                     </div>
                 </div>
                 <button @click="open = false" class="lg:hidden p-1 rounded-lg hover:bg-white/10 text-slate-400"><x-icon name="close" class="w-5 h-5" /></button>

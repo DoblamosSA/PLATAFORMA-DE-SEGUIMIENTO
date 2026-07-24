@@ -73,11 +73,11 @@ class ReporteMensual extends Component
 
             fputcsv($out, []);
             fputcsv($out, ['CUMPLIMIENTO POR PERSONA']);
-            fputcsv($out, ['Empleado', 'Area', 'Completadas', 'A tiempo', '% Cumplimiento', 'Abiertas', 'Vencidas']);
+            fputcsv($out, ['Empleado', 'Subdepartamento', 'Completadas', 'A tiempo', '% Cumplimiento', 'Abiertas', 'Vencidas']);
             foreach ($porPersona as $r) {
                 fputcsv($out, [
                     $r['usuario']->name,
-                    ucfirst($r['usuario']->area),
+                    $r['usuario']->subDepartamentoNombre(),
                     $r['completadas'], $r['a_tiempo'],
                     $r['cumplimiento'] !== null ? $r['cumplimiento'] : 'N/A',
                     $r['abiertas'], $r['vencidas'],

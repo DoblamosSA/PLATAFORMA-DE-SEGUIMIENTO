@@ -119,7 +119,7 @@ class FormProyecto extends Component
                 ->whereIn('rol', ['admin', 'lider'])
                 ->orderBy('name')
                 ->get(),
-            'empleados' => User::where('activo', true)->orderBy('name')->get(),
+            'empleados' => User::where('activo', true)->with('subDepartments')->orderBy('name')->get(),
             'subDepartamentos' => SubDepartment::where('activo', true)->orderBy('nombre')->get(),
         ]);
     }

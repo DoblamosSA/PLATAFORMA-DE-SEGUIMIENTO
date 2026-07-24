@@ -23,8 +23,9 @@ class ListaColaboradores extends Component
     #[Url]
     public string $rol = '';
 
+    /** Filtro por subdepartamento (antes "area"). */
     #[Url]
-    public string $area = '';
+    public string $sub_department_id = '';
 
     public bool $mostrarModal = false;
 
@@ -123,10 +124,10 @@ class ListaColaboradores extends Component
         $servicio = app(CapacidadService::class);
 
         $colaboradores = User::query()
-            ->with('departments')
+            ->with(['departments', 'subDepartments'])
             ->when($this->buscar, fn ($q) => $q->where(fn ($q2) => $q2->where('name', 'like', "%{$this->buscar}%")->orWhere('email', 'like', "%{$this->buscar}%")))
             ->when($this->rol, fn ($q) => $q->where('rol', $this->rol))
-            ->when($this->area, fn ($q) => $q->where('area', $this->area))
+            ->when($this->sub_department_id, fn ($q) => $q->whereHas('subDepartments', fn ($q2) => $q2->where('sub_departments.id', $this->sub_department_id)))
             ->orderBy('name')
             ->paginate(15);
 
@@ -138,6 +139,7 @@ class ListaColaboradores extends Component
 
         return view('livewire.colaboradores.lista-colaboradores', [
             'colaboradores' => $colaboradores,
+            'subdepartamentos' => \App\Domain\Organization\Models\SubDepartment::where('activo', true)->orderBy('nombre')->get(['id', 'nombre']),
         ]);
     }
 }

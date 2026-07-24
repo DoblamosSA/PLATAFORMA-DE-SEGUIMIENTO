@@ -77,7 +77,7 @@
                        class="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-800 text-blue-600 focus:ring-blue-500">
                 <span class="min-w-0">
                     <span class="block truncate text-gray-700 dark:text-slate-200">{{ $e->name }}</span>
-                    <span class="block text-xs text-gray-400 dark:text-slate-500 capitalize">{{ $e->area }}</span>
+                    <span class="block text-xs text-gray-400 dark:text-slate-500">{{ $e->subDepartamentoNombre() }}</span>
                 </span>
             </label>
         @endforeach

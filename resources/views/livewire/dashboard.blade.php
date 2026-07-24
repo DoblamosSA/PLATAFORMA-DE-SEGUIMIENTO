@@ -97,7 +97,7 @@
                                         <x-avatar :usuario="$fila['usuario']" size="h-8 w-8" tone="muted" />
                                         <div>
                                             <p class="font-medium text-slate-700 dark:text-slate-200 leading-tight">{{ $fila['usuario']->name }}</p>
-                                            <p class="text-[11px] text-slate-400 dark:text-slate-500 capitalize">{{ $fila['usuario']->area }}</p>
+                                            <p class="text-[11px] text-slate-400 dark:text-slate-500">{{ $fila['usuario']->subDepartamentoNombre() }}</p>
                                         </div>
                                     </div>
                                 </td>

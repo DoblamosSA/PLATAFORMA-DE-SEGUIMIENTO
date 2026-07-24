@@ -21,12 +21,11 @@
                     <option value="{{ $valor }}">{{ $etiqueta }}</option>
                 @endforeach
             </select>
-            <select wire:model.live="area" aria-label="Filtrar por área" class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500">
-                <option value="">Todas las áreas</option>
-                <option value="software">Software</option>
-                <option value="soporte">Soporte</option>
-                <option value="infraestructura">Infraestructura</option>
-                <option value="general">General</option>
+            <select wire:model.live="sub_department_id" aria-label="Filtrar por subdepartamento" class="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500">
+                <option value="">Todos los subdepartamentos</option>
+                @foreach ($subdepartamentos as $sd)
+                    <option value="{{ $sd->id }}">{{ $sd->nombre }}</option>
+                @endforeach
             </select>
         </div>
     </x-card>
@@ -59,7 +58,8 @@
                             </td>
                             <td class="py-2.5 px-4"><x-badge tipo="rol" :valor="$c->rol" /></td>
                             <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300">
-                                {{ $c->departments->first()?->nombre ?? '—' }}
+                                <p>{{ $c->departments->first()?->nombre ?? '—' }}</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500">{{ $c->subDepartamentoNombre() }}</p>
                             </td>
                             <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300 tabular-nums">
                                 {{ $c->dias_laborales ? count($c->dias_laborales) . 'd × ' . rtrim(rtrim(number_format((float) $c->horas_diarias, 2), '0'), '.') . 'h = ' . rtrim(rtrim(number_format($c->capacidadSemanal(), 2), '0'), '.') . ' h' : '— sin definir' }}
