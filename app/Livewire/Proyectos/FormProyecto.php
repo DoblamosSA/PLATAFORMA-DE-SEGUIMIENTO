@@ -95,21 +95,40 @@ class FormProyecto extends Component
         // Sincronizar el equipo del proyecto
         $project->equipo()->sync($equipo);
 
-        session()->flash('ok', $esNuevo ? 'Proyecto creado.' : 'Proyecto actualizado.');
-        $this->dispatch('app-toast', type: 'success', message: $esNuevo ? 'Proyecto creado.' : 'Proyecto actualizado.');
+        $mensaje = $esNuevo ? 'Proyecto creado.' : 'Proyecto actualizado.';
 
         if ($this->enModal) {
-            $this->dispatch('cerrar-modal-proyecto');
+            // El padre dispara el toast (ver cerrarModal()/cerrarModalEditar()
+            // en ListaProyectos/VerProyecto): ver el comentario en cancelar()
+            // sobre por que se usa ->to() aqui. Este formulario crea SIEMPRE
+            // desde ListaProyectos (sin $project) y edita SIEMPRE desde
+            // VerProyecto (con $project), asi que $esNuevo distingue cual de
+            // los dos padres esta usandolo.
+            $this->dispatch('cerrar-modal-proyecto', mensaje: $mensaje)
+                ->to($esNuevo ? 'proyectos.lista-proyectos' : 'proyectos.ver-proyecto');
 
             return;
         }
 
+        session()->flash('ok', $mensaje);
+        $this->dispatch('app-toast', type: 'success', message: $mensaje);
+
         return $this->redirect(route('proyectos.ver', $project), navigate: true);
     }
 
+    /**
+     * ->to() en vez de dispatch() simple: este componente esta montado
+     * dinamicamente dentro del modal del padre, y tras una accion Livewire
+     * puede dejar su propio elemento en un estado que ya no propaga eventos
+     * de forma confiable (bug de Livewire 3 con componentes anidados via @if
+     * - el modal se quedaba abierto y no salia el toast). ->to() ubica al
+     * padre por nombre y dispara el evento directo en su elemento, sin
+     * depender del DOM de este hijo.
+     */
     public function cancelar(): void
     {
-        $this->dispatch('cerrar-modal-proyecto');
+        $this->dispatch('cerrar-modal-proyecto')
+            ->to($this->project ? 'proyectos.ver-proyecto' : 'proyectos.lista-proyectos');
     }
 
     public function render()

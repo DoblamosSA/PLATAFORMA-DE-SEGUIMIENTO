@@ -69,12 +69,17 @@ class ListaTareas extends Component
         $this->mostrarModal = true;
     }
 
+    /** El toast se dispara aqui (no en FormTarea): ver el comentario en FormTarea::cancelar(). */
     #[On('cerrar-modal-tarea')]
-    public function cerrarModal(): void
+    public function cerrarModal(?string $mensaje = null): void
     {
         $this->mostrarModal = false;
         $this->editando = null;
         $this->proyectoPreseleccionadoId = null;
+
+        if ($mensaje) {
+            $this->dispatch('app-toast', type: 'success', message: $mensaje);
+        }
 
         if ($this->llegoPorRutaDirecta) {
             $this->llegoPorRutaDirecta = false;

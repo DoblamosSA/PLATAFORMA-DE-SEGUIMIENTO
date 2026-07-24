@@ -56,11 +56,16 @@ class ListaSubDepartamentos extends Component
         $this->mostrarModal = true;
     }
 
+    /** El toast se dispara aqui (no en FormSubDepartamento): ver el comentario en FormSubDepartamento::cancelar(). */
     #[On('cerrar-modal-subdepartamento')]
-    public function cerrarModal(): void
+    public function cerrarModal(?string $mensaje = null): void
     {
         $this->mostrarModal = false;
         $this->editando = null;
+
+        if ($mensaje) {
+            $this->dispatch('app-toast', type: 'success', message: $mensaje);
+        }
 
         if ($this->llegoPorRutaDirecta) {
             $this->llegoPorRutaDirecta = false;

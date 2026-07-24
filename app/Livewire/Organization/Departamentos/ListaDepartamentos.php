@@ -30,9 +30,11 @@ class ListaDepartamentos extends Component
         $this->authorize('viewAny', Department::class);
 
         if (request()->routeIs('departamentos.crear')) {
+            $this->authorize('create', Department::class);
             $this->mostrarModal = true;
             $this->llegoPorRutaDirecta = true;
         } elseif ($department?->exists) {
+            $this->authorize('update', $department);
             $this->mostrarModal = true;
             $this->editando = $department;
             $this->llegoPorRutaDirecta = true;
@@ -41,21 +43,37 @@ class ListaDepartamentos extends Component
 
     public function abrirCrear(): void
     {
+        $this->authorize('create', Department::class);
+
         $this->editando = null;
         $this->mostrarModal = true;
     }
 
     public function abrirEditar(int $departmentId): void
     {
-        $this->editando = Department::findOrFail($departmentId);
+        $department = Department::findOrFail($departmentId);
+        $this->authorize('update', $department);
+
+        $this->editando = $department;
         $this->mostrarModal = true;
     }
 
+    /**
+     * El toast se dispara aqui (no en FormDepartamento) porque este
+     * componente es quien recibe el evento via ->to() del hijo: su propio
+     * elemento es estable, mientras que el del hijo puede haber quedado en
+     * un estado que Livewire ya no propaga de forma confiable justo
+     * despues de la accion de guardar.
+     */
     #[On('cerrar-modal-departamento')]
-    public function cerrarModal(): void
+    public function cerrarModal(?string $mensaje = null): void
     {
         $this->mostrarModal = false;
         $this->editando = null;
+
+        if ($mensaje) {
+            $this->dispatch('app-toast', type: 'success', message: $mensaje);
+        }
 
         if ($this->llegoPorRutaDirecta) {
             $this->llegoPorRutaDirecta = false;

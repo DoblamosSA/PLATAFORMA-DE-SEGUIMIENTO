@@ -63,67 +63,6 @@ class FormRole extends Component
         }
     }
 
-    /** Slugs de permisos que el padre seleccionado concede efectivamente (usado como sugerencia por defecto del switch). */
-    public function getPermisosHeredadosProperty(): array
-    {
-        if (! $this->parent_role_id) {
-            return [];
-        }
-
-        $padre = Role::find($this->parent_role_id);
-
-        if (! $padre) {
-            return [];
-        }
-
-        return app(PermissionResolutionService::class)->resolveEffectivePermissions($padre)->permissionSlugs;
-    }
-
-    /** Estado efectivo (encendido/apagado) del switch de un permiso. */
-    public function permisoActivo(Permission $permiso): bool
-    {
-        return $this->estadoEfectivo($permiso->id, $permiso->slug);
-    }
-
-    /**
-     * True si el switch de este permiso no se puede tocar: el formulario entero
-     * es de solo lectura, o es un rol heredado intentando tocar un grupo
-     * reservado (departamentos/usuarios) que solo los roles primarios pueden
-     * conceder.
-     */
-    public function permisoBloqueado(Permission $permiso): bool
-    {
-        if ($this->soloLectura) {
-            return true;
-        }
-
-        return ! $this->esPrimario() && in_array($permiso->grupo, self::GRUPOS_BLOQUEADOS_EN_HEREDADOS, true);
-    }
-
-    /** Alterna el switch de un permiso, guardando solo el override necesario respecto a la sugerencia del padre. */
-    public function togglePermiso(int $permisoId, string $slug): void
-    {
-        $permiso = Permission::find($permisoId);
-
-        if (! $permiso || $this->permisoBloqueado($permiso)) {
-            return;
-        }
-
-        $sugerido = in_array($slug, $this->permisosHeredados, true);
-        $nuevo = ! $this->estadoEfectivo($permisoId, $slug);
-
-        $this->overrides[$permisoId] = $nuevo === $sugerido ? 'heredado' : ($nuevo ? 'grant' : 'deny');
-    }
-
-    private function estadoEfectivo(int $permisoId, string $slug): bool
-    {
-        return match ($this->overrides[$permisoId] ?? 'heredado') {
-            'grant' => true,
-            'deny' => false,
-            default => in_array($slug, $this->permisosHeredados, true),
-        };
-    }
-
     /** Los roles primarios son globales: no tienen nombre editable, no heredan de otro rol y no pertenecen a un departamento. Solo su matriz de permisos se puede ajustar. */
     private function esPrimario(): bool
     {
@@ -193,21 +132,35 @@ class FormRole extends Component
             ), $grantedSlugs, $revokedSlugs);
         }
 
-        session()->flash('ok', $this->role ? 'Rol actualizado.' : 'Rol creado correctamente.');
-        $this->dispatch('app-toast', type: 'success', message: $this->role ? 'Rol actualizado.' : 'Rol creado correctamente.');
+        $mensaje = $this->role ? 'Rol actualizado.' : 'Rol creado correctamente.';
 
         if ($this->enModal) {
-            $this->dispatch('cerrar-modal-rol');
+            // El padre dispara el toast (ver ListaRoles::cerrarModal): ver el
+            // comentario en cancelar() sobre por que se usa ->to() aqui.
+            $this->dispatch('cerrar-modal-rol', mensaje: $mensaje)->to('organization.roles.lista-roles');
 
             return;
         }
 
+        session()->flash('ok', $mensaje);
+        $this->dispatch('app-toast', type: 'success', message: $mensaje);
+
         return $this->redirect(route('roles'), navigate: true);
     }
 
+    /**
+     * ->to() en vez de dispatch() simple: este componente esta montado
+     * dinamicamente dentro del modal del padre, y tras una accion Livewire
+     * puede dejar su propio elemento en un estado que ya no propaga eventos
+     * de forma confiable (bug de Livewire 3 con componentes anidados via @if
+     * - el modal se quedaba abierto y no salia el toast, especialmente
+     * notorio aqui por los muchos toggles de permisos antes de guardar).
+     * ->to() ubica al padre por nombre y dispara el evento directo en su
+     * elemento, sin depender del DOM de este hijo.
+     */
     public function cancelar(): void
     {
-        $this->dispatch('cerrar-modal-rol');
+        $this->dispatch('cerrar-modal-rol')->to('organization.roles.lista-roles');
     }
 
     private function generarSlugUnico(string $nombre): string
@@ -223,12 +176,36 @@ class FormRole extends Component
         return $slug;
     }
 
-    public function render(PermissionRepositoryInterface $permissions, RoleService $roleService)
+    /**
+     * Precalcula toda la data que el selector de rol padre y la matriz de
+     * permisos necesitan para reaccionar en el cliente (Alpine), sin volver
+     * al servidor por cada seleccion de padre o cada toggle de permiso. Ese
+     * patron de muchas idas y vueltas antes de guardar es justo lo que hacia
+     * fragil este formulario dentro del modal (Livewire puede perder el
+     * snapshot del componente anidado en cualquiera de esos commits
+     * intermedios, no solo en el de guardar).
+     */
+    public function render(PermissionRepositoryInterface $permissions, RoleService $roleService, PermissionResolutionService $resolucion)
     {
+        $rolesPadre = $roleService->assignableParentsFor($this->role);
+
+        // { [parentRoleId]: [slug1, slug2, ...] } - permisos que ese padre concede efectivamente.
+        $permisosPorPadre = $rolesPadre->mapWithKeys(fn (Role $rp) => [
+            (string) $rp->id => $resolucion->resolveEffectivePermissions($rp)->permissionSlugs,
+        ])->all();
+
+        // { [permisoId]: bool } - true si su grupo esta reservado a roles primarios.
+        $gruposBloqueadosPorPermiso = collect($permissions->all())->mapWithKeys(fn (Permission $p) => [
+            (string) $p->id => in_array($p->grupo, self::GRUPOS_BLOQUEADOS_EN_HEREDADOS, true),
+        ])->all();
+
         return view('livewire.organization.roles.form-role', [
             'gruposPermisos' => $permissions->allGroupedByGrupo(),
-            'rolesPadre' => $roleService->assignableParentsFor($this->role),
+            'rolesPadre' => $rolesPadre,
             'departamentos' => Department::orderBy('nombre')->get(),
+            'permisosPorPadre' => $permisosPorPadre,
+            'gruposBloqueadosPorPermiso' => $gruposBloqueadosPorPermiso,
+            'esPrimario' => $this->esPrimario(),
         ]);
     }
 }

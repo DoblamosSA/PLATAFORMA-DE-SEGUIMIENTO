@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Domain\Organization\Concerns\HasOrganizationAccess;
+use App\Domain\Organization\Models\Role;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -139,6 +140,23 @@ class User extends Authenticatable
     public function subDepartamentoNombre(): string
     {
         return $this->subDepartments->first()?->nombre ?? '—';
+    }
+
+    /**
+     * Nombre del rol de departamento del colaborador (Administrador/Coordinador/
+     * Colaborador/etc. segun el pivote department_user.role_id) - es el rol que
+     * hoy se gestiona desde el formulario de colaborador. Distinto del enum
+     * legado `rol` (admin/lider/tecnico/evaluador), que ya no se edita ahi.
+     */
+    public function rolDepartamentoNombre(): string
+    {
+        $departamento = $this->departments->first();
+
+        if (! $departamento || ! $departamento->pivot->role_id) {
+            return '—';
+        }
+
+        return Role::find($departamento->pivot->role_id)?->nombre ?? '—';
     }
 
     // ---------------------------------------------------------------

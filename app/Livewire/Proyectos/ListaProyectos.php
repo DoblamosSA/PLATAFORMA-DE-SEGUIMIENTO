@@ -42,10 +42,15 @@ class ListaProyectos extends Component
         $this->mostrarModal = true;
     }
 
+    /** El toast se dispara aqui (no en FormProyecto): ver el comentario en FormProyecto::cancelar(). */
     #[On('cerrar-modal-proyecto')]
-    public function cerrarModal(): void
+    public function cerrarModal(?string $mensaje = null): void
     {
         $this->mostrarModal = false;
+
+        if ($mensaje) {
+            $this->dispatch('app-toast', type: 'success', message: $mensaje);
+        }
 
         if ($this->llegoPorRutaDirecta) {
             $this->llegoPorRutaDirecta = false;

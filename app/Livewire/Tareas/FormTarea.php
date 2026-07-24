@@ -201,14 +201,16 @@ class FormTarea extends Component
         $this->task->delete();
         $proyecto?->recalcularProgreso();
 
-        session()->flash('ok', 'Tarea eliminada.');
-        $this->dispatch('app-toast', type: 'success', message: 'Tarea eliminada.');
-
         if ($this->enModal) {
-            $this->dispatch('cerrar-modal-tarea');
+            // El padre dispara el toast (ver ListaTareas::cerrarModal): ver el
+            // comentario en cancelar() sobre por que se usa ->to() aqui.
+            $this->dispatch('cerrar-modal-tarea', mensaje: 'Tarea eliminada.')->to('tareas.lista-tareas');
 
             return;
         }
+
+        session()->flash('ok', 'Tarea eliminada.');
+        $this->dispatch('app-toast', type: 'success', message: 'Tarea eliminada.');
 
         return $proyectoId
             ? $this->redirect(route('proyectos.ver', $proyectoId), navigate: true)
@@ -419,14 +421,18 @@ class FormTarea extends Component
 
         $task->proyecto?->recalcularProgreso();
 
-        session()->flash('ok', $esNueva ? 'Tarea creada correctamente.' : 'Tarea actualizada.');
-        $this->dispatch('app-toast', type: 'success', message: $esNueva ? 'Tarea creada correctamente.' : 'Tarea actualizada.');
+        $mensaje = $esNueva ? 'Tarea creada correctamente.' : 'Tarea actualizada.';
 
         if ($this->enModal) {
-            $this->dispatch('cerrar-modal-tarea');
+            // El padre dispara el toast (ver ListaTareas::cerrarModal): ver el
+            // comentario en cancelar() sobre por que se usa ->to() aqui.
+            $this->dispatch('cerrar-modal-tarea', mensaje: $mensaje)->to('tareas.lista-tareas');
 
             return;
         }
+
+        session()->flash('ok', $mensaje);
+        $this->dispatch('app-toast', type: 'success', message: $mensaje);
 
         // Volver al detalle del proyecto si la tarea pertenece a uno
         if ($task->project_id) {
@@ -436,9 +442,18 @@ class FormTarea extends Component
         return $this->redirect(route('tareas'), navigate: true);
     }
 
+    /**
+     * ->to() en vez de dispatch() simple: este componente esta montado
+     * dinamicamente dentro del modal del padre, y tras una accion Livewire
+     * puede dejar su propio elemento en un estado que ya no propaga eventos
+     * de forma confiable (bug de Livewire 3 con componentes anidados via @if
+     * - el modal se quedaba abierto y no salia el toast). ->to() ubica al
+     * padre por nombre y dispara el evento directo en su elemento, sin
+     * depender del DOM de este hijo.
+     */
     public function cancelar(): void
     {
-        $this->dispatch('cerrar-modal-tarea');
+        $this->dispatch('cerrar-modal-tarea')->to('tareas.lista-tareas');
     }
 
     protected function registrar(Task $task, string $accion, string $detalle): void

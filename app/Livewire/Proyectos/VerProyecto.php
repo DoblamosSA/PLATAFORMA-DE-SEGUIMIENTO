@@ -38,11 +38,16 @@ class VerProyecto extends Component
         $this->mostrarModalEditar = true;
     }
 
+    /** El toast se dispara aqui (no en FormProyecto): ver el comentario en FormProyecto::cancelar(). */
     #[On('cerrar-modal-proyecto')]
-    public function cerrarModalEditar(): void
+    public function cerrarModalEditar(?string $mensaje = null): void
     {
         $this->mostrarModalEditar = false;
         $this->project->refresh();
+
+        if ($mensaje) {
+            $this->dispatch('app-toast', type: 'success', message: $mensaje);
+        }
 
         if ($this->llegoPorRutaDirecta) {
             $this->llegoPorRutaDirecta = false;

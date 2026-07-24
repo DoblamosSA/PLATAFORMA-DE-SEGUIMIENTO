@@ -86,21 +86,33 @@ class FormSubDepartamento extends Component
 
         $esNuevo ? $service->create($dto) : $service->update($this->subDepartment, $dto);
 
-        session()->flash('ok', $esNuevo ? 'Subdepartamento creado correctamente.' : 'Subdepartamento actualizado.');
-        $this->dispatch('app-toast', type: 'success', message: $esNuevo ? 'Subdepartamento creado correctamente.' : 'Subdepartamento actualizado.');
+        $mensaje = $esNuevo ? 'Subdepartamento creado correctamente.' : 'Subdepartamento actualizado.';
 
         if ($this->enModal) {
-            $this->dispatch('cerrar-modal-subdepartamento');
+            // El padre dispara el toast (ver ListaSubDepartamentos::cerrarModal):
+            // ver el comentario en cancelar() sobre por que se usa ->to() aqui.
+            $this->dispatch('cerrar-modal-subdepartamento', mensaje: $mensaje)->to('organization.sub-departamentos.lista-sub-departamentos');
 
             return;
         }
 
+        session()->flash('ok', $mensaje);
+        $this->dispatch('app-toast', type: 'success', message: $mensaje);
+
         return $this->redirect(route('subdepartamentos'), navigate: true);
     }
 
+    /**
+     * ->to() en vez de dispatch() simple: este componente esta montado
+     * dinamicamente dentro del modal del padre, y tras una accion Livewire
+     * puede dejar su propio elemento en un estado que ya no propaga eventos
+     * de forma confiable (bug de Livewire 3 con componentes anidados via @if).
+     * ->to() ubica al padre por nombre y dispara el evento directo en su
+     * elemento, sin depender del DOM de este hijo.
+     */
     public function cancelar(): void
     {
-        $this->dispatch('cerrar-modal-subdepartamento');
+        $this->dispatch('cerrar-modal-subdepartamento')->to('organization.sub-departamentos.lista-sub-departamentos');
     }
 
     private function generarSlugUnico(int $departmentId, string $nombre): string

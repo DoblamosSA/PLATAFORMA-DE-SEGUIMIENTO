@@ -59,11 +59,16 @@ class ListaColaboradores extends Component
         $this->mostrarModal = true;
     }
 
+    /** El toast se dispara aqui (no en FormColaborador): ver el comentario en FormColaborador::cancelar(). */
     #[On('cerrar-modal-colaborador')]
-    public function cerrarModal(): void
+    public function cerrarModal(?string $mensaje = null): void
     {
         $this->mostrarModal = false;
         $this->editando = null;
+
+        if ($mensaje) {
+            $this->dispatch('app-toast', type: 'success', message: $mensaje);
+        }
 
         if ($this->llegoPorRutaDirecta) {
             $this->llegoPorRutaDirecta = false;

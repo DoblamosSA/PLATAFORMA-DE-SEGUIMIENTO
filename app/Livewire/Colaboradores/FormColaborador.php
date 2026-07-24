@@ -183,21 +183,36 @@ class FormColaborador extends Component
             ($esNuevo ? 'Colaborador creado: ' : 'Colaborador actualizado: ').$colaborador->name." ({$colaborador->rolLabel()})",
         );
 
-        session()->flash('ok', $esNuevo ? 'Colaborador creado correctamente.' : 'Colaborador actualizado.');
-        $this->dispatch('app-toast', type: 'success', message: $esNuevo ? 'Colaborador creado correctamente.' : 'Colaborador actualizado.');
+        $mensaje = $esNuevo ? 'Colaborador creado correctamente.' : 'Colaborador actualizado.';
 
         if ($this->enModal) {
-            $this->dispatch('cerrar-modal-colaborador');
+            // El padre dispara el toast (ver ListaColaboradores::cerrarModal): su
+            // elemento permanece estable, a diferencia del de este hijo justo
+            // despues de esta misma accion (bug de Livewire con componentes
+            // anidados montados dinamicamente - ver notas en cancelar()).
+            $this->dispatch('cerrar-modal-colaborador', mensaje: $mensaje)->to('colaboradores.lista-colaboradores');
 
             return;
         }
 
+        session()->flash('ok', $mensaje);
+        $this->dispatch('app-toast', type: 'success', message: $mensaje);
+
         return $this->redirect(route('colaboradores'), navigate: true);
     }
 
+    /**
+     * ->to() en vez de dispatch() simple: este componente esta montado
+     * dinamicamente dentro del modal del padre, y tras una accion Livewire
+     * puede dejar su propio elemento en un estado que ya no propaga eventos
+     * de forma confiable (bug de Livewire 3 con componentes anidados via @if:
+     * el modal se quedaba abierto y no salia el toast). ->to() ubica al padre
+     * por su nombre de componente y dispara el evento directo en su elemento,
+     * sin depender del DOM de este hijo.
+     */
     public function cancelar(): void
     {
-        $this->dispatch('cerrar-modal-colaborador');
+        $this->dispatch('cerrar-modal-colaborador')->to('colaboradores.lista-colaboradores');
     }
 
     public function render()

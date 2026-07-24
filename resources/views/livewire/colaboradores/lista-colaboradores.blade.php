@@ -56,7 +56,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="py-2.5 px-4"><x-badge tipo="rol" :valor="$c->rol" /></td>
+                            <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300">{{ $c->rolDepartamentoNombre() }}</td>
                             <td class="py-2.5 px-4 text-slate-600 dark:text-slate-300">
                                 <p>{{ $c->departments->first()?->nombre ?? '—' }}</p>
                                 <p class="text-xs text-slate-400 dark:text-slate-500">{{ $c->subDepartamentoNombre() }}</p>
