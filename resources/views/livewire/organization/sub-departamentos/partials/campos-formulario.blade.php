@@ -27,14 +27,21 @@
     @error('descripcion') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
 </div>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+{{-- Icono y color se manejan en Alpine (cliente) y se sincronizan con
+     Livewire via @entangle: la seleccion responde al instante, sin ir y
+     volver al servidor en cada clic (ese round-trip es lo que reiniciaba
+     el resto de campos del formulario cuando se monta dentro del modal). --}}
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+     x-data="{ icono: @entangle('icono'), color: @entangle('color') }">
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Icono</label>
         <div class="flex flex-wrap gap-2">
             @foreach (\App\Domain\Organization\Models\SubDepartment::ICONOS as $opcion)
-                <button type="button" wire:click="$set('icono', '{{ $opcion }}')"
-                        class="flex h-10 w-10 items-center justify-center rounded-lg border transition
-                               {{ $icono === $opcion ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400' : 'border-gray-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800' }}">
+                <button type="button" @click="icono = '{{ $opcion }}'"
+                        :class="icono === '{{ $opcion }}'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                            : 'border-gray-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'"
+                        class="flex h-10 w-10 items-center justify-center rounded-lg border transition">
                     <x-icon :name="$opcion" class="w-5 h-5" />
                 </button>
             @endforeach
@@ -43,11 +50,12 @@
     </div>
     <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Color</label>
-        <div class="flex flex-wrap gap-2">
+        <div class="grid grid-cols-6 sm:grid-cols-8 gap-2">
             @foreach (\App\Domain\Organization\Models\SubDepartment::COLORES as $clave => $conf)
-                <button type="button" wire:click="$set('color', '{{ $clave }}')" title="{{ $clave }}"
-                        class="h-8 w-8 rounded-full bg-gradient-to-br {{ $conf['gradiente'] }} transition
-                               {{ $color === $clave ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-slate-900' : '' }}">
+                <button type="button" @click="color = '{{ $clave }}'" title="{{ ucfirst($clave) }}"
+                        :class="color === '{{ $clave }}' ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-slate-900' : ''"
+                        class="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br {{ $conf['gradiente'] }} shadow-sm transition hover:scale-105">
+                    <x-icon x-show="color === '{{ $clave }}'" name="check" class="w-4 h-4 text-white drop-shadow" />
                 </button>
             @endforeach
         </div>

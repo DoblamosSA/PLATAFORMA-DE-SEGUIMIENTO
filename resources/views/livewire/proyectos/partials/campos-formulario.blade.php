@@ -63,17 +63,26 @@
     </div>
 </div>
 
-{{-- Equipo del proyecto (desarrolladores) --}}
-<div>
+{{-- Equipo del proyecto (desarrolladores). Se maneja en Alpine (cliente) y se
+     sincroniza con Livewire via @entangle: marcar/desmarcar responde al
+     instante, sin ir y volver al servidor en cada clic (ese round-trip es lo
+     que reiniciaba el resto de campos del formulario dentro del modal). --}}
+<div x-data="{
+        equipo: @entangle('equipo'),
+        toggle(id) {
+            id = String(id);
+            this.equipo = this.equipo.includes(id) ? this.equipo.filter(x => x !== id) : [...this.equipo, id];
+        }
+     }">
     <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
         Equipo del proyecto
         <span class="text-xs font-normal text-gray-400 dark:text-slate-500">— solo estas personas podran recibir tareas del proyecto</span>
     </label>
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
         @foreach ($empleados as $e)
-            <label class="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-slate-700 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors
-                          {{ in_array((string) $e->id, $equipo) ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/40' : '' }}">
-                <input type="checkbox" wire:model.live="equipo" value="{{ $e->id }}"
+            <label class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                   :class="equipo.includes('{{ $e->id }}') ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/40' : 'border-gray-200 dark:border-slate-700'">
+                <input type="checkbox" @click="toggle('{{ $e->id }}')" :checked="equipo.includes('{{ $e->id }}')"
                        class="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-800 text-blue-600 focus:ring-blue-500">
                 <span class="min-w-0">
                     <span class="block truncate text-gray-700 dark:text-slate-200">{{ $e->name }}</span>
