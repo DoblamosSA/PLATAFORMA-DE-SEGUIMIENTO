@@ -160,4 +160,30 @@ class MetricasService
             ->sortByDesc(fn ($r) => $r['cumplimiento'] ?? -1)
             ->values();
     }
+
+    /**
+     * Cumplimiento por tipo de trabajo (software, soporte, infraestructura).
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function porTipo(Carbon $desde, Carbon $hasta): Collection
+    {
+        $tipos = ['software', 'soporte', 'infraestructura'];
+
+        return collect($tipos)->map(function (string $tipo) use ($desde, $hasta) {
+            $base = Task::where('tipo', $tipo)
+                ->where('estado', 'completada')
+                ->whereBetween('fecha_asignacion', [$desde, $hasta]);
+
+            $completadas = (clone $base)->count();
+            $aTiempo     = (clone $base)->where('cumplida_a_tiempo', true)->count();
+
+            return [
+                'tipo'         => $tipo,
+                'completadas'  => $completadas,
+                'a_tiempo'     => $aTiempo,
+                'cumplimiento' => $completadas > 0 ? round(($aTiempo / $completadas) * 100, 1) : 0.0,
+            ];
+        });
+    }
 }

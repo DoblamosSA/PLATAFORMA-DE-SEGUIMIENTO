@@ -185,15 +185,28 @@ window.instalarPWA = async () => {
  * por Livewire, sin dependencias nuevas). El anti-FOUC en el <head> ya
  * aplico la clase inicial antes del primer pintado.
  */
+const persistirTema = (dark) => {
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    // El layout server-side decide la clase inicial de <html> desde esta
+    // cookie (ver app.blade.php). Mantenerla en sync evita que, al navegar
+    // con wire:navigate, el servidor pinte el tema equivocado por un instante
+    // (pantallazo del fondo claro sobre las pantallas mas lentas, ej. dashboard).
+    document.cookie = 'projects_theme=' + (dark ? 'dark' : 'light') + '; path=/; max-age=31536000; SameSite=Lax';
+};
+
 document.addEventListener('alpine:init', () => {
     Alpine.store('theme', {
         dark: document.documentElement.classList.contains('dark'),
         toggle() {
             this.dark = !this.dark;
             document.documentElement.classList.toggle('dark', this.dark);
-            localStorage.setItem('theme', this.dark ? 'dark' : 'light');
+            persistirTema(this.dark);
         },
     });
+
+    // Alinea la cookie con el estado real al arrancar, por si el usuario
+    // alterno el tema en una sesion previa sin recargar (cookie quedaria vieja).
+    persistirTema(Alpine.store('theme').dark);
 });
 
 /**
