@@ -73,56 +73,110 @@ const base64UrlAUint8Array = (base64Url) => {
     return Uint8Array.from([...crudo].map((c) => c.charCodeAt(0)));
 };
 
+const vapidPublicKey = () => document.querySelector('meta[name="vapid-public-key"]')?.content?.trim() || '';
+
+const registrarServiceWorker = async () => {
+    const registro = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    // En movil, subscribe() falla si el SW aun no esta activo.
+    await navigator.serviceWorker.ready;
+
+    return registro;
+};
+
+const guardarSuscripcionEnServidor = async (suscripcion) => {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+    const respuesta = await fetch(`${window.location.origin}/push/subscribe`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(suscripcion.toJSON()),
+    });
+
+    if (!respuesta.ok) {
+        const detalle = await respuesta.text().catch(() => '');
+        throw new Error(`HTTP ${respuesta.status} al guardar suscripcion: ${detalle.slice(0, 200)}`);
+    }
+};
+
 const suscribirPush = async (registro) => {
-    const meta = document.querySelector('meta[name="vapid-public-key"]');
-    if (!meta || !('PushManager' in window) || Notification.permission !== 'granted') return;
+    const clave = vapidPublicKey();
+    if (!clave || !('PushManager' in window) || Notification.permission !== 'granted') {
+        return false;
+    }
 
     try {
-        const suscripcion = await registro.pushManager.getSubscription()
-            ?? await registro.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: base64UrlAUint8Array(meta.content),
-            });
+        let suscripcion = await registro.pushManager.getSubscription();
+        const serverKey = base64UrlAUint8Array(clave);
 
-        await fetch('/push/subscribe', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-            },
-            body: JSON.stringify(suscripcion.toJSON()),
+        // Si ya hay suscripcion de otra clave VAPID, hay que recrearla.
+        if (suscripcion) {
+            try {
+                await guardarSuscripcionEnServidor(suscripcion);
+                return true;
+            } catch (e) {
+                console.warn('Web Push: suscripcion existente invalida, recreando…', e);
+                await suscripcion.unsubscribe().catch(() => {});
+                suscripcion = null;
+            }
+        }
+
+        suscripcion = await registro.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: serverKey,
         });
+
+        await guardarSuscripcionEnServidor(suscripcion);
+        return true;
     } catch (e) {
         console.warn('Web Push: no se pudo suscribir', e);
+        return false;
     }
 };
 
 let pushInicializado = false;
+let pushEnCurso = null;
 
 const configurarPush = async () => {
     if (!('serviceWorker' in navigator)) return;
+    if (!vapidPublicKey()) return; // pantalla publica / sin VAPID
+    if (pushInicializado) return;
+    if (pushEnCurso) return pushEnCurso;
 
-    try {
-        const registro = await navigator.serviceWorker.register('/sw.js');
+    pushEnCurso = (async () => {
+        try {
+            const registro = await registrarServiceWorker();
 
-        // Solo en pantallas autenticadas (meta VAPID presente) y una vez
-        if (pushInicializado || !document.querySelector('meta[name="vapid-public-key"]')) return;
-        pushInicializado = true;
-
-        if (Notification.permission === 'granted') {
-            suscribirPush(registro);
-        } else if (Notification.permission === 'default') {
-            // Pedir permiso en el primer gesto del usuario
-            const pedir = async () => {
-                if (await Notification.requestPermission() === 'granted') {
-                    suscribirPush(registro);
-                }
-            };
-            document.addEventListener('pointerdown', pedir, { once: true });
+            if (Notification.permission === 'granted') {
+                const ok = await suscribirPush(registro);
+                if (ok) pushInicializado = true;
+            } else if (Notification.permission === 'default') {
+                // Pedir permiso en el primer gesto del usuario
+                const pedir = async () => {
+                    if (await Notification.requestPermission() === 'granted') {
+                        const ok = await suscribirPush(registro);
+                        if (ok) pushInicializado = true;
+                    }
+                };
+                document.addEventListener('pointerdown', pedir, { once: true });
+                // No marcamos inicializado: si el usuario deniega, el boton
+                // del sidebar puede reintentar via activarNotificaciones().
+            } else {
+                // denied: nada que hacer hasta que lo habilite en el navegador
+                pushInicializado = true;
+            }
+        } catch (e) {
+            console.warn('Service worker / push: configuracion fallida', e);
+        } finally {
+            pushEnCurso = null;
         }
-    } catch (e) {
-        console.warn('Service worker: registro fallido', e);
-    }
+    })();
+
+    return pushEnCurso;
 };
 
 /**
@@ -131,11 +185,25 @@ const configurarPush = async () => {
  */
 window.activarNotificaciones = async () => {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return 'denied';
+    if (!vapidPublicKey()) return 'denied';
+    // iOS solo permite push en PWA instalada (standalone).
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+    if (ios && !standalone) {
+        console.warn('Web Push: en iOS hay que instalar la app en la pantalla de inicio.');
+        return 'denied';
+    }
 
     const permiso = await Notification.requestPermission();
     if (permiso === 'granted') {
-        const registro = await navigator.serviceWorker.register('/sw.js');
-        await suscribirPush(registro);
+        try {
+            const registro = await registrarServiceWorker();
+            const ok = await suscribirPush(registro);
+            if (ok) pushInicializado = true;
+        } catch (e) {
+            console.warn('Web Push: activacion manual fallida', e);
+        }
     }
 
     return permiso;

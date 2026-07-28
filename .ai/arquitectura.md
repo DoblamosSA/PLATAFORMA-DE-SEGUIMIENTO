@@ -40,6 +40,12 @@ Plataforma web interna para dar seguimiento a proyectos de tecnología, tareas, 
 - El campo legado `users.rol` controla varias autorizaciones funcionales; el sistema nuevo de permisos se consulta con `hasPermission()`.
 - El tablero Kanban es por proyecto y sus columnas traducen la posición visual a un estado canónico de tarea.
 
-## Puntos de entrada
+## Notificaciones
 
-Las rutas web están protegidas por autenticación y el middleware `NoCacheHeaders`. Las pantallas se resuelven como componentes Livewire. Consulte `superficie-aplicacion.md` para el inventario de rutas.
+Web Push (VAPID + service worker `public/sw.js`) notifica cambios de tareas/subtareas a los dispositivos suscritos. Requisitos:
+
+- Claves `VAPID_*` en el entorno.
+- HTTPS en produccion (o localhost en desarrollo).
+- En Windows local, si PHP no tiene `curl.cainfo`, `WebPushService` descarga un bundle de CAs a `storage/app/certs/cacert.pem`.
+- En iOS solo funcionan tras instalar la PWA en la pantalla de inicio.
+

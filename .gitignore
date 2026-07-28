@@ -6,6 +6,7 @@ __pycache__/
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/app/certs
 /vendor
 .env
 .env.backup

@@ -40,6 +40,9 @@ return [
         'private_key' => env('VAPID_PRIVATE_KEY'),
         'subject' => env('VAPID_SUBJECT', 'mailto:admin@example.com'),
         'openssl_conf' => env('OPENSSL_CONF_PATH'),
+        // Ruta a cacert.pem si PHP no tiene curl.cainfo (tipico en Windows).
+        // Si esta vacio, WebPushService intenta detectar/descargar uno.
+        'ca_file' => env('WEBPUSH_CA_FILE'),
     ],
 
 ];

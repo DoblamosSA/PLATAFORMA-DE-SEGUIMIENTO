@@ -7,7 +7,7 @@
  * no-store por seguridad de sesion), por eso el fetch handler solo actua
  * sobre assets estaticos.
  */
-const CACHE = 'projects-static-v1';
+const CACHE = 'projects-static-v2';
 
 self.addEventListener('install', () => {
     self.skipWaiting();
@@ -60,25 +60,33 @@ self.addEventListener('push', (event) => {
             icon: '/icons/icon-192.png',
             badge: '/icons/icon-192.png',
             data: { url: datos.url || '/' },
+            // Ayuda en Android a agrupar y no silenciar notificaciones.
+            renotify: true,
+            tag: datos.tag || 'projects-push',
         })
     );
 });
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const destino = (event.notification.data && event.notification.data.url) || '/';
+    const ruta = (event.notification.data && event.notification.data.url) || '/';
+    // Algunos navegadores (sobre todo moviles) exigen URL absoluta en openWindow.
+    const destino = new URL(ruta, self.location.origin).href;
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
-            // Si la app ya esta abierta, enfocarla y navegar; si no, abrirla.
             for (const ventana of ventanas) {
                 if ('focus' in ventana) {
                     ventana.focus();
-                    if ('navigate' in ventana) ventana.navigate(destino);
+                    if ('navigate' in ventana) {
+                        return ventana.navigate(destino);
+                    }
                     return;
                 }
             }
-            return clients.openWindow(destino);
+            if (clients.openWindow) {
+                return clients.openWindow(destino);
+            }
         })
     );
 });

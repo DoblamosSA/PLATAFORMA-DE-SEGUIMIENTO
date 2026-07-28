@@ -64,7 +64,7 @@ Route::middleware(['auth', \App\Http\Middleware\NoCacheHeaders::class])->group(f
     // Web Push: alta/baja de la suscripcion del navegador actual.
     Route::post('push/subscribe', function (\Illuminate\Http\Request $request) {
         $datos = $request->validate([
-            'endpoint' => 'required|string|max:2000',
+            'endpoint' => 'required|string|max:4000',
             'keys.p256dh' => 'required|string|max:255',
             'keys.auth' => 'required|string|max:255',
         ]);
@@ -83,12 +83,11 @@ Route::middleware(['auth', \App\Http\Middleware\NoCacheHeaders::class])->group(f
     })->name('push.subscribe');
 
     Route::post('push/unsubscribe', function (\Illuminate\Http\Request $request) {
-        $datos = $request->validate(['endpoint' => 'required|string|max:2000']);
+        $datos = $request->validate(['endpoint' => 'required|string|max:4000']);
 
         \App\Models\PushSubscription::where('endpoint_hash', hash('sha256', $datos['endpoint']))->delete();
 
         return response()->json(['ok' => true]);
     })->name('push.unsubscribe');
 });
-
 require __DIR__.'/auth.php';

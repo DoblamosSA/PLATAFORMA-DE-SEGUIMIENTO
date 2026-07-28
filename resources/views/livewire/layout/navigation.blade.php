@@ -139,16 +139,24 @@ new class extends Component
             </nav>
 
             {{-- Notificaciones push: visible hasta que el usuario decida --}}
-            <div x-data="{ permiso: ('Notification' in window) ? Notification.permission : 'unsupported' }"
-                 x-show="permiso === 'default' || permiso === 'denied'" x-cloak class="mt-4"
+            <div x-data="{
+                     permiso: ('Notification' in window) ? Notification.permission : 'unsupported',
+                     ios: /iphone|ipad|ipod/i.test(navigator.userAgent),
+                     standalone: window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true,
+                 }"
+                 x-show="permiso === 'default' || permiso === 'denied' || (ios && !standalone)" x-cloak class="mt-4"
                  :class="$store.sidebar.collapsed && 'lg:hidden'">
-                <button x-show="permiso === 'default'"
+                <button x-show="permiso === 'default' && !(ios && !standalone)"
                         @click="permiso = await window.activarNotificaciones()"
                         class="flex w-full items-center gap-3 rounded-xl border border-blue-400/30 bg-blue-500/10 px-3 py-2.5 text-sm font-medium text-blue-200 hover:bg-blue-500/20 active:scale-[0.98] transition">
                     <x-icon name="bell" class="w-5 h-5 text-blue-300" />
                     Activar notificaciones
                 </button>
-                <p x-show="permiso === 'denied'" class="flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-[11px] leading-snug text-slate-400">
+                <p x-show="ios && !standalone" class="flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-[11px] leading-snug text-slate-400">
+                    <x-icon name="bell" class="w-4 h-4 shrink-0 mt-0.5 text-slate-500" />
+                    En iPhone/iPad: instala la app (Compartir → Añadir a pantalla de inicio) para recibir notificaciones.
+                </p>
+                <p x-show="permiso === 'denied' && !(ios && !standalone)" class="flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-[11px] leading-snug text-slate-400">
                     <x-icon name="bell" class="w-4 h-4 shrink-0 mt-0.5 text-slate-500" />
                     Notificaciones bloqueadas: habilítalas en el candado de la barra de direcciones.
                 </p>
