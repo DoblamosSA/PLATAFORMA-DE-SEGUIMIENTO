@@ -46,6 +46,7 @@ Web Push (VAPID + service worker `public/sw.js`) notifica cambios de tareas/subt
 
 - Claves `VAPID_*` en el entorno.
 - HTTPS en produccion (o localhost en desarrollo).
-- En Windows local, si PHP no tiene `curl.cainfo`, `WebPushService` descarga un bundle de CAs a `storage/app/certs/cacert.pem`.
+- En Windows, PHP suele no tener `curl.cainfo`: se usa `resources/certs/cacert.pem` (versionado) o, como respaldo, se descarga a `storage/app/certs/cacert.pem`.
+- El envio se difiere a `app()->terminating()` para no bloquear el hilo HTTP (critico con `artisan serve` en escritorio).
 - En iOS solo funcionan tras instalar la PWA en la pantalla de inicio.
 

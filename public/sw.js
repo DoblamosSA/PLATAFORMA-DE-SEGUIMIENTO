@@ -7,10 +7,19 @@
  * no-store por seguridad de sesion), por eso el fetch handler solo actua
  * sobre assets estaticos.
  */
-const CACHE = 'projects-static-v2';
+const CACHE = 'projects-static-v3';
+const PRECACHE = ['/icons/icon-192.png', '/icons/icon-512.png'];
 
-self.addEventListener('install', () => {
-    self.skipWaiting();
+self.addEventListener('install', (event) => {
+    // Precachear iconos: si el push llega mientras PHP sigue ocupado enviando
+    // a FCM/WNS (p. ej. artisan serve de un hilo), showNotification no depende
+    // de una peticion de red al mismo origen.
+    event.waitUntil(
+        caches.open(CACHE)
+            .then((cache) => cache.addAll(PRECACHE))
+            .then(() => self.skipWaiting())
+            .catch(() => self.skipWaiting())
+    );
 });
 
 self.addEventListener('activate', (event) => {
@@ -54,15 +63,19 @@ self.addEventListener('push', (event) => {
         datos = { body: event.data ? event.data.text() : '' };
     }
 
+    const icono = new URL('/icons/icon-192.png', self.location.origin).href;
+
     event.waitUntil(
         self.registration.showNotification(datos.title || 'Projects', {
             body: datos.body || '',
-            icon: '/icons/icon-192.png',
-            badge: '/icons/icon-192.png',
+            icon: icono,
+            badge: icono,
             data: { url: datos.url || '/' },
-            // Ayuda en Android a agrupar y no silenciar notificaciones.
+            // En Windows/Chrome con notificaciones nativas, sin esto la toast
+            // desaparece al instante o solo queda en el Centro de actividades.
+            requireInteraction: true,
             renotify: true,
-            tag: datos.tag || 'projects-push',
+            tag: datos.tag || ('projects-push-' + Date.now()),
         })
     );
 });

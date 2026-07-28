@@ -20,8 +20,23 @@ class WebPushService
     /**
      * Notifica un cambio a todos los usuarios suscritos, excluyendo al autor
      * del cambio (no tiene sentido notificarse a si mismo).
+     *
+     * El envio se difiere hasta despues de la respuesta HTTP: en `php artisan
+     * serve` (un solo hilo) un flush sincrono a FCM/WNS bloquea el servidor y
+     * el service worker del escritorio no puede cargar el icono, asi que la
+     * toast de Windows no aparece o llega muy tarde.
      */
     public function notificarATodos(?int $exceptoUserId, string $titulo, string $cuerpo, string $url = '/'): void
+    {
+        app()->terminating(function () use ($exceptoUserId, $titulo, $cuerpo, $url) {
+            $this->enviarAhora($exceptoUserId, $titulo, $cuerpo, $url);
+        });
+    }
+
+    /**
+     * Envio inmediato (tests, comandos artisan, jobs).
+     */
+    public function enviarAhora(?int $exceptoUserId, string $titulo, string $cuerpo, string $url = '/'): void
     {
         $suscripciones = PushSubscription::query()
             ->when($exceptoUserId, fn ($q) => $q->where('user_id', '!=', $exceptoUserId))
@@ -52,6 +67,9 @@ class WebPushService
             putenv('OPENSSL_CONF='.$config['openssl_conf']);
         }
 
+        $ca = $this->rutaCertificadosCa();
+        $this->aplicarCertificadosCa($ca);
+
         try {
             $webPush = new WebPush(
                 [
@@ -66,7 +84,7 @@ class WebPushService
                 [
                     // Sin CA bundle, cURL en Windows falla con error 60 y el
                     // push nunca llega (ni a FCM ni a WNS).
-                    'verify' => $this->rutaCertificadosCa(),
+                    'verify' => $ca,
                 ],
             );
         } catch (\Throwable $e) {
@@ -79,6 +97,9 @@ class WebPushService
             'title' => $titulo,
             'body' => $cuerpo,
             'url' => $url,
+            // Tag unico: en Windows, el mismo tag reemplaza la toast anterior
+            // y a veces solo queda en el Centro de actividades sin banner.
+            'tag' => 'projects-'.sha1($titulo.'|'.$cuerpo.'|'.$url.'|'.microtime(true)),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         foreach ($suscripciones as $s) {
@@ -104,6 +125,30 @@ class WebPushService
     }
 
     /**
+     * Propaga el CA bundle a variables/ini que cURL/OpenSSL consultan por
+     * defecto, por si alguna capa ignora el `verify` de Guzzle.
+     */
+    protected function aplicarCertificadosCa(string|bool $ca): void
+    {
+        if (! is_string($ca) || $ca === '') {
+            return;
+        }
+
+        if (! getenv('SSL_CERT_FILE')) {
+            putenv('SSL_CERT_FILE='.$ca);
+        }
+        if (! getenv('CURL_CA_BUNDLE')) {
+            putenv('CURL_CA_BUNDLE='.$ca);
+        }
+        if (! ini_get('curl.cainfo')) {
+            @ini_set('curl.cainfo', $ca);
+        }
+        if (! ini_get('openssl.cafile')) {
+            @ini_set('openssl.cafile', $ca);
+        }
+    }
+
+    /**
      * Resuelve un archivo de CAs usable por Guzzle/cURL.
      * En muchos PHP de Windows curl.cainfo/openssl.cafile estan vacios y
      * cualquier POST a FCM/WNS revienta con cURL error 60.
@@ -123,8 +168,9 @@ class WebPushService
         }
 
         $candidatos = [
-            storage_path('app/certs/cacert.pem'),
+            // Bundle versionado en el repo (preferido en Windows/dev).
             base_path('resources/certs/cacert.pem'),
+            storage_path('app/certs/cacert.pem'),
             'C:/PHP/extras/ssl/cacert.pem',
             '/etc/ssl/certs/ca-certificates.crt',
             '/etc/pki/tls/certs/ca-bundle.crt',
