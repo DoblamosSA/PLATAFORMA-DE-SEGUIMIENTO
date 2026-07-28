@@ -116,12 +116,13 @@ class FormTarea extends Component
     /**
      * Si el asignado actual ya no pertenece al equipo del proyecto elegido,
      * limpiar la seleccion para forzar elegir a alguien del equipo.
+     * (Tambien se limpia en el cliente al cambiar proyecto; esto cubre el submit.)
      */
     public function updatedProjectId(): void
     {
         $disponibles = $this->empleadosDisponibles()->pluck('id')->all();
 
-        if ($this->asignado_id && ! in_array($this->asignado_id, $disponibles, true)) {
+        if ($this->asignado_id && ! in_array((int) $this->asignado_id, array_map('intval', $disponibles), true)) {
             $this->asignado_id = null;
         }
     }
@@ -145,6 +146,60 @@ class FormTarea extends Component
         return User::where('activo', true)->with('subDepartments')
             ->when(! $user->esSuperAdmin(), fn ($q) => $q->whereHas('departments', fn ($q2) => $q2->where('departments.id', $miDepartamentoId)))
             ->orderBy('name')->get();
+    }
+
+    /**
+     * Mapa proyecto → integrantes (y clave '' = pool general) para filtrar el
+     * select de asignados en el cliente sin round-trips Livewire.
+     *
+     * @return array<string, list<array{id: int, label: string}>>
+     */
+    protected function equiposPorProyectoParaVista($proyectos, CapacidadService $servicio): array
+    {
+        $user = Auth::user();
+        $miDepartamentoId = $user->departments()->first()?->id;
+
+        $formatear = function ($usuarios) use ($servicio) {
+            return $usuarios->sortBy('name')->values()->map(function (User $e) use ($servicio) {
+                $carga = $servicio->cargaSemanaActual($e);
+
+                return [
+                    'id' => $e->id,
+                    'label' => $e->name.' ('.$e->subDepartamentoNombre().') · '.$carga['porcentaje'].'% carga',
+                ];
+            })->all();
+        };
+
+        $generales = User::where('activo', true)->with('subDepartments')
+            ->when(! $user->esSuperAdmin(), fn ($q) => $q->whereHas('departments', fn ($q2) => $q2->where('departments.id', $miDepartamentoId)))
+            ->orderBy('name')->get();
+
+        $mapa = ['' => $formatear($generales)];
+
+        foreach ($proyectos as $proyecto) {
+            $proyecto->loadMissing('equipo.subDepartments');
+            $equipo = $proyecto->equipo;
+            $mapa[(string) $proyecto->id] = $equipo->isNotEmpty()
+                ? $formatear($equipo)
+                : [];
+        }
+
+        return $mapa;
+    }
+
+    /**
+     * @return array<string, array<string, int>>
+     */
+    protected function slaMapParaVista($subDepartamentos): array
+    {
+        $ids = $subDepartamentos->pluck('id')->all();
+        $mapa = [];
+
+        foreach (SlaPolicy::whereIn('sub_department_id', $ids)->where('activo', true)->get() as $policy) {
+            $mapa[(string) $policy->sub_department_id][$policy->prioridad] = (int) $policy->horas_resolucion;
+        }
+
+        return $mapa;
     }
 
     protected function rules(): array
@@ -498,20 +553,20 @@ class FormTarea extends Component
     public function render()
     {
         $servicio = app(CapacidadService::class);
-        $empleados = $this->empleadosDisponibles();
-        $empleados->each(fn (User $e) => $e->setAttribute('carga', $servicio->cargaSemanaActual($e)));
-
         $user = Auth::user();
         $miDepartamentoId = $user->departments()->first()?->id;
 
+        $proyectos = Project::visiblesPara($user)->with('equipo.subDepartments')->orderBy('nombre')->get();
+        $subDepartamentos = SubDepartment::where('activo', true)
+            ->when(! $user->esSuperAdmin(), fn ($q) => $q->where('department_id', $miDepartamentoId))
+            ->orderBy('nombre')->get();
+
         return view('livewire.tareas.form-tarea', [
-            'proyectos' => Project::visiblesPara($user)->orderBy('nombre')->get(),
-            'empleados' => $empleados,
-            'subDepartamentos' => SubDepartment::where('activo', true)
-                ->when(! $user->esSuperAdmin(), fn ($q) => $q->where('department_id', $miDepartamentoId))
-                ->orderBy('nombre')->get(),
+            'proyectos' => $proyectos,
+            'equiposPorProyecto' => $this->equiposPorProyectoParaVista($proyectos, $servicio),
+            'slaMap' => $this->slaMapParaVista($subDepartamentos),
+            'subDepartamentos' => $subDepartamentos,
             'bitacora' => $this->task?->actividades()->with('user')->limit(20)->get() ?? collect(),
-            'slaHoras' => $this->slaHoras,
             'esAdmin' => $this->esAdmin,
             'puedeEliminar' => $this->puedeEliminar,
             'cargaPrevia' => $this->cargaPrevia,

@@ -54,10 +54,10 @@
             </div>
 
             @if (auth()->user()->puedeCrearTarea())
-                <a href="{{ route('tareas.crear', ['project' => $project->id]) }}" wire:navigate
+                <button type="button" wire:click="abrirCrearTarea"
                    class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
                     <x-icon name="plus" class="w-4 h-4" /> Asignar tarea
-                </a>
+                </button>
             @endif
         </div>
     </div>
@@ -552,4 +552,15 @@
             </div>
         </div>
     @endif
+
+    <x-form-modal :show="$mostrarModalTarea" title="Asignar tarea" wire-close="cerrarModalTarea" max-width="4xl">
+        @if ($mostrarModalTarea)
+            <livewire:tareas.form-tarea
+                :project-id="$project->id"
+                :en-modal="true"
+                padre-livewire="proyectos.tablero-proyecto"
+                :key="'form-tarea-tablero-'.$project->id"
+            />
+        @endif
+    </x-form-modal>
 </div>

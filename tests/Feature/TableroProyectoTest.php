@@ -302,6 +302,36 @@ class TableroProyectoTest extends TestCase
         ]);
     }
 
+    public function test_asignar_tarea_desde_el_modal_del_tablero_persiste_colaborador(): void
+    {
+        $this->project->asegurarColumnas();
+        $this->otorgarPermiso($this->lider, 'tasks.create');
+
+        Livewire::actingAs($this->lider)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('abrirCrearTarea')
+            ->assertSet('mostrarModalTarea', true);
+
+        Livewire::actingAs($this->lider)
+            ->test(FormTarea::class, [
+                'projectId' => $this->project->id,
+                'enModal' => true,
+                'padreLivewire' => 'proyectos.tablero-proyecto',
+            ])
+            ->assertSet('project_id', $this->project->id)
+            ->set('titulo', 'Tarea asignada desde tablero')
+            ->set('sub_department_id', (string) $this->subDepartment->id)
+            ->set('asignado_id', $this->dev->id)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $task = Task::where('titulo', 'Tarea asignada desde tablero')->firstOrFail();
+
+        $this->assertSame($this->project->id, $task->project_id);
+        $this->assertSame($this->dev->id, $task->asignado_id);
+        $this->assertSame($this->columna('Pendiente')->id, $task->board_column_id);
+    }
+
     public function test_editar_la_tarea_en_linea_actualiza_y_mueve_de_columna(): void
     {
         $task = $this->tareaEn('pendiente');

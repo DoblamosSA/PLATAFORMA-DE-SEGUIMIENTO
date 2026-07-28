@@ -27,7 +27,7 @@
         </div>
         <div class="flex flex-wrap gap-2">
             @if (auth()->user()->puedeCrearTarea())
-                <a href="{{ route('tareas.crear', ['project' => $project->id]) }}" wire:navigate
+                <a href="{{ route('proyectos.tablero', $project) }}" wire:navigate
                    class="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
                     <x-icon name="plus" class="w-4 h-4" /> Asignar tarea
                 </a>
@@ -155,7 +155,7 @@
                             <tr><td colspan="4" class="py-8 text-center text-slate-400 dark:text-slate-500">
                                 Este proyecto aun no tiene tareas.
                                 @if (auth()->user()->puedeCrearTarea())
-                                    <a href="{{ route('tareas.crear', ['project' => $project->id]) }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">Asignar la primera</a>
+                                    <a href="{{ route('proyectos.tablero', $project) }}" wire:navigate class="text-blue-600 dark:text-blue-400 hover:underline">Asignar la primera</a>
                                 @endif
                             </td></tr>
                         @endforelse
