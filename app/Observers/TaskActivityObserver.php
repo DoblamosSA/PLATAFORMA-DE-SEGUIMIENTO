@@ -41,6 +41,6 @@ class TaskActivityObserver
             ? "/proyectos/{$task->project_id}/tablero?tarea={$task->id}"
             : "/tareas/{$task->id}/editar";
 
-        $this->push->notificarATodos($actor?->id, 'Nuevo comentario', $cuerpo, $url);
+        $this->push->notificarATodos($actor?->id, 'Nuevo comentario', $cuerpo, $url, $task->proyecto, $task);
     }
 }

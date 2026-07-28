@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * Notifica por Web Push cualquier creacion, edicion o eliminacion de tareas
- * a todos los usuarios suscritos (excepto quien hizo el cambio).
+ * a los usuarios del proyecto (equipo/responsable) y a los administradores
+ * del departamento, excepto quien hizo el cambio.
  */
 class TaskObserver
 {
@@ -86,6 +87,6 @@ class TaskObserver
             ? ($task->project_id ? "/proyectos/{$task->project_id}/tablero" : '/tareas')
             : ($task->project_id ? "/proyectos/{$task->project_id}/tablero?tarea={$task->id}" : "/tareas/{$task->id}/editar");
 
-        $this->push->notificarATodos($actor?->id, $titulo, $cuerpo, $url);
+        $this->push->notificarATodos($actor?->id, $titulo, $cuerpo, $url, $task->proyecto, $task);
     }
 }

@@ -2,7 +2,13 @@
 
 namespace App\Services;
 
+use App\Domain\Organization\Models\Role;
+use App\Domain\Organization\Repositories\Contracts\RoleRepositoryInterface;
+use App\Models\Project;
 use App\Models\PushSubscription;
+use App\Models\Task;
+use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Minishlink\WebPush\Subscription;
@@ -11,6 +17,12 @@ use Minishlink\WebPush\WebPush;
 /**
  * Envia notificaciones Web Push (VAPID) a los dispositivos suscritos.
  * Las suscripciones caducadas (endpoint 404/410) se eliminan al vuelo.
+ *
+ * Alcance de destinatarios:
+ * - Colaboradores: solo proyectos donde son responsable o integrantes del equipo
+ *   (y, si aplica, asignado/creador de la tarea).
+ * - Administradores del departamento: todos los proyectos/tareas de su departamento.
+ * - Super Administrador (rol global): todo.
  */
 class WebPushService
 {
@@ -18,27 +30,46 @@ class WebPushService
     private const CA_BUNDLE_URL = 'https://curl.se/ca/cacert.pem';
 
     /**
-     * Notifica un cambio a todos los usuarios suscritos, excluyendo al autor
-     * del cambio (no tiene sentido notificarse a si mismo).
+     * Notifica un cambio a los usuarios relevantes del proyecto/tarea,
+     * excluyendo al autor del cambio.
      *
      * El envio se difiere hasta despues de la respuesta HTTP: en `php artisan
      * serve` (un solo hilo) un flush sincrono a FCM/WNS bloquea el servidor y
      * el service worker del escritorio no puede cargar el icono, asi que la
      * toast de Windows no aparece o llega muy tarde.
      */
-    public function notificarATodos(?int $exceptoUserId, string $titulo, string $cuerpo, string $url = '/'): void
-    {
-        app()->terminating(function () use ($exceptoUserId, $titulo, $cuerpo, $url) {
-            $this->enviarAhora($exceptoUserId, $titulo, $cuerpo, $url);
+    public function notificarATodos(
+        ?int $exceptoUserId,
+        string $titulo,
+        string $cuerpo,
+        string $url = '/',
+        ?Project $proyecto = null,
+        ?Task $tarea = null,
+    ): void {
+        app()->terminating(function () use ($exceptoUserId, $titulo, $cuerpo, $url, $proyecto, $tarea) {
+            $this->enviarAhora($exceptoUserId, $titulo, $cuerpo, $url, $proyecto, $tarea);
         });
     }
 
     /**
      * Envio inmediato (tests, comandos artisan, jobs).
      */
-    public function enviarAhora(?int $exceptoUserId, string $titulo, string $cuerpo, string $url = '/'): void
-    {
+    public function enviarAhora(
+        ?int $exceptoUserId,
+        string $titulo,
+        string $cuerpo,
+        string $url = '/',
+        ?Project $proyecto = null,
+        ?Task $tarea = null,
+    ): void {
+        $destinatarios = $this->idsDestinatarios($proyecto, $tarea);
+
+        if ($destinatarios === []) {
+            return;
+        }
+
         $suscripciones = PushSubscription::query()
+            ->whereIn('user_id', $destinatarios)
             ->when($exceptoUserId, fn ($q) => $q->where('user_id', '!=', $exceptoUserId))
             ->get();
 
@@ -47,6 +78,107 @@ class WebPushService
         }
 
         $this->enviar($suscripciones, $titulo, $cuerpo, $url);
+    }
+
+    /**
+     * Usuarios que deben recibir push por un cambio en el proyecto/tarea.
+     *
+     * @return list<int>
+     */
+    public function idsDestinatarios(?Project $proyecto = null, ?Task $tarea = null): array
+    {
+        $ids = collect();
+
+        // Super Administrador global (RBAC), independiente del departamento.
+        $ids = $ids->merge(
+            User::query()
+                ->whereHas('rolesGlobales', fn ($q) => $q->where('slug', 'super-admin'))
+                ->pluck('id')
+        );
+
+        if ($tarea) {
+            if ($tarea->asignado_id) {
+                $ids->push((int) $tarea->asignado_id);
+            }
+            if ($tarea->creado_por) {
+                $ids->push((int) $tarea->creado_por);
+            }
+            $proyecto ??= $tarea->proyecto;
+        }
+
+        if ($proyecto) {
+            if ($proyecto->responsable_id) {
+                $ids->push((int) $proyecto->responsable_id);
+            }
+
+            $ids = $ids->merge($proyecto->equipo()->pluck('users.id'));
+
+            $departamentoId = $proyecto->relationLoaded('subDepartamento')
+                ? $proyecto->subDepartamento?->department_id
+                : $proyecto->subDepartamento()->value('department_id');
+
+            if ($departamentoId) {
+                $ids = $ids->merge($this->idsAdminsDelDepartamento((int) $departamentoId));
+            }
+        } elseif ($tarea) {
+            $departamentoId = $tarea->relationLoaded('subDepartamento')
+                ? $tarea->subDepartamento?->department_id
+                : $tarea->subDepartamento()->value('department_id');
+
+            if ($departamentoId) {
+                $ids = $ids->merge($this->idsAdminsDelDepartamento((int) $departamentoId));
+            }
+        }
+
+        return $ids
+            ->filter(fn ($id) => (int) $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Administradores del departamento: users.rol = admin en ese depto,
+     * o rol de departamento cuya raiz RBAC es admin/super-admin.
+     *
+     * @return Collection<int, int>
+     */
+    protected function idsAdminsDelDepartamento(int $departamentoId): Collection
+    {
+        $porRolLegado = User::query()
+            ->where('rol', 'admin')
+            ->whereHas('departments', fn ($q) => $q->where('departments.id', $departamentoId))
+            ->pluck('id');
+
+        $candidatos = User::query()
+            ->whereHas('departments', function ($q) use ($departamentoId) {
+                $q->where('departments.id', $departamentoId)
+                    ->whereNotNull('department_user.role_id');
+            })
+            ->with(['departments' => fn ($q) => $q->where('departments.id', $departamentoId)])
+            ->get();
+
+        $roles = app(RoleRepositoryInterface::class);
+        $porRolDepartamento = $candidatos
+            ->filter(function (User $user) use ($departamentoId, $roles) {
+                $roleId = $user->departments->firstWhere('id', $departamentoId)?->pivot?->role_id;
+                if (! $roleId) {
+                    return false;
+                }
+
+                $role = Role::find($roleId);
+                if (! $role) {
+                    return false;
+                }
+
+                $raiz = $roles->ancestorsOf($role)->first()?->slug ?? $role->slug;
+
+                return in_array($raiz, ['admin', 'super-admin'], true);
+            })
+            ->pluck('id');
+
+        return $porRolLegado->merge($porRolDepartamento)->map(fn ($id) => (int) $id)->unique();
     }
 
     /**

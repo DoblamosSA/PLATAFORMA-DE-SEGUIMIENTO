@@ -42,6 +42,6 @@ class SubtaskObserver
 
         $url = $tarea?->project_id ? "/proyectos/{$tarea->project_id}/tablero?tarea={$tarea->id}" : '/tareas';
 
-        $this->push->notificarATodos($actor?->id, $titulo, $cuerpo, $url);
+        $this->push->notificarATodos($actor?->id, $titulo, $cuerpo, $url, $tarea?->proyecto, $tarea);
     }
 }
