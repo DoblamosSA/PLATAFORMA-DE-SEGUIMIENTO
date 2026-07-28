@@ -75,6 +75,15 @@ const base64UrlAUint8Array = (base64Url) => {
 
 const vapidPublicKey = () => document.querySelector('meta[name="vapid-public-key"]')?.content?.trim() || '';
 
+/** Al pulsar una notificacion push, el SW pide abrir la URL de la accion. */
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'notification-navigate' && event.data.url) {
+            window.location.assign(event.data.url);
+        }
+    });
+}
+
 const registrarServiceWorker = async () => {
     const registro = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',

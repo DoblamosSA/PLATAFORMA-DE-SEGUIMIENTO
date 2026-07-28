@@ -7,7 +7,7 @@
  * no-store por seguridad de sesion), por eso el fetch handler solo actua
  * sobre assets estaticos.
  */
-const CACHE = 'projects-static-v5';
+const CACHE = 'projects-static-v6';
 const PRECACHE = ['/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -103,20 +103,38 @@ self.addEventListener('notificationclick', (event) => {
     // Algunos navegadores (sobre todo moviles) exigen URL absoluta en openWindow.
     const destino = new URL(ruta, self.location.origin).href;
 
-    event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
-            for (const ventana of ventanas) {
-                if ('focus' in ventana) {
-                    ventana.focus();
-                    if ('navigate' in ventana) {
-                        return ventana.navigate(destino);
-                    }
+    event.waitUntil((async () => {
+        const ventanas = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+        for (const ventana of ventanas) {
+            let mismoOrigen = false;
+            try {
+                mismoOrigen = new URL(ventana.url).origin === self.location.origin;
+            } catch {
+                mismoOrigen = false;
+            }
+            if (!mismoOrigen) {
+                continue;
+            }
+
+            await ventana.focus();
+
+            // navigate() carga el destino (incl. ?tarea=) en esa pestana.
+            if (typeof ventana.navigate === 'function') {
+                try {
+                    await ventana.navigate(destino);
                     return;
+                } catch {
+                    // Edge a veces falla; el cliente recarga via postMessage.
                 }
             }
-            if (clients.openWindow) {
-                return clients.openWindow(destino);
-            }
-        })
-    );
+
+            ventana.postMessage({ type: 'notification-navigate', url: destino });
+            return;
+        }
+
+        if (clients.openWindow) {
+            await clients.openWindow(destino);
+        }
+    })());
 });

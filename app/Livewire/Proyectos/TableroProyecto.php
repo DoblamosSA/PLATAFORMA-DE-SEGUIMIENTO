@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -38,7 +39,8 @@ class TableroProyecto extends Component
 
     public Project $project;
 
-    /** Tarea abierta en el panel de detalle (null = cerrado). */
+    /** Tarea abierta en el panel de detalle (null = cerrado). Sincronizada con ?tarea= para deep-links de push. */
+    #[Url(as: 'tarea', history: true, keep: false)]
     public ?int $tareaSeleccionadaId = null;
 
     // Alta de columna
