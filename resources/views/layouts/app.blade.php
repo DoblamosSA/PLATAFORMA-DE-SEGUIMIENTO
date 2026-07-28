@@ -12,6 +12,9 @@
                 var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
                 document.documentElement.classList.toggle('dark', dark);
                 document.cookie = 'projects_theme=' + (dark ? 'dark' : 'light') + '; path=/; max-age=31536000; SameSite=Lax';
+                if (localStorage.getItem('sidebar_collapsed') === '1') {
+                    document.documentElement.classList.add('sidebar-collapsed');
+                }
             })();
         </script>
 
@@ -40,8 +43,10 @@
             {{-- Sidebar + barra movil (componente Livewire con logout) --}}
             <livewire:layout.navigation />
 
-            {{-- Contenido --}}
-            <div class="lg:pl-64">
+            {{-- Contenido: el padding izquierdo sigue al estado del sidebar (expandido / colapsado) --}}
+            <div class="content-with-sidebar min-h-screen transition-[padding] duration-300 ease-in-out lg:pl-64"
+                 x-data
+                 :class="$store.sidebar.collapsed ? 'lg:!pl-20' : 'lg:!pl-64'">
                 <main id="main-content" class="min-h-screen page-enter">
                     {{ $slot }}
                 </main>

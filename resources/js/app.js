@@ -207,6 +207,15 @@ document.addEventListener('alpine:init', () => {
     // Alinea la cookie con el estado real al arrancar, por si el usuario
     // alterno el tema en una sesion previa sin recargar (cookie quedaria vieja).
     persistirTema(Alpine.store('theme').dark);
+
+    Alpine.store('sidebar', {
+        collapsed: localStorage.getItem('sidebar_collapsed') === '1',
+        toggle() {
+            this.collapsed = !this.collapsed;
+            localStorage.setItem('sidebar_collapsed', this.collapsed ? '1' : '0');
+            document.documentElement.classList.toggle('sidebar-collapsed', this.collapsed);
+        },
+    });
 });
 
 /**
