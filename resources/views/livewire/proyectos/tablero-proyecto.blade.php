@@ -230,12 +230,26 @@
                             @endif
                         </div>
 
-                        @if ($tareaSeleccionada->descripcion)
-                            <div>
-                                <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1">Descripción</p>
-                                <p class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line">{{ $tareaSeleccionada->descripcion }}</p>
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-1">
+                                <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Descripción</p>
+                                @if (Auth::user()?->puedeEditarTarea())
+                                    <x-evidencias-adjuntar propiedad="evidenciasDescripcion" al-terminar="guardarEvidenciasDescripcion" etiqueta="Adjuntar evidencia" />
+                                @endif
                             </div>
-                        @endif
+                            @if ($tareaSeleccionada->descripcion)
+                                <p class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line">{{ $tareaSeleccionada->descripcion }}</p>
+                            @else
+                                <p class="text-sm text-slate-400 dark:text-slate-500 italic">Sin descripción.</p>
+                            @endif
+                            <x-evidencias-galeria
+                                :evidencias="$tareaSeleccionada->evidenciasDescripcion"
+                                :puede-eliminar="Auth::user()?->puedeEditarTarea() ?? false"
+                            />
+                            @if (count($evidenciasDescripcion ?? []) > 0)
+                                <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500" wire:loading wire:target="evidenciasDescripcion,guardarEvidenciasDescripcion">Subiendo evidencias…</p>
+                            @endif
+                        </div>
 
                         <div class="flex gap-2">
                             <button wire:click="iniciarEdicion"
@@ -279,6 +293,13 @@
                                 <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Descripción</label>
                                 <textarea wire:model="edDescripcion" rows="2"
                                           class="w-full resize-none rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                                    <x-evidencias-adjuntar propiedad="evidenciasDescripcion" al-terminar="guardarEvidenciasDescripcion" etiqueta="Adjuntar evidencia" />
+                                </div>
+                                <x-evidencias-galeria
+                                    :evidencias="$tareaSeleccionada->evidenciasDescripcion"
+                                    :puede-eliminar="true"
+                                />
                             </div>
 
                             <div class="grid grid-cols-2 gap-3">
@@ -482,6 +503,10 @@
                                                 </span>
                                             </div>
                                             <p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line">{!! $resolverMenciones($act->detalle) !!}</p>
+                                            <x-evidencias-galeria
+                                                :evidencias="$act->evidencias"
+                                                :puede-eliminar="$puedeEliminarComentario || $act->user_id === auth()->id()"
+                                            />
                                         </div>
                                     </div>
                                 @else
@@ -527,7 +552,7 @@
                                       $nextTick(() => el.focus());
                                   },
                               }">
-                            <div class="flex-1 relative">
+                            <div class="flex-1 relative space-y-2">
                                 <label for="nuevoComentario" class="sr-only">Nuevo comentario</label>
                                 <textarea id="nuevoComentario" x-ref="comentario" wire:model="nuevoComentario" rows="2" placeholder="Escribe un comentario… usa @ para citar una subtarea"
                                           @input="buscar" @keydown.escape="open = false"
@@ -540,6 +565,12 @@
                                                 class="block w-full text-left px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-500/15 focus-visible:outline-none focus-visible:bg-blue-50 dark:focus-visible:bg-blue-500/15"
                                                 x-text="'↳ ' + s.titulo"></button>
                                     </template>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <x-evidencias-adjuntar propiedad="evidenciasComentario" etiqueta="Evidencia (opcional)" />
+                                    @if (count($evidenciasComentario) > 0)
+                                        <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ count($evidenciasComentario) }} imagen(es) lista(s)</span>
+                                    @endif
                                 </div>
                                 @error('nuevoComentario') <span class="block text-xs text-rose-600 dark:text-rose-400 mt-1">{{ $message }}</span> @enderror
                             </div>

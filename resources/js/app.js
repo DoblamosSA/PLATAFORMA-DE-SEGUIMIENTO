@@ -400,3 +400,80 @@ window.kanbanColumns = (el, wire) => {
         },
     });
 };
+
+/**
+ * Evidencias de tarea: comprime imagenes en el navegador antes de subirlas
+ * a Livewire (lado mayor <= 1600px, JPEG calidad 0.72).
+ */
+window.comprimirImagenEvidencia = async (archivo, maxLado = 1600, calidad = 0.72) => {
+    if (!archivo || !archivo.type?.startsWith('image/')) {
+        return archivo;
+    }
+
+    if (archivo.type === 'image/gif') {
+        return archivo;
+    }
+
+    let bitmap;
+    try {
+        bitmap = await createImageBitmap(archivo);
+    } catch {
+        return archivo;
+    }
+
+    const escala = Math.min(1, maxLado / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * escala));
+    const h = Math.max(1, Math.round(bitmap.height * escala));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        bitmap.close?.();
+        return archivo;
+    }
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', calidad));
+    if (!blob) {
+        return archivo;
+    }
+
+    const base = (archivo.name || 'evidencia').replace(/\.[^.]+$/, '');
+    return new File([blob], `${base}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
+};
+
+/**
+ * Intercepta un <input type=file>, comprime y sube a una propiedad Livewire
+ * via uploadMultiple (sin wire:model en el input, para no enviar el original).
+ */
+window.subirEvidenciasComprimidas = async (event, wire, propiedad, { alTerminar = null } = {}) => {
+    const lista = Array.from(event.target.files || []).slice(0, 10);
+    event.target.value = '';
+    if (!lista.length || !wire?.uploadMultiple) {
+        return;
+    }
+
+    const comprimidas = [];
+    for (const archivo of lista) {
+        try {
+            comprimidas.push(await window.comprimirImagenEvidencia(archivo));
+        } catch (e) {
+            console.warn('Evidencia: no se pudo comprimir', e);
+            comprimidas.push(archivo);
+        }
+    }
+
+    wire.uploadMultiple(
+        propiedad,
+        comprimidas,
+        () => {
+            if (typeof alTerminar === 'function') {
+                alTerminar();
+            }
+        },
+        (error) => console.warn('Evidencia: fallo al subir', error),
+    );
+};

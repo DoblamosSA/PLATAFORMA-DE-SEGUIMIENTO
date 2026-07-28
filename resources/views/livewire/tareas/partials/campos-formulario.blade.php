@@ -36,6 +36,20 @@
         <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Descripcion</label>
         <textarea wire:model="descripcion" rows="3"
                   class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+        <div class="mt-2 space-y-2">
+            @if ($task?->exists)
+                <x-evidencias-adjuntar propiedad="evidenciasDescripcion" al-terminar="guardarEvidenciasDescripcion" etiqueta="Adjuntar evidencia (opcional)" />
+                <x-evidencias-galeria
+                    :evidencias="$task->evidenciasDescripcion"
+                    :puede-eliminar="true"
+                />
+            @else
+                <x-evidencias-adjuntar propiedad="evidenciasDescripcion" etiqueta="Evidencia (opcional, se guarda al crear)" />
+                @if (count($evidenciasDescripcion) > 0)
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ count($evidenciasDescripcion) }} imagen(es) lista(s) para subir al crear</span>
+                @endif
+            @endif
+        </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

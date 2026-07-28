@@ -7,14 +7,17 @@ use App\Models\BoardColumn;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskActivity;
+use App\Models\TaskEvidence;
 use App\Models\User;
 use App\Services\CapacidadService;
+use App\Services\TaskEvidenceService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 /**
  * Tablero Kanban de un proyecto. Administra columnas (personalizables),
@@ -25,6 +28,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class TableroProyecto extends Component
 {
+    use WithFileUploads;
+
     /** Estados canonicos del sistema (columna -> estado). */
     public const ESTADOS = ['pendiente', 'en_progreso', 'en_revision', 'completada', 'cancelada', 'rechazada'];
 
@@ -50,6 +55,12 @@ class TableroProyecto extends Component
 
     // Foro de la tarea seleccionada
     public string $nuevoComentario = '';
+
+    /** Imagenes opcionales pendientes de asociar al proximo comentario. */
+    public array $evidenciasComentario = [];
+
+    /** Imagenes opcionales pendientes de asociar a la descripcion. */
+    public array $evidenciasDescripcion = [];
 
     // Edicion en linea de la tarea seleccionada (dentro del panel)
     public bool $editando = false;
@@ -574,14 +585,73 @@ class TableroProyecto extends Component
         abort_unless(Auth::user()?->puedeCrearComentario(), 403);
 
         $this->validate(
-            ['nuevoComentario' => 'required|string|min:1|max:2000'],
+            [
+                'nuevoComentario' => 'required|string|min:1|max:2000',
+                'evidenciasComentario' => 'nullable|array|max:10',
+                'evidenciasComentario.*' => 'image|max:5120',
+            ],
             [],
-            ['nuevoComentario' => 'comentario']
+            ['nuevoComentario' => 'comentario', 'evidenciasComentario' => 'evidencias']
         );
 
         $task = $this->tarea($this->tareaSeleccionadaId);
-        $this->registrar($task, 'comentario', trim($this->nuevoComentario));
-        $this->reset('nuevoComentario');
+        $actividad = TaskActivity::create([
+            'task_id' => $task->id,
+            'user_id' => Auth::id(),
+            'accion' => 'comentario',
+            'detalle' => trim($this->nuevoComentario),
+        ]);
+
+        if ($this->evidenciasComentario !== []) {
+            app(TaskEvidenceService::class)->guardarParaComentario(
+                $task,
+                Auth::user(),
+                $actividad,
+                $this->evidenciasComentario,
+            );
+        }
+
+        $this->reset('nuevoComentario', 'evidenciasComentario');
+    }
+
+    /** Persiste evidencias ya subidas a Livewire contra la descripcion de la tarea. */
+    public function guardarEvidenciasDescripcion(): void
+    {
+        $this->autorizar();
+        abort_unless(Auth::user()?->puedeEditarTarea(), 403);
+
+        $this->validate([
+            'evidenciasDescripcion' => 'required|array|max:10',
+            'evidenciasDescripcion.*' => 'image|max:5120',
+        ], [], ['evidenciasDescripcion' => 'evidencias']);
+
+        $task = $this->tarea($this->tareaSeleccionadaId);
+        app(TaskEvidenceService::class)->guardarParaDescripcion(
+            $task,
+            Auth::user(),
+            $this->evidenciasDescripcion,
+        );
+
+        $this->reset('evidenciasDescripcion');
+    }
+
+    public function eliminarEvidencia(int $evidenciaId): void
+    {
+        $this->autorizar();
+
+        $evidencia = TaskEvidence::where('task_id', $this->tareaSeleccionadaId)
+            ->findOrFail($evidenciaId);
+
+        $user = Auth::user();
+        $esDeComentario = $evidencia->task_activity_id !== null;
+
+        if ($esDeComentario) {
+            abort_unless($user?->puedeEliminarComentario() || $evidencia->user_id === $user?->id, 403);
+        } else {
+            abort_unless($user?->puedeEditarTarea() || $evidencia->user_id === $user?->id, 403);
+        }
+
+        app(TaskEvidenceService::class)->eliminar($evidencia);
     }
 
     /** Solo el administrador puede eliminar comentarios. */
@@ -590,10 +660,17 @@ class TableroProyecto extends Component
         $this->autorizar();
         abort_unless(Auth::user()?->puedeEliminarComentario(), 403);
 
-        TaskActivity::where('task_id', $this->tareaSeleccionadaId)
+        $actividad = TaskActivity::where('task_id', $this->tareaSeleccionadaId)
             ->where('accion', 'comentario')
-            ->findOrFail($activityId)
-            ->delete();
+            ->with('evidencias')
+            ->findOrFail($activityId);
+
+        $svc = app(TaskEvidenceService::class);
+        foreach ($actividad->evidencias as $evidencia) {
+            $svc->eliminar($evidencia);
+        }
+
+        $actividad->delete();
     }
 
     // ---------------------------------------------------------------
@@ -754,7 +831,16 @@ class TableroProyecto extends Component
             ->get();
 
         $tareaSeleccionada = $this->tareaSeleccionadaId
-            ? Task::with(['asignado', 'proyecto', 'columna', 'actividades.user', 'subtareas', 'subDepartamento'])->find($this->tareaSeleccionadaId)
+            ? Task::with([
+                'asignado',
+                'proyecto',
+                'columna',
+                'actividades.user',
+                'actividades.evidencias',
+                'subtareas',
+                'subDepartamento',
+                'evidenciasDescripcion',
+            ])->find($this->tareaSeleccionadaId)
             : null;
 
         $servicio = app(CapacidadService::class);

@@ -239,6 +239,68 @@ class TableroProyectoTest extends TestCase
             ->assertHasNoErrors();
     }
 
+    public function test_comentario_puede_llevar_evidencias_opcionales(): void
+    {
+        $task = $this->tareaEn('pendiente');
+        $imagen = \Illuminate\Http\UploadedFile::fake()->image('captura.jpg', 800, 600);
+
+        Livewire::actingAs($this->dev)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('abrirTarea', $task->id)
+            ->set('nuevoComentario', 'Adjunto captura')
+            ->set('evidenciasComentario', [$imagen])
+            ->call('comentar')
+            ->assertHasNoErrors();
+
+        $actividad = $task->actividades()->where('accion', 'comentario')->latest('id')->first();
+        $this->assertNotNull($actividad);
+        $this->assertDatabaseHas('task_evidences', [
+            'task_id' => $task->id,
+            'task_activity_id' => $actividad->id,
+            'user_id' => $this->dev->id,
+        ]);
+        $this->assertSame(1, $actividad->evidencias()->count());
+    }
+
+    public function test_comentario_sin_imagen_sigue_funcionando(): void
+    {
+        $task = $this->tareaEn('pendiente');
+
+        Livewire::actingAs($this->dev)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('abrirTarea', $task->id)
+            ->set('nuevoComentario', 'Solo texto')
+            ->call('comentar')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('task_activities', [
+            'task_id' => $task->id,
+            'accion' => 'comentario',
+            'detalle' => 'Solo texto',
+        ]);
+        $this->assertDatabaseCount('task_evidences', 0);
+    }
+
+    public function test_evidencia_de_descripcion_se_guarda_sin_comentario(): void
+    {
+        $this->otorgarPermiso($this->dev, 'tasks.edit');
+        $task = $this->tareaEn('pendiente');
+        $imagen = \Illuminate\Http\UploadedFile::fake()->image('desc.png', 400, 300);
+
+        Livewire::actingAs($this->dev)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('abrirTarea', $task->id)
+            ->set('evidenciasDescripcion', [$imagen])
+            ->call('guardarEvidenciasDescripcion')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('task_evidences', [
+            'task_id' => $task->id,
+            'task_activity_id' => null,
+            'user_id' => $this->dev->id,
+        ]);
+    }
+
     public function test_editar_una_tarea_no_borra_la_trazabilidad_historica(): void
     {
         $task = $this->tareaEn('pendiente');

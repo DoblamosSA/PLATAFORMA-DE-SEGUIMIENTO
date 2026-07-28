@@ -7,16 +7,21 @@ use App\Models\AuditLog;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskActivity;
+use App\Models\TaskEvidence;
 use App\Models\User;
 use App\Services\CapacidadService;
+use App\Services\TaskEvidenceService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 class FormTarea extends Component
 {
+    use WithFileUploads;
+
     public ?Task $task = null;
 
     public bool $enModal = false;
@@ -54,6 +59,9 @@ class FormTarea extends Component
 
     public string $observacionFecha = '';
 
+    /** Imagenes opcionales pendientes de asociar a la descripcion (solo tareas existentes). */
+    public array $evidenciasDescripcion = [];
+
     public function mount(?Task $task = null, ?int $projectId = null, bool $enModal = false, string $padreLivewire = 'tareas.lista-tareas'): void
     {
         // Crear requiere 'tasks.create'; editar requiere 'tasks.edit'.
@@ -70,7 +78,7 @@ class FormTarea extends Component
         $this->padreLivewire = $padreLivewire;
 
         if ($task?->exists) {
-            $this->task = $task;
+            $this->task = $task->load('evidenciasDescripcion');
             $this->project_id = $task->project_id;
             $this->titulo = $task->titulo;
             $this->descripcion = $task->descripcion ?? '';
@@ -276,6 +284,41 @@ class FormTarea extends Component
         return ($this->fechaLimiteInput ?? '') !== $actual;
     }
 
+    /** Persiste evidencias ya subidas (tarea existente) sin guardar el resto del form. */
+    public function guardarEvidenciasDescripcion(): void
+    {
+        abort_unless($this->task?->exists && Auth::user()?->puedeEditarTarea(), 403);
+
+        $this->validate([
+            'evidenciasDescripcion' => 'required|array|max:10',
+            'evidenciasDescripcion.*' => 'image|max:5120',
+        ], [], ['evidenciasDescripcion' => 'evidencias']);
+
+        app(TaskEvidenceService::class)->guardarParaDescripcion(
+            $this->task,
+            Auth::user(),
+            $this->evidenciasDescripcion,
+        );
+
+        $this->reset('evidenciasDescripcion');
+        $this->task->load('evidenciasDescripcion');
+    }
+
+    public function eliminarEvidencia(int $evidenciaId): void
+    {
+        abort_unless($this->task?->exists, 403);
+
+        $evidencia = TaskEvidence::where('task_id', $this->task->id)
+            ->whereNull('task_activity_id')
+            ->findOrFail($evidenciaId);
+
+        $user = Auth::user();
+        abort_unless($user?->puedeEditarTarea() || $evidencia->user_id === $user?->id, 403);
+
+        app(TaskEvidenceService::class)->eliminar($evidencia);
+        $this->task->load('evidenciasDescripcion');
+    }
+
     public function save()
     {
         // Usar exists: Livewire puede hidratar un Task vacio (truthy) al crear.
@@ -464,6 +507,17 @@ class FormTarea extends Component
         }
 
         $task->proyecto?->recalcularProgreso();
+
+        if ($this->evidenciasDescripcion !== []) {
+            app(TaskEvidenceService::class)->guardarParaDescripcion(
+                $task,
+                Auth::user(),
+                $this->evidenciasDescripcion,
+            );
+            $this->reset('evidenciasDescripcion');
+        }
+
+        $this->task = $task->fresh(['evidenciasDescripcion']);
 
         $mensaje = $esNueva ? 'Tarea creada correctamente.' : 'Tarea actualizada.';
 

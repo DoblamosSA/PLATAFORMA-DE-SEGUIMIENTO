@@ -94,6 +94,18 @@ class Task extends Model
         return $this->hasMany(Subtask::class)->oldest();
     }
 
+    /** Evidencias de la descripcion (sin comentario asociado). */
+    public function evidenciasDescripcion(): HasMany
+    {
+        return $this->hasMany(TaskEvidence::class)->whereNull('task_activity_id')->latest();
+    }
+
+    /** Todas las evidencias de la tarea. */
+    public function evidencias(): HasMany
+    {
+        return $this->hasMany(TaskEvidence::class)->latest();
+    }
+
     /**
      * Recalcula horas_estimadas como la suma de las horas de las subtareas
      * y la persiste. Sin subtareas, queda en null.
