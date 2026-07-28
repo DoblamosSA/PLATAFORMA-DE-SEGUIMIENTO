@@ -150,17 +150,13 @@ class Task extends Model
     // ---------------------------------------------------------------
 
     /**
-     * Calcula y asigna la fecha limite a partir de la politica de SLA
-     * vigente para el tipo/prioridad actuales. Usa la fecha de asignacion
-     * (o ahora) como punto de partida.
+     * @deprecated La capacidad ya no usa SLA. Se conserva por compatibilidad
+     * con datos antiguos; no recalcula fecha_limite ni sla_horas.
      */
     public function aplicarSla(): void
     {
-        $horas = SlaPolicy::horasPara($this->sub_department_id, $this->prioridad);
-        $base = $this->fecha_asignacion ?? now();
-
-        $this->sla_horas = $horas;
-        $this->fecha_limite = $base->copy()->addHours($horas);
+        // Intencionalmente vacio: el vencimiento se deriva del plan de
+        // disponibilidad diaria (CapacidadService), no de SlaPolicy.
     }
 
     /**

@@ -5,12 +5,14 @@ namespace App\Services;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
- * Calcula la capacidad operativa de un colaborador (horas disponibles segun
- * sus dias laborales y horas diarias) y su carga de trabajo (horas
- * asignadas de tareas abiertas), distribuyendo las horas estimadas de cada
- * tarea entre sus dias laborables cuando tiene fecha de inicio y vencimiento.
+ * Capacidad operativa por disponibilidad diaria del colaborador.
+ *
+ * Las horas de cada tarea se colocan dia a dia respetando horas_diarias
+ * libres (llenar lunes, luego martes, …) dentro de la semana laboral en
+ * curso. El SLA / fecha_limite ya no define la ventana de capacidad.
  */
 class CapacidadService
 {
@@ -39,96 +41,161 @@ class CapacidadService
     }
 
     /**
-     * Distribuye las horas estimadas de una tarea entre los dias laborables
-     * del colaborador asignado: ['Y-m-d' => horas del dia].
+     * Semana laboral de referencia (lunes–domingo) alrededor de $ref.
      *
-     * - Con fecha_inicio y fecha_limite: reparte en partes iguales entre los
-     *   dias laborables del rango (si ninguno cae en dia laboral, toda la
-     *   carga se ubica en la fecha limite).
-     * - Solo con fecha_limite: toda la carga cae en ese dia.
-     * - Sin ninguna fecha: no se puede ubicar, se ignora en el calculo.
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public function limitesSemana(?Carbon $ref = null): array
+    {
+        $ref ??= Carbon::now();
+
+        return [
+            $ref->copy()->startOfWeek()->startOfDay(),
+            $ref->copy()->endOfWeek()->startOfDay(),
+        ];
+    }
+
+    /**
+     * Coloca $horas en los huecos libres de [$desde, $hasta], respetando
+     * horas_diarias y la ocupacion previa. Modifica $ocupacion in-place.
+     *
+     * @param  array<string, float>  $ocupacion
+     * @return array{plan: array<string, float>, restante: float}
+     */
+    public function colocarHoras(User $user, float $horas, Carbon $desde, Carbon $hasta, array &$ocupacion): array
+    {
+        $restante = round($horas, 2);
+        $plan = [];
+        $diarias = (float) ($user->horas_diarias ?? 0);
+
+        if ($restante <= 0 || $diarias <= 0) {
+            return ['plan' => [], 'restante' => $restante];
+        }
+
+        $cursor = $desde->copy()->startOfDay();
+        $fin = $hasta->copy()->startOfDay();
+
+        while ($restante > 0.01 && $cursor->lessThanOrEqualTo($fin)) {
+            if ($user->trabajaEnDiaSemana($cursor->dayOfWeek)) {
+                $key = $cursor->format('Y-m-d');
+                $usado = (float) ($ocupacion[$key] ?? 0);
+                $libre = round(max(0, $diarias - $usado), 2);
+
+                if ($libre > 0.01) {
+                    $colocar = round(min($libre, $restante), 2);
+                    $plan[$key] = round(($plan[$key] ?? 0) + $colocar, 2);
+                    $ocupacion[$key] = round($usado + $colocar, 2);
+                    $restante = round($restante - $colocar, 2);
+                }
+            }
+
+            $cursor->addDay();
+        }
+
+        return ['plan' => $plan, 'restante' => $restante];
+    }
+
+    /**
+     * Ocupacion dia-a-dia de la semana: coloca las tareas activas en orden
+     * FIFO (fecha_asignacion, id) desde su fecha_inicio o el inicio de semana.
+     *
+     * @return array{ocupacion: array<string, float>, planes: array<int, array<string, float>>}
+     */
+    public function ocupacionSemana(User $user, ?int $excluirTaskId = null, ?Carbon $ref = null): array
+    {
+        [$semanaInicio, $semanaFin] = $this->limitesSemana($ref);
+        $ocupacion = [];
+        $planes = [];
+
+        foreach ($this->tareasActivas($user, $excluirTaskId) as $tarea) {
+            $horas = (float) ($tarea->horas_estimadas ?? 0);
+            if ($horas <= 0) {
+                continue;
+            }
+
+            $inicio = $tarea->fecha_inicio?->copy()->startOfDay() ?? $semanaInicio->copy();
+            if ($inicio->lessThan($semanaInicio)) {
+                $inicio = $semanaInicio->copy();
+            }
+            if ($inicio->greaterThan($semanaFin)) {
+                continue; // arranca fuera de esta semana
+            }
+
+            $resultado = $this->colocarHoras($user, $horas, $inicio, $semanaFin, $ocupacion);
+            $planes[$tarea->id] = $resultado['plan'];
+        }
+
+        return ['ocupacion' => $ocupacion, 'planes' => $planes];
+    }
+
+    /**
+     * Distribuye las horas estimadas de una tarea segun disponibilidad
+     * diaria del colaborador en la semana en curso (huecos libres tras
+     * las demas tareas). ['Y-m-d' => horas].
      */
     public function distribucionDiaria(Task $task, User $user): array
     {
         $horas = (float) ($task->horas_estimadas ?? 0);
-        if ($horas <= 0) {
+        if ($horas <= 0 || ! $user->horas_diarias) {
             return [];
         }
 
-        $limite = $task->fecha_limite?->copy()->startOfDay();
-
-        if ($task->fecha_inicio && $limite) {
-            $inicio = $task->fecha_inicio->copy()->startOfDay();
-            if ($inicio->greaterThan($limite)) {
-                $inicio = $limite->copy();
-            }
-
-            $diasLaborables = [];
-            $cursor = $inicio->copy();
-            while ($cursor->lessThanOrEqualTo($limite)) {
-                if ($user->trabajaEnDiaSemana($cursor->dayOfWeek)) {
-                    $diasLaborables[] = $cursor->format('Y-m-d');
-                }
-                $cursor->addDay();
-            }
-
-            if (empty($diasLaborables)) {
-                return [$limite->format('Y-m-d') => $horas];
-            }
-
-            $porDia = round($horas / count($diasLaborables), 2);
-
-            return array_fill_keys($diasLaborables, $porDia);
+        // Plan de esta tarea dentro de la ocupacion semanal (ella incluida).
+        $semana = $this->ocupacionSemana($user);
+        $plan = $semana['planes'][$task->id] ?? null;
+        if ($plan !== null) {
+            return $plan;
         }
 
-        if ($limite) {
-            return [$limite->format('Y-m-d') => $horas];
+        // Tarea nueva (sin id en BD) o excluida: colocarla sobre la ocupacion ajena.
+        [$semanaInicio, $semanaFin] = $this->limitesSemana();
+        $ocupacion = $this->ocupacionSemana($user, $task->id ?: null)['ocupacion'];
+        $inicio = $task->fecha_inicio?->copy()->startOfDay() ?? $semanaInicio->copy();
+        if ($inicio->lessThan($semanaInicio)) {
+            $inicio = $semanaInicio->copy();
         }
 
-        return [];
+        return $this->colocarHoras($user, $horas, $inicio, $semanaFin, $ocupacion)['plan'];
     }
 
     /**
-     * Horas asignadas al colaborador que caen dentro de [desde, hasta],
-     * sumando la porcion distribuida de cada tarea abierta. Permite excluir
-     * una tarea (la que se esta editando) para previsualizar el resultado
-     * de una reasignacion antes de guardar.
+     * Horas asignadas al colaborador que caen dentro de [desde, hasta].
      */
     public function horasAsignadasPeriodo(User $user, Carbon $desde, Carbon $hasta, ?int $excluirTaskId = null): float
     {
         $desdeKey = $desde->copy()->startOfDay()->format('Y-m-d');
         $hastaKey = $hasta->copy()->startOfDay()->format('Y-m-d');
+        $ref = $desde->copy()->startOfWeek();
 
-        $tareas = Task::where('asignado_id', $user->id)
-            ->whereIn('estado', self::ESTADOS_ACTIVOS)
-            ->when($excluirTaskId, fn ($q) => $q->where('id', '!=', $excluirTaskId))
-            ->get();
-
+        // Cubrir el periodo: si cruza semanas, acumular semana a semana.
         $total = 0.0;
-        foreach ($tareas as $tarea) {
-            foreach ($this->distribucionDiaria($tarea, $user) as $dia => $horasDia) {
+        $cursor = $ref->copy();
+        $finSemanaUltima = $hasta->copy()->endOfWeek()->startOfDay();
+
+        while ($cursor->lessThanOrEqualTo($finSemanaUltima)) {
+            $semana = $this->ocupacionSemana($user, $excluirTaskId, $cursor);
+            foreach ($semana['ocupacion'] as $dia => $horasDia) {
                 if ($dia >= $desdeKey && $dia <= $hastaKey) {
                     $total += $horasDia;
                 }
             }
+            $cursor->addWeek();
         }
 
         return round($total, 2);
     }
 
     /**
-     * Carga actual del colaborador sobre la semana en curso (lunes a
-     * domingo): la que se muestra en el panel de equipo del proyecto.
+     * Carga actual del colaborador sobre la semana en curso.
      *
      * @return array{disponibles: float, asignadas: float, porcentaje: float, estado: string}
      */
     public function cargaSemanaActual(User $user): array
     {
-        $desde = Carbon::now()->startOfWeek();
-        $hasta = Carbon::now()->endOfWeek();
+        [$desde, $hasta] = $this->limitesSemana();
 
         $disponibles = $this->capacidadPeriodo($user, $desde, $hasta);
-        $asignadas = $this->horasAsignadasPeriodo($user, $desde, $hasta);
+        $asignadas = round(array_sum($this->ocupacionSemana($user)['ocupacion']), 2);
         $porcentaje = $disponibles > 0 ? round(($asignadas / $disponibles) * 100) : ($asignadas > 0 ? 100.0 : 0.0);
 
         return [
@@ -154,57 +221,71 @@ class CapacidadService
     }
 
     /**
-     * Valida si asignar $horasSolicitadas al colaborador en el periodo
-     * [$desde, $hasta] supera su capacidad. Sin fecha limite, o sin
-     * disponibilidad configurada, no se puede validar y se permite la
-     * asignacion dejando constancia de que faltan datos.
+     * Valida si $horasSolicitadas caben en la disponibilidad semanal del
+     * colaborador, colocandolas dia a dia desde $desde (o hoy) en los huecos
+     * libres. Ya no usa la ventana del SLA.
      *
-     * @return array{ok: bool, disponibles: ?float, asignadas: ?float, solicitadas: float, restante: ?float, mensaje: ?string}
+     * Firma compatible: el 4.º argumento historico ($hasta / fecha_limite) se
+     * ignora si es Carbon; si es int se trata como $excluirTaskId.
+     *
+     * @return array{ok: bool, disponibles: ?float, asignadas: ?float, solicitadas: float, restante: ?float, mensaje: ?string, plan: array<string, float>}
      */
     public function validarAsignacion(
         User $user,
         float $horasSolicitadas,
-        ?Carbon $desde,
-        ?Carbon $hasta,
+        ?Carbon $desde = null,
+        Carbon|int|null $hastaOExcluir = null,
         ?int $excluirTaskId = null,
     ): array {
-        if (! $hasta || $horasSolicitadas <= 0) {
+        // Compatibilidad con llamadas antiguas: (user, horas, desde, hasta, excluirId)
+        if (is_int($hastaOExcluir)) {
+            $excluirTaskId = $hastaOExcluir;
+        }
+
+        if ($horasSolicitadas <= 0) {
             return [
                 'ok' => true, 'disponibles' => null, 'asignadas' => null,
-                'solicitadas' => $horasSolicitadas, 'restante' => null, 'mensaje' => null,
+                'solicitadas' => $horasSolicitadas, 'restante' => null,
+                'mensaje' => null, 'plan' => [],
             ];
         }
 
-        $desde ??= $hasta;
-        if ($desde->greaterThan($hasta)) {
-            $desde = $hasta->copy();
-        }
-
-        $disponibles = $this->capacidadPeriodo($user, $desde, $hasta);
+        [$semanaInicio, $semanaFin] = $this->limitesSemana();
+        $disponibles = $this->capacidadPeriodo($user, $semanaInicio, $semanaFin);
 
         if ($disponibles <= 0) {
             return [
                 'ok' => true, 'disponibles' => 0.0, 'asignadas' => null,
-                'solicitadas' => $horasSolicitadas, 'restante' => null,
+                'solicitadas' => $horasSolicitadas, 'restante' => null, 'plan' => [],
                 'mensaje' => "{$user->name} no tiene disponibilidad configurada (días laborales/horas diarias). Completa su perfil de colaborador para validar la capacidad.",
             ];
         }
 
-        $asignadas = $this->horasAsignadasPeriodo($user, $desde, $hasta, $excluirTaskId);
-        $total = $asignadas + $horasSolicitadas;
-        $restante = round($disponibles - $asignadas, 2);
-        $ok = $total <= $disponibles + 0.01; // tolerancia de redondeo
+        $ocupacion = $this->ocupacionSemana($user, $excluirTaskId)['ocupacion'];
+        $asignadas = round(array_sum($ocupacion), 2);
+
+        $inicioColocacion = ($desde ?? Carbon::now())->copy()->startOfDay();
+        // No colocar horas en dias ya pasados de la semana.
+        $hoy = Carbon::now()->startOfDay();
+        if ($inicioColocacion->lessThan($hoy)) {
+            $inicioColocacion = $hoy->copy();
+        }
+        if ($inicioColocacion->lessThan($semanaInicio)) {
+            $inicioColocacion = $semanaInicio->copy();
+        }
+
+        $resultado = $this->colocarHoras($user, $horasSolicitadas, $inicioColocacion, $semanaFin, $ocupacion);
+        $restanteHueco = round($disponibles - $asignadas, 2);
+        $ok = $resultado['restante'] <= 0.01;
 
         $mensaje = null;
         if (! $ok) {
             $mensaje = sprintf(
-                'Capacidad excedida para %s: dispone de %s h y ya tiene %s h asignadas (quedan %s h libres) en el período %s–%s, pero se solicitan %s h. Cambia la fecha, reduce la duración o elige otro responsable.',
+                'Capacidad excedida para %s: esta semana dispone de %s h y ya tiene %s h asignadas (quedan %s h libres), pero se solicitan %s h. Reduce la duración o elige otro responsable.',
                 $user->name,
                 $this->fmt($disponibles),
                 $this->fmt($asignadas),
-                $this->fmt(max($restante, 0)),
-                $desde->format('d/m/Y'),
-                $hasta->format('d/m/Y'),
+                $this->fmt(max($restanteHueco, 0)),
                 $this->fmt($horasSolicitadas),
             );
         }
@@ -214,13 +295,40 @@ class CapacidadService
             'disponibles' => $disponibles,
             'asignadas' => $asignadas,
             'solicitadas' => $horasSolicitadas,
-            'restante' => $restante,
+            'restante' => $restanteHueco,
             'mensaje' => $mensaje,
+            'plan' => $resultado['plan'],
         ];
+    }
+
+    /**
+     * Ultimo dia del plan de disponibilidad (para fijar vencimiento sin SLA).
+     */
+    public function fechaFinPlan(array $plan, ?Carbon $fallback = null): ?Carbon
+    {
+        if ($plan === []) {
+            return $fallback;
+        }
+
+        $ultimo = max(array_keys($plan));
+
+        return Carbon::parse($ultimo)->setTime(17, 0);
     }
 
     public function fmt(float $n): string
     {
         return rtrim(rtrim(number_format($n, 2), '0'), '.');
+    }
+
+    /** @return Collection<int, Task> */
+    protected function tareasActivas(User $user, ?int $excluirTaskId = null): Collection
+    {
+        return Task::query()
+            ->where('asignado_id', $user->id)
+            ->whereIn('estado', self::ESTADOS_ACTIVOS)
+            ->when($excluirTaskId, fn ($q) => $q->where('id', '!=', $excluirTaskId))
+            ->orderByRaw('COALESCE(fecha_asignacion, created_at) asc')
+            ->orderBy('id')
+            ->get();
     }
 }

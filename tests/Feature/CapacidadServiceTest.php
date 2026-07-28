@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Organization\Models\Department;
+use App\Domain\Organization\Models\SubDepartment;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\CapacidadService;
@@ -15,19 +17,42 @@ class CapacidadServiceTest extends TestCase
 
     private CapacidadService $servicio;
 
+    private SubDepartment $subDepartment;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->servicio = app(CapacidadService::class);
+        Carbon::setTestNow(Carbon::parse('2026-07-27 10:00:00')); // lunes
+
+        $department = Department::factory()->create();
+        $this->subDepartment = SubDepartment::factory()->create(['department_id' => $department->id]);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
+    private function crearTarea(User $user, array $extra = []): Task
+    {
+        return Task::create(array_merge([
+            'titulo' => 'Tarea',
+            'sub_department_id' => $this->subDepartment->id,
+            'prioridad' => 'media',
+            'estado' => 'pendiente',
+            'asignado_id' => $user->id,
+            'fecha_asignacion' => now(),
+            'horas_estimadas' => 8,
+        ], $extra));
     }
 
     public function test_capacidad_periodo_cuenta_solo_dias_laborales(): void
     {
-        // Lunes a viernes, 8h/dia.
         $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
 
-        // Un lunes a un domingo (semana completa): 5 dias laborales x 8h = 40h.
-        $lunes = Carbon::parse('next monday');
+        $lunes = Carbon::parse('2026-07-27');
         $domingo = $lunes->copy()->addDays(6);
 
         $this->assertEquals(40.0, $this->servicio->capacidadPeriodo($user, $lunes, $domingo));
@@ -40,73 +65,97 @@ class CapacidadServiceTest extends TestCase
         $this->assertEquals(0.0, $this->servicio->capacidadPeriodo($user, now(), now()->addDays(5)));
     }
 
-    public function test_valida_asignacion_permite_dentro_de_capacidad(): void
+    public function test_valida_asignacion_permite_dentro_de_capacidad_semanal(): void
     {
         $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
 
-        $desde = Carbon::parse('next monday');
-        $hasta = $desde->copy()->addDays(4); // 5 dias laborales = 40h disponibles
-
-        $resultado = $this->servicio->validarAsignacion($user, 20, $desde, $hasta);
+        $resultado = $this->servicio->validarAsignacion($user, 20);
 
         $this->assertTrue($resultado['ok']);
         $this->assertNull($resultado['mensaje']);
+        $this->assertEquals(40.0, $resultado['disponibles']);
     }
 
-    public function test_valida_asignacion_bloquea_si_supera_capacidad(): void
+    public function test_dos_tareas_de_12h_dejan_16h_libres(): void
     {
-        $user = User::factory()->create(['dias_laborales' => ['L'], 'horas_diarias' => 4]);
+        $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
 
-        $lunes = Carbon::parse('next monday');
-
-        // Una sola tarea existente que ya consume las 4h disponibles del lunes.
-        Task::create([
-            'titulo' => 'Tarea existente',
-            'tipo' => 'software',
-            'prioridad' => 'media',
-            'estado' => 'pendiente',
-            'asignado_id' => $user->id,
+        $this->crearTarea($user, [
+            'titulo' => 'Tarea A',
+            'fecha_asignacion' => now()->subHour(),
+            'horas_estimadas' => 12,
+        ]);
+        $this->crearTarea($user, [
+            'titulo' => 'Tarea B',
             'fecha_asignacion' => now(),
-            'fecha_limite' => $lunes->copy()->setTime(17, 0),
-            'horas_estimadas' => 4,
+            'horas_estimadas' => 12,
         ]);
 
-        $resultado = $this->servicio->validarAsignacion($user, 2, $lunes, $lunes);
+        $carga = $this->servicio->cargaSemanaActual($user);
+        $this->assertEquals(40.0, $carga['disponibles']);
+        $this->assertEquals(24.0, $carga['asignadas']);
+
+        $resultado = $this->servicio->validarAsignacion($user, 16);
+        $this->assertTrue($resultado['ok']);
+        $this->assertEquals(16.0, $resultado['restante']);
+    }
+
+    public function test_reparte_horas_nuevas_en_huecos_diarios(): void
+    {
+        $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
+
+        $this->crearTarea($user, [
+            'titulo' => 'Casi llena lunes',
+            'fecha_asignacion' => now()->subHour(),
+            'fecha_inicio' => Carbon::parse('2026-07-27'),
+            'horas_estimadas' => 7,
+        ]);
+
+        $resultado = $this->servicio->validarAsignacion($user, 6, Carbon::parse('2026-07-27'));
+
+        $this->assertTrue($resultado['ok']);
+        $this->assertEquals(1.0, $resultado['plan']['2026-07-27'] ?? null);
+        $this->assertEquals(5.0, $resultado['plan']['2026-07-28'] ?? null);
+    }
+
+    public function test_valida_asignacion_bloquea_si_supera_semana(): void
+    {
+        $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
+
+        $this->crearTarea($user, [
+            'titulo' => 'Carga casi full',
+            'horas_estimadas' => 38,
+        ]);
+
+        $resultado = $this->servicio->validarAsignacion($user, 4);
 
         $this->assertFalse($resultado['ok']);
         $this->assertStringContainsString($user->name, $resultado['mensaje']);
         $this->assertStringContainsString('capacidad', mb_strtolower($resultado['mensaje']));
     }
 
-    public function test_distribucion_diaria_reparte_horas_entre_dias_laborables_del_rango(): void
+    public function test_distribucion_diaria_llena_dias_secuencialmente(): void
     {
         $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
 
-        $lunes = Carbon::parse('next monday');
-        $task = Task::create([
+        $task = $this->crearTarea($user, [
             'titulo' => 'Tarea repartida',
-            'tipo' => 'software',
-            'prioridad' => 'media',
-            'estado' => 'pendiente',
-            'asignado_id' => $user->id,
-            'fecha_asignacion' => now(),
-            'fecha_inicio' => $lunes,
-            'fecha_limite' => $lunes->copy()->addDays(1)->setTime(17, 0), // lunes y martes: 2 dias laborales
+            'fecha_inicio' => Carbon::parse('2026-07-27'),
             'horas_estimadas' => 10,
         ]);
 
         $distribucion = $this->servicio->distribucionDiaria($task, $user);
 
-        $this->assertCount(2, $distribucion);
-        $this->assertEquals(5.0, array_sum($distribucion) / count($distribucion));
+        $this->assertEquals(8.0, $distribucion['2026-07-27'] ?? null);
+        $this->assertEquals(2.0, $distribucion['2026-07-28'] ?? null);
         $this->assertEquals(10.0, array_sum($distribucion));
     }
 
-    public function test_sin_fecha_limite_no_se_puede_validar_y_se_permite(): void
+    public function test_sin_horas_solicitadas_se_permite(): void
     {
         $user = User::factory()->create(['dias_laborales' => ['L'], 'horas_diarias' => 1]);
 
-        $resultado = $this->servicio->validarAsignacion($user, 100, null, null);
+        $resultado = $this->servicio->validarAsignacion($user, 0);
 
         $this->assertTrue($resultado['ok']);
     }

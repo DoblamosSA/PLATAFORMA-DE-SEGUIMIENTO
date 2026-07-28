@@ -68,9 +68,8 @@ class TableroProyectoTest extends TestCase
             'estado' => $estado,
             'asignado_id' => $this->dev->id,
             'fecha_asignacion' => now(),
+            'fecha_limite' => now()->addDays(3),
         ]);
-        $task->aplicarSla();
-        $task->save();
 
         return $task;
     }
@@ -402,7 +401,7 @@ class TableroProyectoTest extends TestCase
             ->test(TableroProyecto::class, ['project' => $this->project])
             ->call('abrirTarea', $task->id)
             ->call('iniciarEdicion')
-            ->set('edFechaLimiteInput', now()->addDays(3)->format('Y-m-d\TH:i'))
+            ->set('edFechaLimiteInput', now()->addDays(10)->format('Y-m-d\TH:i'))
             ->call('guardarEdicion')
             ->assertHasErrors(['edObservacionFecha' => 'required']);
 
@@ -413,7 +412,7 @@ class TableroProyectoTest extends TestCase
     {
         $task = $this->tareaEn('pendiente');
         $admin = User::factory()->create(['rol' => 'admin']);
-        $nueva = now()->addDays(3)->startOfMinute();
+        $nueva = now()->addDays(10)->startOfMinute();
 
         Livewire::actingAs($admin)
             ->test(TableroProyecto::class, ['project' => $this->project])

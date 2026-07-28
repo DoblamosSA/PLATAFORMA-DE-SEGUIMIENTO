@@ -48,7 +48,7 @@
                                 class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-500/15 px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/25 active:scale-[0.98] transition">
                             <x-icon name="plus" class="w-4 h-4" /> Agregar columna
                         </button>
-                        <p class="text-[11px] text-slate-400 dark:text-slate-500">El estado define qué ocurre al mover una tarjeta aquí (SLA, progreso).</p>
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500">El estado define qué ocurre al mover una tarjeta aquí (progreso del tablero).</p>
                     </form>
                 </div>
             </div>
@@ -217,10 +217,6 @@
                                     @if ($tareaSeleccionada->estaVencida()) · vencida @endif
                                 </p>
                             </div>
-                            <div class="rounded-xl bg-slate-50 dark:bg-slate-800 px-3 py-2">
-                                <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">SLA</p>
-                                <p class="font-medium text-slate-700 dark:text-slate-200">{{ $tareaSeleccionada->sla_horas ? $tareaSeleccionada->sla_horas.' h' : '—' }}</p>
-                            </div>
                             @if ($tareaSeleccionada->horas_estimadas)
                                 <div class="rounded-xl bg-slate-50 dark:bg-slate-800 px-3 py-2 col-span-2">
                                     <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Horas estimadas (subtareas)</p>
@@ -323,7 +319,7 @@
                             @if ($edCargaPrevia && $edCargaPrevia['disponibles'] !== null)
                                 <div class="rounded-xl border {{ $edCargaPrevia['ok'] ? 'border-blue-100 dark:border-blue-500/30 bg-blue-50/40 dark:bg-blue-500/10' : 'border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10' }} p-3 text-xs">
                                     @if ($edCargaPrevia['ok'])
-                                        <p class="text-blue-700 dark:text-blue-300">Carga resultante: {{ $edCargaPrevia['asignadas'] }} h de {{ $edCargaPrevia['disponibles'] }} h disponibles.</p>
+                                        <p class="text-blue-700 dark:text-blue-300">Carga semanal: {{ $edCargaPrevia['asignadas'] }} h de {{ $edCargaPrevia['disponibles'] }} h (quedan {{ max($edCargaPrevia['restante'] ?? 0, 0) }} h libres).</p>
                                     @else
                                         <p class="font-semibold text-rose-700 dark:text-rose-400 flex items-start gap-1.5"><x-icon name="alert" class="w-3.5 h-3.5 shrink-0 mt-0.5" /> {{ $edCargaPrevia['mensaje'] }}</p>
                                     @endif
@@ -363,7 +359,7 @@
                                     Cancelar
                                 </button>
                             </div>
-                            <p class="text-[11px] text-slate-400 dark:text-slate-500">Al cambiar el estado, la tarjeta se mueve a la columna correspondiente y se recalcula el SLA/progreso.</p>
+                            <p class="text-[11px] text-slate-400 dark:text-slate-500">Al cambiar el estado, la tarjeta se mueve a la columna correspondiente y se actualiza el progreso.</p>
                         </form>
                     @endif
 

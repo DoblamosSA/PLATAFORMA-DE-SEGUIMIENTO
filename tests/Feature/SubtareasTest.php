@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Organization\Models\Department;
+use App\Domain\Organization\Models\Permission;
+use App\Domain\Organization\Models\Role;
+use App\Domain\Organization\Models\SubDepartment;
 use App\Livewire\Proyectos\TableroProyecto;
 use App\Models\Project;
 use App\Models\Task;
@@ -28,13 +32,22 @@ class SubtareasTest extends TestCase
     {
         parent::setUp();
 
+        $department = Department::factory()->create();
+        $subDepartment = SubDepartment::factory()->create(['department_id' => $department->id]);
+
         $this->lider = User::factory()->create(['rol' => 'lider']);
         $this->dev = User::factory()->create(['rol' => 'tecnico']);
         $this->ajeno = User::factory()->create(['rol' => 'tecnico']);
 
+        $department->users()->attach($this->lider->id, ['es_principal' => true]);
+        $department->users()->attach($this->dev->id, ['es_principal' => true]);
+
+        $otroDepto = Department::factory()->create();
+        $otroDepto->users()->attach($this->ajeno->id, ['es_principal' => true]);
+
         $this->project = Project::create([
             'nombre' => 'Proyecto de prueba',
-            'tipo' => 'software',
+            'sub_department_id' => $subDepartment->id,
             'estado' => 'en_progreso',
             'prioridad' => 'alta',
             'responsable_id' => $this->lider->id,
@@ -42,16 +55,28 @@ class SubtareasTest extends TestCase
 
         $this->project->equipo()->attach($this->dev->id, ['rol_en_proyecto' => 'desarrollador']);
 
+        $this->otorgarPermiso($this->dev, 'subtasks.create');
+
         $this->task = Task::create([
             'project_id' => $this->project->id,
             'titulo' => 'Tarea con subtareas',
-            'tipo' => 'software',
+            'sub_department_id' => $subDepartment->id,
             'prioridad' => 'media',
             'estado' => 'pendiente',
             'fecha_asignacion' => now(),
+            'fecha_limite' => now()->addDays(3),
         ]);
-        $this->task->aplicarSla();
-        $this->task->save();
+    }
+
+    private function otorgarPermiso(User $user, string $slug): void
+    {
+        $permiso = Permission::factory()->create(['slug' => $slug]);
+        $rol = Role::factory()->create(['is_primary' => true]);
+        $rol->permissions()->attach($permiso->id, ['tipo' => 'grant']);
+        $user->departments()->updateExistingPivot(
+            $user->departments()->first()->id,
+            ['role_id' => $rol->id]
+        );
     }
 
     public function test_agregar_una_subtarea_actualiza_las_horas_estimadas_de_la_tarea_principal(): void
@@ -151,7 +176,7 @@ class SubtareasTest extends TestCase
 
     public function test_las_subtareas_se_mantienen_en_orden_de_creacion(): void
     {
-        $componente = Livewire::actingAs($this->lider)
+        $componente = Livewire::actingAs($this->dev)
             ->test(TableroProyecto::class, ['project' => $this->project])
             ->call('abrirTarea', $this->task->id);
 

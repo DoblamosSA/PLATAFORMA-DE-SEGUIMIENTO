@@ -1,14 +1,9 @@
 {{--
-    Campos del formulario de tarea. Los selectores dependientes (proyecto →
-    asignados, subdepartamento/prioridad → SLA) se resuelven en el cliente
-    con Alpine + datos precargados, SIN wire:model.live: un round-trip
-    Livewire dentro del modal anidado remonta el hijo y borra el resto de
-    inputs (mismo patrón que el formulario de colaboradores).
+    Campos del formulario de tarea. El selector dependiente (proyecto →
+    asignados) se resuelve en el cliente con Alpine + datos precargados,
+    SIN wire:model.live: un round-trip Livewire dentro del modal anidado
+    remonta el hijo y borra el resto de inputs.
 --}}
-@php
-    $slaFallback = ['critica' => 4, 'alta' => 24, 'media' => 72, 'baja' => 120];
-@endphp
-
 <div class="space-y-5"
      x-data="{
         projectId: @entangle('project_id'),
@@ -16,19 +11,9 @@
         subDepartmentId: @entangle('sub_department_id'),
         prioridad: @entangle('prioridad'),
         equipos: @js($equiposPorProyecto),
-        slaMap: @js($slaMap),
-        slaFallback: @js($slaFallback),
         get empleados() {
             const key = this.projectId ? String(this.projectId) : '';
             return this.equipos[key] ?? this.equipos[''] ?? [];
-        },
-        get slaHoras() {
-            const sd = this.subDepartmentId ? String(this.subDepartmentId) : '';
-            const pr = this.prioridad || 'media';
-            if (sd && this.slaMap[sd] && this.slaMap[sd][pr] != null) {
-                return this.slaMap[sd][pr];
-            }
-            return this.slaFallback[pr] ?? 120;
         },
         onProjectChange() {
             const ids = this.empleados.map(e => String(e.id));
@@ -91,7 +76,7 @@
             <label for="fechaInicioInput" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Fecha de inicio planificada</label>
             <input id="fechaInicioInput" type="date" wire:model="fechaInicioInput"
                    class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-            <span class="text-xs text-gray-400 dark:text-slate-500">Con inicio y vencimiento, las horas se reparten entre los días laborables del colaborador.</span>
+            <span class="text-xs text-gray-400 dark:text-slate-500">Las horas se colocan día a día en la disponibilidad libre del colaborador (semana laboral).</span>
             @error('fechaInicioInput') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
         </div>
 
@@ -132,16 +117,6 @@
             </select>
         </div>
 
-        {{-- SLA preview (cliente) --}}
-        <div class="flex items-end">
-            <div class="w-full rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 px-4 py-2.5">
-                <p class="text-xs text-blue-500 dark:text-blue-400">SLA objetivo</p>
-                <p class="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                    <span x-text="slaHoras"></span> horas para resolver
-                </p>
-            </div>
-        </div>
-
         {{-- Tag (obligatorio y bloqueado para el evaluador) --}}
         @if ($tag || $tagBloqueado)
             <div>
@@ -161,7 +136,7 @@
         <div class="rounded-xl border {{ $cargaPrevia['ok'] ? 'border-blue-100 dark:border-blue-500/30 bg-blue-50/40 dark:bg-blue-500/10' : 'border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10' }} p-4 text-sm">
         @if ($cargaPrevia['ok'])
             <p class="text-blue-700 dark:text-blue-300">
-                Carga resultante: {{ $cargaPrevia['asignadas'] }} h asignadas de {{ $cargaPrevia['disponibles'] }} h disponibles en el período.
+                Carga semanal: {{ $cargaPrevia['asignadas'] }} h asignadas de {{ $cargaPrevia['disponibles'] }} h disponibles (quedan {{ max($cargaPrevia['restante'] ?? 0, 0) }} h libres).
             </p>
         @else
             <p class="font-semibold text-rose-700 dark:text-rose-400 flex items-start gap-2">
@@ -179,7 +154,7 @@
             </span>
             @if ($task->cumplida_a_tiempo !== null)
                 · <x-badge tipo="estado" :valor="$task->cumplida_a_tiempo ? 'completada' : 'cancelada'" />
-                {{ $task->cumplida_a_tiempo ? 'Cumplida a tiempo' : 'Cerrada fuera de SLA' }}
+                {{ $task->cumplida_a_tiempo ? 'Cumplida a tiempo' : 'Cerrada fuera de plazo' }}
             @endif
         </div>
     @endif

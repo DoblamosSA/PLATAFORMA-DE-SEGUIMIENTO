@@ -5,7 +5,6 @@ namespace App\Livewire\Tareas;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Models\AuditLog;
 use App\Models\Project;
-use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\TaskActivity;
 use App\Models\User;
@@ -187,21 +186,6 @@ class FormTarea extends Component
         return $mapa;
     }
 
-    /**
-     * @return array<string, array<string, int>>
-     */
-    protected function slaMapParaVista($subDepartamentos): array
-    {
-        $ids = $subDepartamentos->pluck('id')->all();
-        $mapa = [];
-
-        foreach (SlaPolicy::whereIn('sub_department_id', $ids)->where('activo', true)->get() as $policy) {
-            $mapa[(string) $policy->sub_department_id][$policy->prioridad] = (int) $policy->horas_resolucion;
-        }
-
-        return $mapa;
-    }
-
     protected function rules(): array
     {
         return [
@@ -215,14 +199,6 @@ class FormTarea extends Component
             'fechaInicioInput' => 'nullable|date',
             'tag' => 'nullable|string|max:40',
         ];
-    }
-
-    /**
-     * Vista previa de las horas de SLA segun subdepartamento/prioridad actuales.
-     */
-    public function getSlaHorasProperty(): int
-    {
-        return SlaPolicy::horasPara($this->sub_department_id !== '' ? (int) $this->sub_department_id : null, $this->prioridad);
     }
 
     /** Solo el administrador puede modificar manualmente la fecha limite. */
@@ -252,14 +228,12 @@ class FormTarea extends Component
             return null;
         }
 
-        $limite = $this->fechaLimiteInput ? Carbon::parse($this->fechaLimiteInput) : $this->task->fecha_limite;
         $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : $this->task->fecha_inicio;
 
         return app(CapacidadService::class)->validarAsignacion(
             $colaborador,
             (float) $this->task->horas_estimadas,
             $inicio,
-            $limite,
             $this->task->id,
         );
     }
@@ -352,33 +326,35 @@ class FormTarea extends Component
             $this->tag = 'certificacion';
         }
 
-        // Validacion de capacidad: si se asigna a alguien y la tarea ya tiene
-        // horas estimadas (por sus subtareas) y fecha limite, no se permite
-        // superar la capacidad del colaborador en ese periodo.
+        // Validacion de capacidad por disponibilidad semanal (dia a dia),
+        // independiente del SLA / fecha limite.
+        $capacidad = app(CapacidadService::class);
+        $planDisponibilidad = [];
         if ($this->asignado_id && $task->horas_estimadas > 0) {
-            $limite = $this->fechaLimiteInput ? Carbon::parse($this->fechaLimiteInput) : $task->fecha_limite;
             $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : $task->fecha_inicio;
-
             $colaborador = User::find($this->asignado_id);
-            $resultado = app(CapacidadService::class)->validarAsignacion(
+            $resultado = $capacidad->validarAsignacion(
                 $colaborador,
                 (float) $task->horas_estimadas,
                 $inicio,
-                $limite,
                 $task->id,
             );
 
             if (! $resultado['ok']) {
                 $this->addError('asignado_id', $resultado['mensaje']);
-                TaskActivity::create([
-                    'task_id' => $task->id,
-                    'user_id' => Auth::id(),
-                    'accion' => 'bloqueo_capacidad',
-                    'detalle' => $resultado['mensaje'],
-                ]);
+                if ($task->exists) {
+                    TaskActivity::create([
+                        'task_id' => $task->id,
+                        'user_id' => Auth::id(),
+                        'accion' => 'bloqueo_capacidad',
+                        'detalle' => $resultado['mensaje'],
+                    ]);
+                }
 
                 return;
             }
+
+            $planDisponibilidad = $resultado['plan'] ?? [];
         }
 
         // Valores previos para la trazabilidad granular
@@ -388,7 +364,6 @@ class FormTarea extends Component
             'prioridad' => $task->prioridad,
             'fecha_limite' => $task->fecha_limite,
         ];
-        $tipoOPrioridadCambio = (string) $task->sub_department_id !== $this->sub_department_id || $task->prioridad !== $this->prioridad;
 
         $task->fill([
             'project_id' => $this->project_id,
@@ -402,21 +377,10 @@ class FormTarea extends Component
             'tag' => $this->tag ?: null,
         ]);
 
-        // (Re)calcular SLA al crear o si cambio tipo/prioridad y sigue abierta
-        if ($esNueva || ($tipoOPrioridadCambio && $task->estado !== 'completada')) {
-            $task->aplicarSla();
-        }
-
-        // Auto-generar fecha_limite si se asigna una tarea con horas pero sin fecha_limite.
-        // Esto asegura que las horas se contabilicen en la carga operativa del colaborador.
+        // Vencimiento = ultimo dia del plan de disponibilidad (sin SLA).
         if ($this->asignado_id && $task->horas_estimadas > 0 && ! $this->fechaLimiteInput) {
-            $colaborador = User::find($this->asignado_id);
-            if ($colaborador && $colaborador->horas_diarias > 0) {
-                $diasNecesarios = ceil($task->horas_estimadas / (float) $colaborador->horas_diarias);
-                $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : now();
-                $limite = $inicio->copy()->addDays($diasNecesarios);
-                $task->fecha_limite = $limite;
-            }
+            $task->fecha_limite = $capacidad->fechaFinPlan($planDisponibilidad, $task->fecha_limite);
+            $task->sla_horas = null;
         }
 
         // Manejo de transiciones de fecha segun estado
@@ -442,7 +406,7 @@ class FormTarea extends Component
         }
 
         // Override manual de la fecha limite (solo admin, solo al editar).
-        // Se aplica despues del SLA/transiciones de estado para que tenga
+        // Se aplica despues de las transiciones de estado para que tenga
         // siempre la ultima palabra sobre el valor final.
         if ($fechaCambioManual) {
             $task->fecha_limite = $this->fechaLimiteInput ? Carbon::parse($this->fechaLimiteInput) : null;
@@ -564,7 +528,6 @@ class FormTarea extends Component
         return view('livewire.tareas.form-tarea', [
             'proyectos' => $proyectos,
             'equiposPorProyecto' => $this->equiposPorProyectoParaVista($proyectos, $servicio),
-            'slaMap' => $this->slaMapParaVista($subDepartamentos),
             'subDepartamentos' => $subDepartamentos,
             'bitacora' => $this->task?->actividades()->with('user')->limit(20)->get() ?? collect(),
             'esAdmin' => $this->esAdmin,

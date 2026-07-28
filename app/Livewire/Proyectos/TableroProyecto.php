@@ -367,13 +367,10 @@ class TableroProyecto extends Component
             return null;
         }
 
-        $limite = $this->edFechaLimiteInput ? Carbon::parse($this->edFechaLimiteInput) : $task->fecha_limite;
-
         return app(CapacidadService::class)->validarAsignacion(
             $colaborador,
             (float) $task->horas_estimadas,
             $task->fecha_inicio,
-            $limite,
             $task->id,
         );
     }
@@ -442,15 +439,14 @@ class TableroProyecto extends Component
             }
         }
 
-        // Bloquea la reasignacion si supera la capacidad del colaborador en
-        // el periodo de la tarea (solo si ya tiene horas estimadas por sus subtareas).
+        // Bloquea la reasignacion si supera la disponibilidad semanal del colaborador.
+        $capacidad = app(CapacidadService::class);
+        $planDisponibilidad = [];
         if ($this->edAsignadoId && $task->horas_estimadas > 0) {
-            $limite = $this->edFechaLimiteInput ? Carbon::parse($this->edFechaLimiteInput) : $task->fecha_limite;
-            $resultado = app(CapacidadService::class)->validarAsignacion(
+            $resultado = $capacidad->validarAsignacion(
                 User::find($this->edAsignadoId),
                 (float) $task->horas_estimadas,
                 $task->fecha_inicio,
-                $limite,
                 $task->id,
             );
 
@@ -460,6 +456,8 @@ class TableroProyecto extends Component
 
                 return;
             }
+
+            $planDisponibilidad = $resultado['plan'] ?? [];
         }
 
         $prev = [
@@ -468,7 +466,6 @@ class TableroProyecto extends Component
             'prioridad' => $task->prioridad,
             'fecha_limite' => $task->fecha_limite,
         ];
-        $tipoOPrioridadCambio = (string) $task->sub_department_id !== $this->edSubDepartmentId || $task->prioridad !== $this->edPrioridad;
 
         $task->fill([
             'titulo' => $this->edTitulo,
@@ -479,8 +476,10 @@ class TableroProyecto extends Component
             'asignado_id' => $this->edAsignadoId,
         ]);
 
-        if ($tipoOPrioridadCambio && $task->estado !== 'completada') {
-            $task->aplicarSla();
+        // Vencimiento segun plan de disponibilidad (sin recalcular por SLA).
+        if ($this->edAsignadoId && $task->horas_estimadas > 0 && ! $fechaCambioManual) {
+            $task->fecha_limite = $capacidad->fechaFinPlan($planDisponibilidad, $task->fecha_limite);
+            $task->sla_horas = null;
         }
 
         if ($this->edEstado === 'en_progreso' && ! $task->fecha_inicio_real) {
@@ -619,16 +618,14 @@ class TableroProyecto extends Component
 
         $task = $this->tarea($this->tareaSeleccionadaId);
 
-        // Si la tarea ya esta asignada, valida que la nueva carga (horas ya
-        // estimadas + esta subtarea) no supere la capacidad del colaborador
-        // en el periodo de la tarea. Bloquea la creacion si la excede.
-        if ($task->asignado_id && $task->fecha_limite) {
+        // Si la tarea ya esta asignada, valida que la nueva carga no supere
+        // la disponibilidad semanal del colaborador (dia a dia).
+        if ($task->asignado_id) {
             $horasProyectadas = (float) ($task->horas_estimadas ?? 0) + (float) $this->nuevaSubtareaHoras;
             $resultado = app(CapacidadService::class)->validarAsignacion(
                 $task->asignado,
                 $horasProyectadas,
                 $task->fecha_inicio,
-                $task->fecha_limite,
                 $task->id,
             );
 
