@@ -150,9 +150,9 @@
                                         @else
                                             <span class="text-xs text-slate-300 dark:text-slate-600">—</span>
                                         @endif
-                                        @if ($t->horas_estimadas)
-                                            <span class="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">{{ rtrim(rtrim(number_format((float) $t->horas_estimadas, 2), '0'), '.') }} h</span>
-                                        @endif
+                                        <span class="inline-flex items-center rounded-md bg-violet-100 dark:bg-violet-500/20 px-1.5 py-0.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300" title="Horas estimadas">
+                                            {{ $t->horas_estimadas ? rtrim(rtrim(number_format((float) $t->horas_estimadas, 2), '0'), '.') : '0' }} h
+                                        </span>
                                     </div>
                                 </td>
                             </tr>

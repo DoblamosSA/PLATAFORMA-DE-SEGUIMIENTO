@@ -140,23 +140,23 @@
                             <div class="mt-2 flex flex-wrap items-center gap-1.5">
                                 <x-badge tipo="prioridad" :valor="$t->prioridad" />
                                 <x-badge tipo="estado" :valor="$t->estado" />
-                                @if ($t->horas_estimadas)
-                                    <span class="inline-flex items-center gap-0.5 rounded-md bg-slate-100 dark:bg-slate-700/80 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300" title="Horas estimadas">
-                                        {{ rtrim(rtrim(number_format((float) $t->horas_estimadas, 2), '0'), '.') }} h
-                                    </span>
-                                @endif
                             </div>
 
                             <div class="mt-3 flex items-center justify-between gap-2">
-                                {{-- Fecha limite + vencimiento --}}
-                                @if ($t->fecha_limite)
-                                    <span class="inline-flex items-center gap-1 text-[11px] {{ $t->estaVencida() ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-slate-400 dark:text-slate-500' }}">
-                                        <x-icon name="{{ $t->estaVencida() ? 'alert' : 'clock' }}" class="w-3.5 h-3.5" />
-                                        {{ $t->fecha_limite->format('d/m H:i') }}
+                                {{-- Fecha limite + horas estimadas --}}
+                                <div class="flex flex-wrap items-center gap-2 min-w-0">
+                                    @if ($t->fecha_limite)
+                                        <span class="inline-flex items-center gap-1 text-[11px] {{ $t->estaVencida() ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-slate-400 dark:text-slate-500' }}">
+                                            <x-icon name="{{ $t->estaVencida() ? 'alert' : 'clock' }}" class="w-3.5 h-3.5" />
+                                            {{ $t->fecha_limite->format('d/m H:i') }}
+                                        </span>
+                                    @else
+                                        <span class="text-[11px] text-slate-300 dark:text-slate-600">Sin fecha</span>
+                                    @endif
+                                    <span class="inline-flex items-center rounded-md bg-violet-100 dark:bg-violet-500/20 px-1.5 py-0.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300" title="Horas estimadas">
+                                        {{ $t->horas_estimadas ? rtrim(rtrim(number_format((float) $t->horas_estimadas, 2), '0'), '.') : '0' }} h
                                     </span>
-                                @else
-                                    <span class="text-[11px] text-slate-300 dark:text-slate-600">Sin fecha</span>
-                                @endif
+                                </div>
 
                                 <div class="flex items-center gap-2">
                                     @if ($t->comentarios_count > 0)
