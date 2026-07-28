@@ -92,10 +92,8 @@ class ListaTareas extends Component
     #[On('cerrar-modal-tarea')]
     public function cerrarModal(?string $mensaje = null): void
     {
-        // Conservar el proyecto de origen antes de limpiar el estado del modal:
-        // si se abrio desde "Asignar tarea" del tablero (?project=ID), volver alli.
-        $projectId = $this->proyectoPreseleccionadoId;
         $vuelvePorRutaDirecta = $this->llegoPorRutaDirecta;
+        $projectId = $this->proyectoPreseleccionadoId;
 
         $this->mostrarModal = false;
         $this->editando = null;
@@ -106,13 +104,23 @@ class ListaTareas extends Component
             $this->dispatch('app-toast', type: 'success', message: $mensaje);
         }
 
+        // Solo navegar tras guardar con exito desde /tareas/nueva?project=...
+        // Al cancelar (sin mensaje) solo se cierra el modal: no hay redirect
+        // (evita la peticion extra y el salto a APP_URL de produccion).
+        if ($vuelvePorRutaDirecta && $mensaje) {
+            $destino = $projectId
+                ? route('proyectos.tablero', $projectId, absolute: false)
+                : route('tareas', absolute: false);
+
+            $this->redirect($destino, navigate: true);
+
+            return;
+        }
+
+        // Si la URL sigue siendo /tareas/nueva o /tareas/{id}/editar, alinear
+        // la barra de direcciones al listado sin nueva peticion Livewire.
         if ($vuelvePorRutaDirecta) {
-            $this->redirect(
-                $projectId
-                    ? route('proyectos.tablero', $projectId)
-                    : route('tareas'),
-                navigate: true
-            );
+            $this->js('window.history.replaceState({}, "", '.json_encode(route('tareas', absolute: false)).')');
         }
     }
 

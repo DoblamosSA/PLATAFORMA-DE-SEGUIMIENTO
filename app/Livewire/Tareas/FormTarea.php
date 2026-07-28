@@ -22,6 +22,13 @@ class FormTarea extends Component
 
     public bool $enModal = false;
 
+    /**
+     * Nombre Livewire del padre que alojó el modal (p. ej. tareas.lista-tareas
+     * o proyectos.tablero-proyecto). Necesario para ->to() tras guardar/cancelar
+     * (Livewire 3 no propaga bien eventos desde hijos montados dentro de @if).
+     */
+    public string $padreLivewire = 'tareas.lista-tareas';
+
     // Proyecto pre-seleccionado (por el padre, tipicamente desde ?project=ID)
     public ?int $project_id = null;
 
@@ -48,7 +55,7 @@ class FormTarea extends Component
 
     public string $observacionFecha = '';
 
-    public function mount(?Task $task = null, ?int $projectId = null, bool $enModal = false): void
+    public function mount(?Task $task = null, ?int $projectId = null, bool $enModal = false, string $padreLivewire = 'tareas.lista-tareas'): void
     {
         // Crear requiere 'tasks.create'; editar requiere 'tasks.edit'.
         abort_unless(! $task?->exists ? Auth::user()?->puedeCrearTarea() : Auth::user()?->puedeEditarTarea(), 403);
@@ -61,6 +68,7 @@ class FormTarea extends Component
         }
 
         $this->enModal = $enModal;
+        $this->padreLivewire = $padreLivewire;
 
         if ($task?->exists) {
             $this->task = $task;
@@ -214,9 +222,7 @@ class FormTarea extends Component
         $proyecto?->recalcularProgreso();
 
         if ($this->enModal) {
-            // El padre dispara el toast (ver ListaTareas::cerrarModal): ver el
-            // comentario en cancelar() sobre por que se usa ->to() aqui.
-            $this->dispatch('cerrar-modal-tarea', mensaje: 'Tarea eliminada.')->to('tareas.lista-tareas');
+            $this->avisarPadre('Tarea eliminada.');
 
             return;
         }
@@ -225,8 +231,8 @@ class FormTarea extends Component
         $this->dispatch('app-toast', type: 'success', message: 'Tarea eliminada.');
 
         return $proyectoId
-            ? $this->redirect(route('proyectos.ver', $proyectoId), navigate: true)
-            : $this->redirect(route('tareas'), navigate: true);
+            ? $this->redirect(route('proyectos.ver', $proyectoId, absolute: false), navigate: true)
+            : $this->redirect(route('tareas', absolute: false), navigate: true);
     }
 
     /** True si el admin edito el valor de la fecha limite en el formulario. */
@@ -243,7 +249,8 @@ class FormTarea extends Component
 
     public function save()
     {
-        $esNueva = ! $this->task;
+        // Usar exists: Livewire puede hidratar un Task vacio (truthy) al crear.
+        $esNueva = ! $this->task?->exists;
 
         // Re-chequeo defensivo de permisos en el servidor (no solo en mount).
         abort_unless($esNueva ? Auth::user()?->puedeCrearTarea() : Auth::user()?->puedeEditarTarea(), 403);
@@ -279,7 +286,7 @@ class FormTarea extends Component
             }
         }
 
-        $task = $this->task ?? new Task([
+        $task = ($this->task?->exists ? $this->task : null) ?? new Task([
             'creado_por' => Auth::id(),
             'fecha_asignacion' => now(),
         ]);
@@ -442,9 +449,7 @@ class FormTarea extends Component
         $mensaje = $esNueva ? 'Tarea creada correctamente.' : 'Tarea actualizada.';
 
         if ($this->enModal) {
-            // El padre dispara el toast (ver ListaTareas::cerrarModal): ver el
-            // comentario en cancelar() sobre por que se usa ->to() aqui.
-            $this->dispatch('cerrar-modal-tarea', mensaje: $mensaje)->to('tareas.lista-tareas');
+            $this->avisarPadre($mensaje);
 
             return;
         }
@@ -452,12 +457,13 @@ class FormTarea extends Component
         session()->flash('ok', $mensaje);
         $this->dispatch('app-toast', type: 'success', message: $mensaje);
 
-        // Volver al detalle del proyecto si la tarea pertenece a uno
+        // absolute: false evita saltar a APP_URL de produccion cuando se
+        // desarrolla en localhost (wire:navigate usaria el host de APP_URL).
         if ($task->project_id) {
-            return $this->redirect(route('proyectos.ver', $task->project_id), navigate: true);
+            return $this->redirect(route('proyectos.tablero', $task->project_id, absolute: false), navigate: true);
         }
 
-        return $this->redirect(route('tareas'), navigate: true);
+        return $this->redirect(route('tareas', absolute: false), navigate: true);
     }
 
     /**
@@ -471,7 +477,12 @@ class FormTarea extends Component
      */
     public function cancelar(): void
     {
-        $this->dispatch('cerrar-modal-tarea')->to('tareas.lista-tareas');
+        $this->avisarPadre();
+    }
+
+    protected function avisarPadre(?string $mensaje = null): void
+    {
+        $this->dispatch('cerrar-modal-tarea', mensaje: $mensaje)->to($this->padreLivewire);
     }
 
     protected function registrar(Task $task, string $accion, string $detalle): void

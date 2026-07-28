@@ -115,7 +115,13 @@
 
     <x-form-modal :show="$mostrarModal" :title="$editando ? 'Editar tarea' : 'Nueva tarea'" wire-close="cerrarModal" max-width="4xl">
         @if ($mostrarModal)
-            <livewire:tareas.form-tarea :task="$editando" :project-id="$proyectoPreseleccionadoId" :en-modal="true" :key="'form-tarea-'.($editando?->id ?? 'nuevo')" />
+            <livewire:tareas.form-tarea
+                :task="$editando"
+                :project-id="$proyectoPreseleccionadoId"
+                :en-modal="true"
+                padre-livewire="tareas.lista-tareas"
+                :key="'form-tarea-'.($editando?->id ?? 'nuevo')"
+            />
         @endif
     </x-form-modal>
 </div>

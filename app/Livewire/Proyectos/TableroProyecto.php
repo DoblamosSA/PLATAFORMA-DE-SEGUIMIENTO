@@ -12,6 +12,7 @@ use App\Services\CapacidadService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -79,6 +80,9 @@ class TableroProyecto extends Component
 
     public string $motivoRechazo = '';
 
+    /** Modal inline para crear/asignar una tarea sin salir del tablero. */
+    public bool $mostrarModalTarea = false;
+
     public function mount(Project $project): void
     {
         $this->project = $project;
@@ -90,6 +94,27 @@ class TableroProyecto extends Component
         $tareaId = (int) request()->query('tarea');
         if ($tareaId && Task::where('project_id', $project->id)->whereKey($tareaId)->exists()) {
             $this->abrirTarea($tareaId);
+        }
+    }
+
+    public function abrirCrearTarea(): void
+    {
+        $this->autorizar();
+        abort_unless(Auth::user()?->puedeCrearTarea(), 403);
+
+        $this->tareaSeleccionadaId = null;
+        $this->editando = false;
+        $this->mostrarModalTarea = true;
+    }
+
+    #[On('cerrar-modal-tarea')]
+    public function cerrarModalTarea(?string $mensaje = null): void
+    {
+        $this->mostrarModalTarea = false;
+
+        if ($mensaje) {
+            $this->dispatch('app-toast', type: 'success', message: $mensaje);
+            $this->dispatch('tablero-actualizado');
         }
     }
 
