@@ -216,6 +216,29 @@ class TableroProyectoTest extends TestCase
         ]);
     }
 
+    public function test_publicar_comentario_dispara_web_push(): void
+    {
+        $task = $this->tareaEn('pendiente');
+
+        $push = \Mockery::mock(\App\Services\WebPushService::class);
+        $push->shouldReceive('notificarATodos')
+            ->once()
+            ->withArgs(function (?int $excepto, string $titulo, string $cuerpo, string $url) use ($task) {
+                return $excepto === $this->dev->id
+                    && $titulo === 'Nuevo comentario'
+                    && str_contains($cuerpo, 'Necesito acceso')
+                    && str_contains($url, "tarea={$task->id}");
+            });
+        $this->app->instance(\App\Services\WebPushService::class, $push);
+
+        Livewire::actingAs($this->dev)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('abrirTarea', $task->id)
+            ->set('nuevoComentario', 'Necesito acceso al repositorio')
+            ->call('comentar')
+            ->assertHasNoErrors();
+    }
+
     public function test_editar_una_tarea_no_borra_la_trazabilidad_historica(): void
     {
         $task = $this->tareaEn('pendiente');
