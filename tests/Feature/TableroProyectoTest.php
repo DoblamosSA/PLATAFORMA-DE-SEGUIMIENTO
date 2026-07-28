@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Organization\Models\Department;
+use App\Domain\Organization\Models\Permission;
+use App\Domain\Organization\Models\Role;
+use App\Domain\Organization\Models\SubDepartment;
 use App\Livewire\Proyectos\TableroProyecto;
 use App\Livewire\Tareas\FormTarea;
 use App\Models\BoardColumn;
@@ -24,17 +28,28 @@ class TableroProyectoTest extends TestCase
 
     private Project $project;
 
+    private SubDepartment $subDepartment;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        $department = Department::factory()->create();
+        $this->subDepartment = SubDepartment::factory()->create(['department_id' => $department->id]);
 
         $this->lider = User::factory()->create(['rol' => 'lider']);
         $this->dev = User::factory()->create(['rol' => 'tecnico']);
         $this->ajeno = User::factory()->create(['rol' => 'tecnico']);
 
+        $department->users()->attach($this->lider->id, ['es_principal' => true]);
+        $department->users()->attach($this->dev->id, ['es_principal' => true]);
+
+        $otroDepto = Department::factory()->create();
+        $otroDepto->users()->attach($this->ajeno->id, ['es_principal' => true]);
+
         $this->project = Project::create([
             'nombre' => 'Proyecto de prueba',
-            'tipo' => 'software',
+            'sub_department_id' => $this->subDepartment->id,
             'estado' => 'en_progreso',
             'prioridad' => 'alta',
             'responsable_id' => $this->lider->id,
@@ -48,7 +63,7 @@ class TableroProyectoTest extends TestCase
         $task = Task::create([
             'project_id' => $this->project->id,
             'titulo' => 'Tarea '.$estado,
-            'tipo' => 'software',
+            'sub_department_id' => $this->subDepartment->id,
             'prioridad' => 'alta',
             'estado' => $estado,
             'asignado_id' => $this->dev->id,
@@ -63,6 +78,18 @@ class TableroProyectoTest extends TestCase
     private function columna(string $nombre): BoardColumn
     {
         return $this->project->columnas()->where('nombre', $nombre)->firstOrFail();
+    }
+
+    /** Asigna un permiso granular al rol de departamento del usuario. */
+    private function otorgarPermiso(User $user, string $slug): void
+    {
+        $permiso = Permission::factory()->create(['slug' => $slug]);
+        $rol = Role::factory()->create(['is_primary' => true]);
+        $rol->permissions()->attach($permiso->id, ['tipo' => 'grant']);
+        $user->departments()->updateExistingPivot(
+            $user->departments()->first()->id,
+            ['role_id' => $rol->id]
+        );
     }
 
     public function test_el_tablero_se_crea_con_las_cuatro_columnas_por_defecto(): void
@@ -203,6 +230,8 @@ class TableroProyectoTest extends TestCase
 
         $antes = $task->actividades()->count();
 
+        $this->otorgarPermiso($this->lider, 'tasks.edit');
+
         // Editar la tarea (cambia prioridad) mediante el formulario existente
         Livewire::actingAs($this->lider)
             ->test(FormTarea::class, ['task' => $task])
@@ -225,12 +254,13 @@ class TableroProyectoTest extends TestCase
     public function test_una_tarea_creada_desde_el_formulario_aparece_en_el_tablero(): void
     {
         $this->project->asegurarColumnas();
+        $this->otorgarPermiso($this->lider, 'tasks.create');
 
         Livewire::actingAs($this->lider)
             ->test(FormTarea::class)
             ->set('project_id', $this->project->id)
             ->set('titulo', 'Tarea desde formulario')
-            ->set('tipo', 'software')
+            ->set('sub_department_id', (string) $this->subDepartment->id)
             ->set('prioridad', 'media')
             ->set('estado', 'pendiente')
             ->set('asignado_id', $this->dev->id)
@@ -239,6 +269,37 @@ class TableroProyectoTest extends TestCase
         $task = Task::where('titulo', 'Tarea desde formulario')->firstOrFail();
 
         $this->assertSame($this->columna('Pendiente')->id, $task->board_column_id);
+        $this->assertSame($this->dev->id, $task->asignado_id);
+    }
+
+    public function test_reasignar_una_tarea_completada_desde_el_tablero_persiste_el_asignado(): void
+    {
+        $this->project->asegurarColumnas();
+        $task = $this->tareaEn('completada');
+        $task->fecha_completada = now();
+        $task->cumplida_a_tiempo = true;
+        $task->board_column_id = $this->columna('Terminada')->id;
+        $task->save();
+
+        $otro = User::factory()->create(['rol' => 'tecnico']);
+        $this->lider->departments()->first()->users()->attach($otro->id, ['es_principal' => true]);
+        $this->project->equipo()->attach($otro->id, ['rol_en_proyecto' => 'desarrollador']);
+
+        Livewire::actingAs($this->lider)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('abrirTarea', $task->id)
+            ->call('iniciarEdicion')
+            ->set('edAsignadoId', $otro->id)
+            ->set('edEstado', 'completada')
+            ->call('guardarEdicion')
+            ->assertHasNoErrors()
+            ->assertSet('editando', false);
+
+        $this->assertSame($otro->id, $task->fresh()->asignado_id);
+        $this->assertDatabaseHas('task_activities', [
+            'task_id' => $task->id,
+            'accion' => 'reasignacion',
+        ]);
     }
 
     public function test_editar_la_tarea_en_linea_actualiza_y_mueve_de_columna(): void

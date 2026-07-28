@@ -92,17 +92,27 @@ class ListaTareas extends Component
     #[On('cerrar-modal-tarea')]
     public function cerrarModal(?string $mensaje = null): void
     {
+        // Conservar el proyecto de origen antes de limpiar el estado del modal:
+        // si se abrio desde "Asignar tarea" del tablero (?project=ID), volver alli.
+        $projectId = $this->proyectoPreseleccionadoId;
+        $vuelvePorRutaDirecta = $this->llegoPorRutaDirecta;
+
         $this->mostrarModal = false;
         $this->editando = null;
         $this->proyectoPreseleccionadoId = null;
+        $this->llegoPorRutaDirecta = false;
 
         if ($mensaje) {
             $this->dispatch('app-toast', type: 'success', message: $mensaje);
         }
 
-        if ($this->llegoPorRutaDirecta) {
-            $this->llegoPorRutaDirecta = false;
-            $this->redirect(route('tareas'), navigate: true);
+        if ($vuelvePorRutaDirecta) {
+            $this->redirect(
+                $projectId
+                    ? route('proyectos.tablero', $projectId)
+                    : route('tareas'),
+                navigate: true
+            );
         }
     }
 

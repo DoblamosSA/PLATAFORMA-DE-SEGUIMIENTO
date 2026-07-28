@@ -464,7 +464,14 @@ class TableroProyecto extends Component
 
         if ($this->edEstado === 'completada') {
             if (! $task->fecha_completada) {
+                // completar() persiste estado + cierre + el resto de dirty attrs
+                // (titulo, asignado_id, etc.) rellenados arriba con fill().
                 $task->completar();
+            } else {
+                // Ya estaba cerrada: hay que guardar igual los demas campos
+                // (p. ej. reasignacion); sin este save el fill queda solo en memoria
+                // y la UI cierra como si hubiera persistido.
+                $task->save();
             }
         } else {
             $task->fecha_completada = null;

@@ -364,7 +364,13 @@ class FormTarea extends Component
 
         if ($this->estado === 'completada') {
             if (! $task->fecha_completada) {
+                // completar() persiste estado + cierre + el resto de dirty attrs
+                // (titulo, asignado_id, etc.) rellenados arriba con fill().
                 $task->completar();
+            } else {
+                // Ya estaba cerrada: hay que guardar igual los demas campos
+                // (p. ej. reasignacion); sin este save el fill queda solo en memoria.
+                $task->save();
             }
         } else {
             // Si se reabre, limpiar cierre
