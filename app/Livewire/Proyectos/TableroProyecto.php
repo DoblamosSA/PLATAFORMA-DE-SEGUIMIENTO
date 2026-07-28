@@ -618,15 +618,15 @@ class TableroProyecto extends Component
 
         $task = $this->tarea($this->tareaSeleccionadaId);
 
-        // Si la tarea ya esta asignada, valida que la nueva carga no supere
-        // la disponibilidad semanal del colaborador (dia a dia).
+        // Si la tarea ya esta asignada, valida solo el INCREMENTO de horas
+        // (no el total proyectado de la tarea). Excluir la tarea y pedir 24 h
+        // cuando se agregan 8 h producia mensajes confusos ("se solicitan 24 h"
+        // con 16 h libres) aunque el cupo semanal ya estuviera al limite.
         if ($task->asignado_id) {
-            $horasProyectadas = (float) ($task->horas_estimadas ?? 0) + (float) $this->nuevaSubtareaHoras;
             $resultado = app(CapacidadService::class)->validarAsignacion(
                 $task->asignado,
-                $horasProyectadas,
+                (float) $this->nuevaSubtareaHoras,
                 $task->fecha_inicio,
-                $task->id,
             );
 
             if (! $resultado['ok']) {

@@ -100,6 +100,29 @@ class CapacidadServiceTest extends TestCase
         $this->assertEquals(16.0, $resultado['restante']);
     }
 
+    public function test_carga_semanal_cuenta_todas_las_horas_de_tareas_abiertas(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-28 10:00:00')); // martes
+
+        $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
+
+        $this->crearTarea($user, ['titulo' => 'A', 'fecha_asignacion' => now()->subHours(3), 'horas_estimadas' => 12]);
+        $this->crearTarea($user, ['titulo' => 'B', 'fecha_asignacion' => now()->subHours(2), 'horas_estimadas' => 12]);
+        $this->crearTarea($user, ['titulo' => 'C', 'fecha_asignacion' => now()->subHour(), 'horas_estimadas' => 16]);
+
+        $carga = $this->servicio->cargaSemanaActual($user);
+
+        $this->assertEquals(40.0, $carga['disponibles']);
+        $this->assertEquals(40.0, $carga['asignadas']);
+        $this->assertEquals(100.0, $carga['porcentaje']);
+
+        // Sumar 8 h mas debe bloquearse pidiendo solo el incremento.
+        $resultado = $this->servicio->validarAsignacion($user, 8);
+        $this->assertFalse($resultado['ok']);
+        $this->assertStringContainsString('se solicitan 8 h', $resultado['mensaje']);
+        $this->assertStringContainsString('quedan 0 h libres', $resultado['mensaje']);
+    }
+
     public function test_cupo_semanal_permite_aunque_parte_del_libre_este_en_dias_pasados(): void
     {
         // Martes: el lunes ya paso. 24 h asignadas dejan 16 h libres en la

@@ -97,15 +97,18 @@ class CapacidadService
 
     /**
      * Ocupacion dia-a-dia de la semana: coloca las tareas activas en orden
-     * FIFO (fecha_asignacion, id) desde su fecha_inicio o el inicio de semana.
+     * FIFO desde el lunes de la semana. Las horas que no caben en los huecos
+     * diarios (exceso) tambien cuentan como asignadas, para que la barra de
+     * carga refleje el total real de las tareas abiertas.
      *
-     * @return array{ocupacion: array<string, float>, planes: array<int, array<string, float>>}
+     * @return array{ocupacion: array<string, float>, planes: array<int, array<string, float>>, asignadas: float}
      */
     public function ocupacionSemana(User $user, ?int $excluirTaskId = null, ?Carbon $ref = null): array
     {
         [$semanaInicio, $semanaFin] = $this->limitesSemana($ref);
         $ocupacion = [];
         $planes = [];
+        $exceso = 0.0;
 
         foreach ($this->tareasActivas($user, $excluirTaskId) as $tarea) {
             $horas = (float) ($tarea->horas_estimadas ?? 0);
@@ -113,19 +116,29 @@ class CapacidadService
                 continue;
             }
 
-            $inicio = $tarea->fecha_inicio?->copy()->startOfDay() ?? $semanaInicio->copy();
-            if ($inicio->lessThan($semanaInicio)) {
-                $inicio = $semanaInicio->copy();
-            }
-            if ($inicio->greaterThan($semanaFin)) {
-                continue; // arranca fuera de esta semana
+            // Tareas que arrancan despues de esta semana no consumen este cupo.
+            if ($tarea->fecha_inicio && $tarea->fecha_inicio->copy()->startOfDay()->greaterThan($semanaFin)) {
+                continue;
             }
 
-            $resultado = $this->colocarHoras($user, $horas, $inicio, $semanaFin, $ocupacion);
+            // Capacidad semanal: siempre desde el lunes, para no dejar huecos
+            // "fantasma" en dias ya pasados que luego distorsionan el %.
+            $resultado = $this->colocarHoras($user, $horas, $semanaInicio->copy(), $semanaFin, $ocupacion);
             $planes[$tarea->id] = $resultado['plan'];
+
+            if ($resultado['restante'] > 0.01) {
+                $exceso = round($exceso + $resultado['restante'], 2);
+            }
         }
 
-        return ['ocupacion' => $ocupacion, 'planes' => $planes];
+        $asignadas = round(array_sum($ocupacion) + $exceso, 2);
+
+        return [
+            'ocupacion' => $ocupacion,
+            'planes' => $planes,
+            'asignadas' => $asignadas,
+            'exceso' => $exceso,
+        ];
     }
 
     /**
@@ -174,11 +187,21 @@ class CapacidadService
 
         while ($cursor->lessThanOrEqualTo($finSemanaUltima)) {
             $semana = $this->ocupacionSemana($user, $excluirTaskId, $cursor);
+            [$iniSem, $finSem] = $this->limitesSemana($cursor);
+            $iniKey = $iniSem->format('Y-m-d');
+            $finKey = $finSem->format('Y-m-d');
+
             foreach ($semana['ocupacion'] as $dia => $horasDia) {
                 if ($dia >= $desdeKey && $dia <= $hastaKey) {
                     $total += $horasDia;
                 }
             }
+
+            // El exceso semanal cuenta si el periodo cubre esa semana laboral.
+            if ($desdeKey <= $iniKey && $hastaKey >= $finKey) {
+                $total += $semana['exceso'];
+            }
+
             $cursor->addWeek();
         }
 
@@ -195,7 +218,8 @@ class CapacidadService
         [$desde, $hasta] = $this->limitesSemana();
 
         $disponibles = $this->capacidadPeriodo($user, $desde, $hasta);
-        $asignadas = round(array_sum($this->ocupacionSemana($user)['ocupacion']), 2);
+        $semana = $this->ocupacionSemana($user);
+        $asignadas = $semana['asignadas'];
         $porcentaje = $disponibles > 0 ? round(($asignadas / $disponibles) * 100) : ($asignadas > 0 ? 100.0 : 0.0);
 
         return [
@@ -263,8 +287,9 @@ class CapacidadService
             ];
         }
 
-        $ocupacion = $this->ocupacionSemana($user, $excluirTaskId)['ocupacion'];
-        $asignadas = round(array_sum($ocupacion), 2);
+        $ocupacionSemana = $this->ocupacionSemana($user, $excluirTaskId);
+        $ocupacion = $ocupacionSemana['ocupacion'];
+        $asignadas = $ocupacionSemana['asignadas'];
         $restanteHueco = round($disponibles - $asignadas, 2);
 
         // Criterio de negocio: cupo semanal total (no solo huecos desde hoy).
