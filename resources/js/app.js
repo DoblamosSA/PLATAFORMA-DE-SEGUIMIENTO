@@ -79,37 +79,14 @@ const registrarServiceWorker = async () => {
     const registro = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
         // En desktop, sin esto el navegador puede seguir con un sw.js viejo
-        // cacheado y el push llega pero no muestra toast / no avisa a la pestaña.
+        // cacheado y no aplicar cambios del handler de push.
         updateViaCache: 'none',
     });
     // En movil, subscribe() falla si el SW aun no esta activo.
     await navigator.serviceWorker.ready;
-    // Forzar comprobacion de version nueva (projects-static-v4, postMessage, etc.).
     registro.update().catch(() => {});
 
     return registro;
-};
-
-/**
- * Cuando el push llega y la pestaña de escritorio esta abierta/enfocada,
- * Windows suele no mostrar el banner del sistema. El SW nos avisa y
- * mostramos el mismo mensaje como toast in-app.
- */
-const escucharPushDesdeServiceWorker = () => {
-    if (!('serviceWorker' in navigator) || escucharPushDesdeServiceWorker.listo) return;
-    escucharPushDesdeServiceWorker.listo = true;
-
-    navigator.serviceWorker.addEventListener('message', (event) => {
-        const datos = event.data;
-        if (!datos || datos.type !== 'push-received') return;
-
-        const mensaje = [datos.title, datos.body].filter(Boolean).join(': ');
-        if (!mensaje) return;
-
-        window.dispatchEvent(new CustomEvent('app-toast', {
-            detail: { type: 'info', message: mensaje },
-        }));
-    });
 };
 
 const guardarSuscripcionEnServidor = async (suscripcion) => {
@@ -174,8 +151,6 @@ const configurarPush = async () => {
     if (!('serviceWorker' in navigator)) return;
     if (!vapidPublicKey()) return; // pantalla publica / sin VAPID
     if (pushEnCurso) return pushEnCurso;
-
-    escucharPushDesdeServiceWorker();
 
     // Tras la primera suscripcion exitosa, revalidamos al volver a la pestana
     // (WNS/Edge en desktop caduca o se desincroniza con mas facilidad que FCM).
