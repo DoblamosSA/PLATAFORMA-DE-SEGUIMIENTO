@@ -100,6 +100,30 @@ class CapacidadServiceTest extends TestCase
         $this->assertEquals(16.0, $resultado['restante']);
     }
 
+    public function test_cupo_semanal_permite_aunque_parte_del_libre_este_en_dias_pasados(): void
+    {
+        // Martes: el lunes ya paso. 24 h asignadas dejan 16 h libres en la
+        // semana; 8 h de ese libre pueden caer en el lunes (ya no colocable
+        // desde "hoy"). Aun asi, una tarea de 12 h debe aceptarse.
+        Carbon::setTestNow(Carbon::parse('2026-07-28 10:00:00')); // martes
+
+        $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
+
+        // Ocupa mar–jue (24 h). Lunes y viernes quedan libres (= 16 h).
+        $this->crearTarea($user, [
+            'titulo' => 'Carga mar-jue',
+            'fecha_asignacion' => now()->subHour(),
+            'fecha_inicio' => Carbon::parse('2026-07-28'), // martes
+            'horas_estimadas' => 24,
+        ]);
+
+        $resultado = $this->servicio->validarAsignacion($user, 12);
+
+        $this->assertTrue($resultado['ok'], $resultado['mensaje'] ?? 'sin mensaje');
+        $this->assertEquals(16.0, $resultado['restante']);
+        $this->assertEquals(12.0, array_sum($resultado['plan']));
+    }
+
     public function test_reparte_horas_nuevas_en_huecos_diarios(): void
     {
         $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);

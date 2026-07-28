@@ -221,9 +221,11 @@ class CapacidadService
     }
 
     /**
-     * Valida si $horasSolicitadas caben en la disponibilidad semanal del
-     * colaborador, colocandolas dia a dia desde $desde (o hoy) en los huecos
-     * libres. Ya no usa la ventana del SLA.
+     * Valida si $horasSolicitadas caben en el cupo semanal del colaborador
+     * (disponibles − ya asignadas). El plan diario se arma desde hoy hacia
+     * adelante y, si hace falta, derrama a la semana siguiente: los huecos
+     * de dias ya pasados cuentan en el total libre de la semana, pero no
+     * se usan para fechar el trabajo nuevo.
      *
      * Firma compatible: el 4.º argumento historico ($hasta / fecha_limite) se
      * ignora si es Carbon; si es int se trata como $excluirTaskId.
@@ -263,20 +265,24 @@ class CapacidadService
 
         $ocupacion = $this->ocupacionSemana($user, $excluirTaskId)['ocupacion'];
         $asignadas = round(array_sum($ocupacion), 2);
-
-        $inicioColocacion = ($desde ?? Carbon::now())->copy()->startOfDay();
-        // No colocar horas en dias ya pasados de la semana.
-        $hoy = Carbon::now()->startOfDay();
-        if ($inicioColocacion->lessThan($hoy)) {
-            $inicioColocacion = $hoy->copy();
-        }
-        if ($inicioColocacion->lessThan($semanaInicio)) {
-            $inicioColocacion = $semanaInicio->copy();
-        }
-
-        $resultado = $this->colocarHoras($user, $horasSolicitadas, $inicioColocacion, $semanaFin, $ocupacion);
         $restanteHueco = round($disponibles - $asignadas, 2);
-        $ok = $resultado['restante'] <= 0.01;
+
+        // Criterio de negocio: cupo semanal total (no solo huecos desde hoy).
+        // Si quedan 16 h libres en la semana, una tarea de 12 h debe pasar
+        // aunque parte de esas 16 h caigan en dias ya transcurridos.
+        $ok = ($asignadas + $horasSolicitadas) <= $disponibles + 0.01;
+
+        $plan = [];
+        if ($ok) {
+            $plan = $this->planificarHorasNuevas(
+                $user,
+                $horasSolicitadas,
+                $desde,
+                $semanaInicio,
+                $semanaFin,
+                $ocupacion,
+            );
+        }
 
         $mensaje = null;
         if (! $ok) {
@@ -297,8 +303,48 @@ class CapacidadService
             'solicitadas' => $horasSolicitadas,
             'restante' => $restanteHueco,
             'mensaje' => $mensaje,
-            'plan' => $resultado['plan'],
+            'plan' => $plan,
         ];
+    }
+
+    /**
+     * Arma el plan diario para horas nuevas: primero huecos desde hoy hasta
+     * el fin de semana; si aun falta (porque habia cupo en dias pasados),
+     * derrama a la semana siguiente.
+     *
+     * @param  array<string, float>  $ocupacion
+     * @return array<string, float>
+     */
+    protected function planificarHorasNuevas(
+        User $user,
+        float $horas,
+        ?Carbon $desde,
+        Carbon $semanaInicio,
+        Carbon $semanaFin,
+        array $ocupacion,
+    ): array {
+        $inicio = ($desde ?? Carbon::now())->copy()->startOfDay();
+        $hoy = Carbon::now()->startOfDay();
+        if ($inicio->lessThan($hoy)) {
+            $inicio = $hoy->copy();
+        }
+        if ($inicio->lessThan($semanaInicio)) {
+            $inicio = $semanaInicio->copy();
+        }
+
+        $resultado = $this->colocarHoras($user, $horas, $inicio, $semanaFin, $ocupacion);
+        $plan = $resultado['plan'];
+
+        if ($resultado['restante'] > 0.01) {
+            $sigInicio = $semanaFin->copy()->addDay()->startOfDay();
+            $sigFin = $sigInicio->copy()->endOfWeek()->startOfDay();
+            $extra = $this->colocarHoras($user, $resultado['restante'], $sigInicio, $sigFin, $ocupacion);
+            foreach ($extra['plan'] as $dia => $h) {
+                $plan[$dia] = round(($plan[$dia] ?? 0) + $h, 2);
+            }
+        }
+
+        return $plan;
     }
 
     /**
