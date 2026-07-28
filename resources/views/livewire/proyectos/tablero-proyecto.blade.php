@@ -140,6 +140,11 @@
                             <div class="mt-2 flex flex-wrap items-center gap-1.5">
                                 <x-badge tipo="prioridad" :valor="$t->prioridad" />
                                 <x-badge tipo="estado" :valor="$t->estado" />
+                                @if ($t->horas_estimadas)
+                                    <span class="inline-flex items-center gap-0.5 rounded-md bg-slate-100 dark:bg-slate-700/80 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300" title="Horas estimadas">
+                                        {{ rtrim(rtrim(number_format((float) $t->horas_estimadas, 2), '0'), '.') }} h
+                                    </span>
+                                @endif
                             </div>
 
                             <div class="mt-3 flex items-center justify-between gap-2">
