@@ -76,11 +76,40 @@ const base64UrlAUint8Array = (base64Url) => {
 const vapidPublicKey = () => document.querySelector('meta[name="vapid-public-key"]')?.content?.trim() || '';
 
 const registrarServiceWorker = async () => {
-    const registro = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const registro = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+        // En desktop, sin esto el navegador puede seguir con un sw.js viejo
+        // cacheado y el push llega pero no muestra toast / no avisa a la pestaña.
+        updateViaCache: 'none',
+    });
     // En movil, subscribe() falla si el SW aun no esta activo.
     await navigator.serviceWorker.ready;
+    // Forzar comprobacion de version nueva (projects-static-v4, postMessage, etc.).
+    registro.update().catch(() => {});
 
     return registro;
+};
+
+/**
+ * Cuando el push llega y la pestaña de escritorio esta abierta/enfocada,
+ * Windows suele no mostrar el banner del sistema. El SW nos avisa y
+ * mostramos el mismo mensaje como toast in-app.
+ */
+const escucharPushDesdeServiceWorker = () => {
+    if (!('serviceWorker' in navigator) || escucharPushDesdeServiceWorker.listo) return;
+    escucharPushDesdeServiceWorker.listo = true;
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        const datos = event.data;
+        if (!datos || datos.type !== 'push-received') return;
+
+        const mensaje = [datos.title, datos.body].filter(Boolean).join(': ');
+        if (!mensaje) return;
+
+        window.dispatchEvent(new CustomEvent('app-toast', {
+            detail: { type: 'info', message: mensaje },
+        }));
+    });
 };
 
 const guardarSuscripcionEnServidor = async (suscripcion) => {
@@ -144,8 +173,26 @@ let pushEnCurso = null;
 const configurarPush = async () => {
     if (!('serviceWorker' in navigator)) return;
     if (!vapidPublicKey()) return; // pantalla publica / sin VAPID
-    if (pushInicializado) return;
     if (pushEnCurso) return pushEnCurso;
+
+    escucharPushDesdeServiceWorker();
+
+    // Tras la primera suscripcion exitosa, revalidamos al volver a la pestana
+    // (WNS/Edge en desktop caduca o se desincroniza con mas facilidad que FCM).
+    if (pushInicializado) {
+        if (Notification.permission !== 'granted') return;
+        pushEnCurso = (async () => {
+            try {
+                const registro = await registrarServiceWorker();
+                await suscribirPush(registro);
+            } catch (e) {
+                console.warn('Web Push: revalidacion fallida', e);
+            } finally {
+                pushEnCurso = null;
+            }
+        })();
+        return pushEnCurso;
+    }
 
     pushEnCurso = (async () => {
         try {
@@ -214,6 +261,11 @@ window.activarNotificaciones = async () => {
 // paso, asi que sin el segundo listener nunca se pediria el permiso.
 window.addEventListener('load', configurarPush);
 document.addEventListener('livewire:navigated', configurarPush);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        configurarPush();
+    }
+});
 
 /**
  * Instalacion de la PWA con boton propio: Chrome/Edge (Android y desktop)

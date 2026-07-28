@@ -7,7 +7,7 @@
  * no-store por seguridad de sesion), por eso el fetch handler solo actua
  * sobre assets estaticos.
  */
-const CACHE = 'projects-static-v3';
+const CACHE = 'projects-static-v4';
 const PRECACHE = ['/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -63,21 +63,55 @@ self.addEventListener('push', (event) => {
         datos = { body: event.data ? event.data.text() : '' };
     }
 
+    const titulo = datos.title || 'Projects';
+    const cuerpo = datos.body || '';
+    const ruta = datos.url || '/';
     const icono = new URL('/icons/icon-192.png', self.location.origin).href;
+    const tag = datos.tag || ('projects-push-' + Date.now());
 
-    event.waitUntil(
-        self.registration.showNotification(datos.title || 'Projects', {
-            body: datos.body || '',
+    event.waitUntil((async () => {
+        const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const visible = ventanas.find((v) => v.focused)
+            || ventanas.find((v) => v.visibilityState === 'visible');
+
+        // Una sola via: si hay pestana visible, toast in-app (en Windows el
+        // banner del SO a menudo no aparece con la app enfocada). Si no,
+        // notificacion nativa. Nunca ambas a la vez.
+        if (visible) {
+            visible.postMessage({
+                type: 'push-received',
+                title: titulo,
+                body: cuerpo,
+                url: ruta,
+            });
+            return;
+        }
+
+        const opciones = {
+            body: cuerpo,
             icon: icono,
             badge: icono,
-            data: { url: datos.url || '/' },
+            data: { url: ruta },
             // En Windows/Chrome con notificaciones nativas, sin esto la toast
             // desaparece al instante o solo queda en el Centro de actividades.
             requireInteraction: true,
             renotify: true,
-            tag: datos.tag || ('projects-push-' + Date.now()),
-        })
-    );
+            tag,
+        };
+
+        try {
+            await self.registration.showNotification(titulo, opciones);
+        } catch {
+            // Edge/WNS a veces rechaza requireInteraction; reintentar basico.
+            await self.registration.showNotification(titulo, {
+                body: cuerpo,
+                icon: icono,
+                badge: icono,
+                data: { url: ruta },
+                tag,
+            });
+        }
+    })());
 });
 
 self.addEventListener('notificationclick', (event) => {
