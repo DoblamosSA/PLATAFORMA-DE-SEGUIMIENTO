@@ -10,14 +10,19 @@ use Illuminate\Support\Collection;
 /**
  * Capacidad operativa por disponibilidad diaria del colaborador.
  *
- * Las horas de cada tarea se colocan dia a dia respetando horas_diarias
- * libres (llenar lunes, luego martes, …) dentro de la semana laboral en
- * curso. El SLA / fecha_limite ya no define la ventana de capacidad.
+ * La carga de una semana cuenta las tareas ASIGNADAS en esa semana
+ * calendario (fecha_asignacion), incluyendo completadas/certificadas.
+ * Canceladas no cuentan. El SLA no define la ventana de capacidad.
  */
 class CapacidadService
 {
-    /** Estados de tarea que consumen capacidad (excluye cerradas/canceladas). */
-    private const ESTADOS_ACTIVOS = ['pendiente', 'en_progreso', 'en_revision', 'rechazada'];
+    /** Estados abiertos (aun exigen resolucion entre semanas). */
+    private const ESTADOS_ABIERTOS = ['pendiente', 'en_progreso', 'en_revision', 'rechazada'];
+
+    public function __construct(
+        protected HorarioLaboralService $horario,
+        protected CierreSemanalService $cierre,
+    ) {}
 
     /** Horas disponibles de un colaborador entre dos fechas (inclusive), segun sus dias laborales. */
     public function capacidadPeriodo(User $user, Carbon $desde, Carbon $hasta): float
@@ -96,12 +101,11 @@ class CapacidadService
     }
 
     /**
-     * Ocupacion dia-a-dia de la semana: coloca las tareas activas en orden
-     * FIFO desde el lunes de la semana. Las horas que no caben en los huecos
-     * diarios (exceso) tambien cuentan como asignadas, para que la barra de
-     * carga refleje el total real de las tareas abiertas.
+     * Ocupacion dia-a-dia de la semana: coloca las tareas asignadas en la
+     * semana (incluye completadas) en orden FIFO. Las horas que no caben
+     * tambien cuentan como asignadas (exceso).
      *
-     * @return array{ocupacion: array<string, float>, planes: array<int, array<string, float>>, asignadas: float}
+     * @return array{ocupacion: array<string, float>, planes: array<int, array<string, float>>, asignadas: float, exceso: float}
      */
     public function ocupacionSemana(User $user, ?int $excluirTaskId = null, ?Carbon $ref = null): array
     {
@@ -110,19 +114,12 @@ class CapacidadService
         $planes = [];
         $exceso = 0.0;
 
-        foreach ($this->tareasActivas($user, $excluirTaskId) as $tarea) {
+        foreach ($this->tareasAsignadasEnSemana($user, $excluirTaskId, $ref) as $tarea) {
             $horas = (float) ($tarea->horas_estimadas ?? 0);
             if ($horas <= 0) {
                 continue;
             }
 
-            // Tareas que arrancan despues de esta semana no consumen este cupo.
-            if ($tarea->fecha_inicio && $tarea->fecha_inicio->copy()->startOfDay()->greaterThan($semanaFin)) {
-                continue;
-            }
-
-            // Capacidad semanal: siempre desde el lunes, para no dejar huecos
-            // "fantasma" en dias ya pasados que luego distorsionan el %.
             $resultado = $this->colocarHoras($user, $horas, $semanaInicio->copy(), $semanaFin, $ocupacion);
             $planes[$tarea->id] = $resultado['plan'];
 
@@ -276,6 +273,19 @@ class CapacidadService
             ];
         }
 
+        $cierre = $this->cierre->validarSinPendientesPrevios($user);
+        if (! $cierre['ok']) {
+            return [
+                'ok' => false,
+                'disponibles' => null,
+                'asignadas' => null,
+                'solicitadas' => $horasSolicitadas,
+                'restante' => null,
+                'mensaje' => $cierre['mensaje'],
+                'plan' => [],
+            ];
+        }
+
         [$semanaInicio, $semanaFin] = $this->limitesSemana();
         $disponibles = $this->capacidadPeriodo($user, $semanaInicio, $semanaFin);
 
@@ -373,7 +383,20 @@ class CapacidadService
     }
 
     /**
-     * Ultimo dia del plan de disponibilidad (para fijar vencimiento sin SLA).
+     * Calcula inicio/fin planificados y plan diario segun jornada laboral.
+     *
+     * @return array{inicio: Carbon, fin: Carbon, plan: array<string, float>}
+     */
+    public function planificarAsignacion(User $user, float $horas, ?Carbon $desde = null): array
+    {
+        [$inicio, $fin, $plan] = $this->horario->calcularVentana($user, $horas, $desde);
+
+        return ['inicio' => $inicio, 'fin' => $fin, 'plan' => $plan];
+    }
+
+    /**
+     * Ultimo instante del plan de disponibilidad (vencimiento sin SLA).
+     * Preferir planificarAsignacion() cuando se conoce al colaborador.
      */
     public function fechaFinPlan(array $plan, ?Carbon $fallback = null): ?Carbon
     {
@@ -382,8 +405,13 @@ class CapacidadService
         }
 
         $ultimo = max(array_keys($plan));
+        $horasUltimoDia = (float) $plan[$ultimo];
+        $hora = $this->horario->horaInicioJornada();
+        $minuto = $this->horario->minutoInicioJornada();
 
-        return Carbon::parse($ultimo)->setTime(17, 0);
+        return Carbon::parse($ultimo)
+            ->setTime($hora, $minuto, 0)
+            ->addHours($horasUltimoDia);
     }
 
     public function fmt(float $n): string
@@ -391,15 +419,42 @@ class CapacidadService
         return rtrim(rtrim(number_format($n, 2), '0'), '.');
     }
 
-    /** @return Collection<int, Task> */
-    protected function tareasActivas(User $user, ?int $excluirTaskId = null): Collection
+    /**
+     * Tareas del colaborador asignadas en la semana de $ref (no canceladas).
+     * Completadas/certificadas siguen contando en la carga de esa semana.
+     *
+     * @return Collection<int, Task>
+     */
+    public function tareasAsignadasEnSemana(User $user, ?int $excluirTaskId = null, ?Carbon $ref = null): Collection
     {
+        [$semanaInicio, $semanaFin] = $this->limitesSemana($ref);
+        $finExclusivo = $semanaFin->copy()->addDay()->startOfDay();
+
         return Task::query()
             ->where('asignado_id', $user->id)
-            ->whereIn('estado', self::ESTADOS_ACTIVOS)
+            ->where('estado', '!=', 'cancelada')
             ->when($excluirTaskId, fn ($q) => $q->where('id', '!=', $excluirTaskId))
+            ->where(function ($q) use ($semanaInicio, $finExclusivo) {
+                $q->where(function ($q2) use ($semanaInicio, $finExclusivo) {
+                    $q2->whereNotNull('fecha_asignacion')
+                        ->where('fecha_asignacion', '>=', $semanaInicio)
+                        ->where('fecha_asignacion', '<', $finExclusivo);
+                })->orWhere(function ($q2) use ($semanaInicio, $finExclusivo) {
+                    $q2->whereNull('fecha_asignacion')
+                        ->where('created_at', '>=', $semanaInicio)
+                        ->where('created_at', '<', $finExclusivo);
+                });
+            })
             ->orderByRaw('COALESCE(fecha_asignacion, created_at) asc')
             ->orderBy('id')
             ->get();
+    }
+
+    /** @deprecated Usar tareasAsignadasEnSemana; se mantiene por compatibilidad interna. */
+    protected function tareasActivas(User $user, ?int $excluirTaskId = null): Collection
+    {
+        return $this->tareasAsignadasEnSemana($user, $excluirTaskId)
+            ->whereIn('estado', self::ESTADOS_ABIERTOS)
+            ->values();
     }
 }

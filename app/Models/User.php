@@ -248,4 +248,10 @@ class User extends Authenticatable
     {
         return $this->esAdmin() || $this->esEvaluador();
     }
+
+    /** Evaluador de colaboradores: Admin (legado o heredado) y SuperAdmin. */
+    public function puedeVerEvaluador(): bool
+    {
+        return $this->esAdmin() || $this->esSuperAdmin();
+    }
 }

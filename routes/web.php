@@ -2,6 +2,7 @@
 
 use App\Livewire\Colaboradores\ListaColaboradores;
 use App\Livewire\Dashboard;
+use App\Livewire\Informes\EvaluadorColaboradores;
 use App\Livewire\Informes\ReporteMensual;
 use App\Livewire\Organization\Departamentos\ListaDepartamentos;
 use App\Livewire\Organization\Permisos\ListaPermisos;
@@ -37,6 +38,7 @@ Route::middleware(['auth', \App\Http\Middleware\NoCacheHeaders::class])->group(f
     });
 
     Route::get('informes/cumplimiento', ReporteMensual::class)->name('informes.cumplimiento');
+    Route::get('informes/evaluador', EvaluadorColaboradores::class)->name('informes.evaluador');
 
     // colaboradores.crear/editar abren el modal del formulario sobre la lista.
     Route::get('colaboradores', ListaColaboradores::class)->name('colaboradores');

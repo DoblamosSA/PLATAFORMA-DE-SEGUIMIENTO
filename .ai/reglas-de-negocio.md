@@ -8,7 +8,7 @@ fuentes:
   - app/Models/SlaPolicy.php
   - app/Services/MetricasService.php
   - app/Services/CapacidadService.php
-updated: 2026-07-22
+updated: 2026-07-29
 ---
 
 # Reglas de negocio
@@ -28,3 +28,11 @@ El semáforo no depende directamente del estado o fechas del proyecto, sino de s
 ## Capacidad operativa
 
 La capacidad semanal de una persona es la cantidad de días laborales configurados multiplicada por sus horas diarias. Los códigos de día son `L`, `M`, `X`, `J`, `V`, `S`, `D`; su traducción a días de Carbon está definida en `User::DIAS_CARBON`.
+
+La **carga operativa de una semana** suma las `horas_estimadas` de tareas cuyo `fecha_asignacion` cae en esa semana calendario (lunes–domingo, `APP_TIMEZONE`). Incluye completadas/certificadas; excluye canceladas. Completar una tarea **no libera** capacidad en esa misma semana. Al iniciar una nueva semana, solo cuentan las asignaciones de la semana nueva.
+
+El inicio y fin planificados (`inicio_planificado`, `fecha_limite`) se calculan con `HorarioLaboralService` respetando la jornada (`config/operativa.php` + perfil del colaborador), sin asumir horas corridas de reloj.
+
+No se permite asignar trabajo nuevo si el colaborador tiene tareas abiertas asignadas en semanas anteriores (`CierreSemanalService`).
+
+El módulo **Evaluador de colaboradores** (`EvaluadorRendimientoService`) calcula puntaje 0–100% con pesos configurables (puntualidad, sin vencidas, carga completada), clasificación Crítico/Medio/Excelente y ranking con desempate.

@@ -452,14 +452,17 @@ class TableroProyecto extends Component
             }
         }
 
-        // Bloquea la reasignacion si supera la disponibilidad semanal del colaborador.
+        // Bloquea la reasignacion si supera la disponibilidad semanal del colaborador
+        // o si tiene pendientes de semanas anteriores.
         $capacidad = app(CapacidadService::class);
         $planDisponibilidad = [];
+        $ventana = null;
         if ($this->edAsignadoId && $task->horas_estimadas > 0) {
+            $colaborador = User::find($this->edAsignadoId);
             $resultado = $capacidad->validarAsignacion(
-                User::find($this->edAsignadoId),
+                $colaborador,
                 (float) $task->horas_estimadas,
-                $task->fecha_inicio,
+                $task->inicio_planificado ?? $task->fecha_inicio,
                 $task->id,
             );
 
@@ -471,6 +474,11 @@ class TableroProyecto extends Component
             }
 
             $planDisponibilidad = $resultado['plan'] ?? [];
+            $ventana = $capacidad->planificarAsignacion(
+                $colaborador,
+                (float) $task->horas_estimadas,
+                $task->inicio_planificado ?? $task->fecha_inicio,
+            );
         }
 
         $prev = [
@@ -489,8 +497,17 @@ class TableroProyecto extends Component
             'asignado_id' => $this->edAsignadoId,
         ]);
 
-        // Vencimiento segun plan de disponibilidad (sin recalcular por SLA).
-        if ($this->edAsignadoId && $task->horas_estimadas > 0 && ! $fechaCambioManual) {
+        if ($this->edAsignadoId && $prev['asignado_id'] !== $this->edAsignadoId) {
+            $task->fecha_asignacion = now();
+        }
+
+        // Inicio/fin planificados segun jornada laboral (sin recalcular por SLA).
+        if ($ventana && ! $fechaCambioManual) {
+            $task->inicio_planificado = $ventana['inicio'];
+            $task->fecha_inicio = $ventana['inicio']->toDateString();
+            $task->fecha_limite = $ventana['fin'];
+            $task->sla_horas = null;
+        } elseif ($this->edAsignadoId && $task->horas_estimadas > 0 && ! $fechaCambioManual) {
             $task->fecha_limite = $capacidad->fechaFinPlan($planDisponibilidad, $task->fecha_limite);
             $task->sla_horas = null;
         }

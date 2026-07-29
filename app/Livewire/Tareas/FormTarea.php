@@ -370,16 +370,18 @@ class FormTarea extends Component
         }
 
         // Validacion de capacidad por disponibilidad semanal (dia a dia),
-        // independiente del SLA / fecha limite.
+        // independiente del SLA / fecha limite. Tambien bloquea si el
+        // colaborador tiene pendientes de semanas anteriores.
         $capacidad = app(CapacidadService::class);
         $planDisponibilidad = [];
+        $ventana = null;
         if ($this->asignado_id && $task->horas_estimadas > 0) {
-            $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : $task->fecha_inicio;
+            $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : ($task->inicio_planificado ?? $task->fecha_inicio);
             $colaborador = User::find($this->asignado_id);
             $resultado = $capacidad->validarAsignacion(
                 $colaborador,
                 (float) $task->horas_estimadas,
-                $inicio,
+                $inicio ? Carbon::parse($inicio) : null,
                 $task->id,
             );
 
@@ -398,6 +400,11 @@ class FormTarea extends Component
             }
 
             $planDisponibilidad = $resultado['plan'] ?? [];
+            $ventana = $capacidad->planificarAsignacion(
+                $colaborador,
+                (float) $task->horas_estimadas,
+                $inicio ? Carbon::parse($inicio) : null,
+            );
         }
 
         // Valores previos para la trazabilidad granular
@@ -420,8 +427,19 @@ class FormTarea extends Component
             'tag' => $this->tag ?: null,
         ]);
 
-        // Vencimiento = ultimo dia del plan de disponibilidad (sin SLA).
-        if ($this->asignado_id && $task->horas_estimadas > 0 && ! $this->fechaLimiteInput) {
+        if ($this->asignado_id && $prev['asignado_id'] !== $this->asignado_id) {
+            $task->fecha_asignacion = now();
+        }
+
+        // Inicio/fin planificados segun jornada laboral (sin SLA).
+        if ($ventana) {
+            $task->inicio_planificado = $ventana['inicio'];
+            $task->fecha_inicio = $ventana['inicio']->toDateString();
+            if (! $this->fechaLimiteInput) {
+                $task->fecha_limite = $ventana['fin'];
+                $task->sla_horas = null;
+            }
+        } elseif ($this->asignado_id && $task->horas_estimadas > 0 && ! $this->fechaLimiteInput) {
             $task->fecha_limite = $capacidad->fechaFinPlan($planDisponibilidad, $task->fecha_limite);
             $task->sla_horas = null;
         }

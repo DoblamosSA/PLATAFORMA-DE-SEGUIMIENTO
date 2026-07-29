@@ -38,8 +38,10 @@ new class extends Component
     if (\Illuminate\Support\Facades\Gate::allows('tasks.view')) {
         $nav[] = ['route' => 'tareas',        'pattern' => 'tareas*',     'label' => 'Tareas',    'icon' => 'tasks'];
     }
-    $nav[] = ['route' => 'informes.cumplimiento', 'pattern' => 'informes*', 'label' => 'Informes', 'icon' => 'report'];
-    if (\Illuminate\Support\Facades\Gate::allows('users.view')) {
+    $nav[] = ['route' => 'informes.cumplimiento', 'pattern' => 'informes.cumplimiento', 'label' => 'Informes', 'icon' => 'report'];
+    if ($u->puedeVerEvaluador()) {
+        $nav[] = ['route' => 'informes.evaluador', 'pattern' => 'informes.evaluador', 'label' => 'Evaluador', 'icon' => 'trend'];
+    }    if (\Illuminate\Support\Facades\Gate::allows('users.view')) {
         $nav[] = ['route' => 'colaboradores', 'pattern' => 'colaboradores*', 'label' => 'Colaboradores', 'icon' => 'users'];
     }
     if (\Illuminate\Support\Facades\Gate::allows('departments.view')) {

@@ -5,7 +5,7 @@ tags: [rutas, livewire, pantallas, modulos]
 fuentes:
   - routes/web.php
   - app/Livewire
-updated: 2026-07-22
+updated: 2026-07-29
 ---
 
 # Superficie de la aplicación
@@ -17,7 +17,7 @@ Todas las rutas siguientes requieren autenticación y aplican `NoCacheHeaders`.
 | Inicio | `/dashboard` | `Dashboard` |
 | Proyectos | `/proyectos`, `/nuevo`, `/{project}`, `/{project}/editar`, `/{project}/tablero` | `Proyectos/*` |
 | Tareas globales | `/tareas`, `/nueva`, `/{task}/editar` | `Tareas/*` |
-| Informes | `/informes/cumplimiento` | `Informes/ReporteMensual` |
+| Informes | `/informes/cumplimiento`, `/informes/evaluador` | `Informes/ReporteMensual`, `Informes/EvaluadorColaboradores` |
 | Colaboradores | `/colaboradores`, `/nuevo`, `/{colaborador}/editar` | `Colaboradores/*` |
 | Departamentos | `/departamentos`, `/nuevo`, `/{department}/editar` | `Organization/Departamentos/*` |
 | Subdepartamentos | `/subdepartamentos`, `/nuevo`, `/{subDepartment}/editar` | `Organization/SubDepartamentos/*` |

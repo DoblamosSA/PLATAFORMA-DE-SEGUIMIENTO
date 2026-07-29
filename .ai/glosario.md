@@ -2,7 +2,7 @@
 id: domain-glossary
 title: Glosario del dominio
 tags: [glosario, dominio, estados, terminos]
-updated: 2026-07-22
+updated: 2026-07-29
 ---
 
 # Glosario
@@ -21,3 +21,6 @@ updated: 2026-07-22
 | Rol heredado | Rol de departamento que deriva permisos desde un rol padre. |
 | Grant / deny | Otorgamiento o revocación explícita de un permiso en un rol. |
 | Cumplida a tiempo | Indicador almacenado al cerrar una tarea según su fecha límite. |
+| Carga operativa | Horas de tareas asignadas en la semana calendario (incluye completadas). |
+| Evaluador | Ranking semanal de colaboradores por puntaje (solo Admin/SuperAdmin). |
+| Inicio planificado | Fecha/hora laboral de inicio de la tarea (`inicio_planificado`). |

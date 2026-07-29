@@ -23,6 +23,7 @@ class Task extends Model
         'asignado_id',
         'creado_por',
         'fecha_asignacion',
+        'inicio_planificado',
         'fecha_inicio',
         'fecha_limite',
         'fecha_inicio_real',
@@ -37,6 +38,7 @@ class Task extends Model
     {
         return [
             'fecha_asignacion' => 'datetime',
+            'inicio_planificado' => 'datetime',
             'fecha_inicio' => 'date',
             'fecha_limite' => 'datetime',
             'fecha_inicio_real' => 'datetime',
