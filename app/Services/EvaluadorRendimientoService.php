@@ -32,7 +32,7 @@ class EvaluadorRendimientoService
      */
     public function tareasDeSemana(User $user, ?Carbon $ref = null): Collection
     {
-        return $this->capacidad->tareasAsignadasEnSemana($user, null, $ref);
+        return $this->capacidad->tareasAsignadasEnSemanaTodas($user, null, $ref);
     }
 
     /**

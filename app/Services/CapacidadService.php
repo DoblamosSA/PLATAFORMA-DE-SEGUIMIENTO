@@ -399,18 +399,56 @@ class CapacidadService
     /**
      * Tareas ABIERTAS del colaborador asignadas en la semana de $ref.
      * Completar o cancelar una tarea libera su cupo de inmediato, sin
-     * importar en que semana se asigno.
+     * importar en que semana se asigno. Uso: calculo de carga/capacidad.
      *
      * @return Collection<int, Task>
      */
     public function tareasAsignadasEnSemana(User $user, ?int $excluirTaskId = null, ?Carbon $ref = null): Collection
     {
+        $tareas = $this->consultaTareasEnSemana($user, $excluirTaskId, $ref)
+            ->whereIn('estado', self::ESTADOS_ABIERTOS)
+            ->get();
+
+        Log::debug('capacidad.tareas_semana', [
+            'user_id' => $user->id,
+            'total_tareas' => $tareas->count(),
+            'estados' => $tareas->pluck('estado')->all(),
+        ]);
+
+        return $tareas;
+    }
+
+    /**
+     * TODAS las tareas del colaborador asignadas en la semana de $ref,
+     * excepto las canceladas (incluye completadas). Uso: evaluacion de
+     * rendimiento (necesita ver completadas para puntualidad/cumplimiento),
+     * a diferencia de tareasAsignadasEnSemana() que es solo para carga/capacidad.
+     *
+     * @return Collection<int, Task>
+     */
+    public function tareasAsignadasEnSemanaTodas(User $user, ?int $excluirTaskId = null, ?Carbon $ref = null): Collection
+    {
+        $tareas = $this->consultaTareasEnSemana($user, $excluirTaskId, $ref)
+            ->where('estado', '!=', 'cancelada')
+            ->get();
+
+        Log::debug('capacidad.tareas_semana_todas', [
+            'user_id' => $user->id,
+            'total_tareas' => $tareas->count(),
+            'estados' => $tareas->pluck('estado')->all(),
+        ]);
+
+        return $tareas;
+    }
+
+    /** Query base (sin filtro de estado) de tareas del colaborador asignadas en la semana de $ref. */
+    private function consultaTareasEnSemana(User $user, ?int $excluirTaskId, ?Carbon $ref)
+    {
         [$semanaInicio, $semanaFin] = $this->limitesSemana($ref);
         $finExclusivo = $semanaFin->copy()->addDay()->startOfDay();
 
-        $tareas = Task::query()
+        return Task::query()
             ->where('asignado_id', $user->id)
-            ->whereIn('estado', self::ESTADOS_ABIERTOS)
             ->when($excluirTaskId, fn ($q) => $q->where('id', '!=', $excluirTaskId))
             ->where(function ($q) use ($semanaInicio, $finExclusivo) {
                 $q->where(function ($q2) use ($semanaInicio, $finExclusivo) {
@@ -424,16 +462,7 @@ class CapacidadService
                 });
             })
             ->orderByRaw('COALESCE(fecha_asignacion, created_at) asc')
-            ->orderBy('id')
-            ->get();
-
-        Log::debug('capacidad.tareas_semana', [
-            'user_id' => $user->id,
-            'total_tareas' => $tareas->count(),
-            'estados' => $tareas->pluck('estado')->all(),
-        ]);
-
-        return $tareas;
+            ->orderBy('id');
     }
 
     /** @deprecated Usar tareasAsignadasEnSemana; se mantiene por compatibilidad interna. */

@@ -157,6 +157,12 @@ class OperativaSemanalTest extends TestCase
         ]);
 
         $m = $this->evaluador->metricasColaborador($user);
+        // Una tarea completada a tiempo debe ser visible: si tareasAsignadasEnSemanaTodas()
+        // excluyera 'completada' (como hacia tareasAsignadasEnSemana(), pensado solo para
+        // carga/capacidad), esto quedaria en 0 y el 100% seria un falso "sin datos".
+        $this->assertSame(1, $m['tareas_asignadas']);
+        $this->assertSame(1, $m['finalizadas_a_tiempo']);
+        $this->assertSame(0, $m['finalizadas_tarde']);
         $this->assertGreaterThanOrEqual(0, $m['puntaje']);
         $this->assertLessThanOrEqual(100, $m['puntaje']);
         $this->assertSame('excelente', $m['clasificacion']['clave']);
@@ -165,6 +171,24 @@ class OperativaSemanalTest extends TestCase
         $this->assertSame('medio', $this->evaluador->clasificar(50)['clave']);
         $this->assertSame('medio', $this->evaluador->clasificar(89.9)['clave']);
         $this->assertSame('excelente', $this->evaluador->clasificar(90)['clave']);
+    }
+
+    public function test_una_tarea_completada_fuera_de_tiempo_baja_el_puntaje(): void
+    {
+        $user = $this->colaborador();
+        $this->tarea($user, [
+            'estado' => 'completada',
+            'cumplida_a_tiempo' => false,
+            'fecha_completada' => now(),
+            'horas_estimadas' => 8,
+            'fecha_limite' => now()->subDay(),
+        ]);
+
+        $m = $this->evaluador->metricasColaborador($user);
+        $this->assertSame(1, $m['tareas_asignadas']);
+        $this->assertSame(0, $m['finalizadas_a_tiempo']);
+        $this->assertSame(1, $m['finalizadas_tarde']);
+        $this->assertLessThan(100, $m['puntaje']);
     }
 
     public function test_ranking_desempata_por_menos_vencidas(): void
