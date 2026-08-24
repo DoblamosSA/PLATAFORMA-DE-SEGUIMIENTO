@@ -191,6 +191,27 @@ class OperativaSemanalTest extends TestCase
         $this->assertLessThan(100, $m['puntaje']);
     }
 
+    public function test_el_puntaje_es_historico_no_se_resetea_cada_semana(): void
+    {
+        $user = $this->colaborador();
+
+        // Tarea completada fuera de tiempo hace varias semanas: debe seguir
+        // contando hoy, aunque ya no estemos en esa semana.
+        $this->tarea($user, [
+            'estado' => 'completada',
+            'cumplida_a_tiempo' => false,
+            'fecha_asignacion' => now()->subWeeks(6),
+            'fecha_completada' => now()->subWeeks(5),
+            'fecha_limite' => now()->subWeeks(6)->addDay(),
+            'horas_estimadas' => 8,
+        ]);
+
+        $m = $this->evaluador->metricasColaborador($user);
+        $this->assertSame(1, $m['tareas_asignadas']);
+        $this->assertSame(1, $m['finalizadas_tarde']);
+        $this->assertLessThan(100, $m['puntaje']);
+    }
+
     public function test_ranking_desempata_por_menos_vencidas(): void
     {
         $a = $this->colaborador(['name' => 'Ana']);

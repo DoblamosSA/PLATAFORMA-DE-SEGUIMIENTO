@@ -3,28 +3,11 @@
 
         <x-page-header title="Evaluador de colaboradores" icon="trend">
             <x-slot:subtitle>
-                Rendimiento semanal · <span class="font-medium text-slate-700 dark:text-slate-300">{{ $etiquetaSemana }}</span>
+                Historial de desempeño acumulado
             </x-slot:subtitle>
-            <x-slot:actions>
-                <div class="flex flex-wrap items-center gap-2">
-                    <button type="button" wire:click="semanaAnterior"
-                            class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
-                        ← Semana ant.
-                    </button>
-                    <button type="button" wire:click="semanaSiguiente"
-                            class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
-                        Semana sig. →
-                    </button>
-                </div>
-            </x-slot:actions>
         </x-page-header>
 
-        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Semana (lunes)</label>
-                <input type="date" wire:model.live="semana"
-                       class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm">
-            </div>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
                 <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Departamento</label>
                 <select wire:model.live="department_id"
@@ -122,8 +105,10 @@
         </div>
 
         <p class="text-xs text-slate-400 dark:text-slate-500">
-            La carga cuenta tareas asignadas en la semana (incluye completadas/certificadas; excluye canceladas).
-            Pesos configurables en <code>config/operativa.php</code>. Empate: menos vencidas → mayor % a tiempo → nombre.
+            Carga/Capacidad reflejan la semana actual (solo tareas abiertas). Tareas, A tiempo, Tarde, Vencidas, Pend.,
+            Cumpl. y Puntaje son históricos: consideran todas las tareas que el colaborador ha tenido asignadas
+            alguna vez (excluye canceladas). Pesos configurables en <code>config/operativa.php</code>.
+            Empate: menos vencidas → mayor % a tiempo → nombre.
         </p>
     </div>
 </div>

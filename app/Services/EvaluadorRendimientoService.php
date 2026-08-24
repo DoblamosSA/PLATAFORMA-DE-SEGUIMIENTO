@@ -4,14 +4,17 @@ namespace App\Services;
 
 use App\Models\Task;
 use App\Models\User;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Puntaje, clasificacion y ranking semanal de colaboradores.
+ * Puntaje, clasificacion y ranking de colaboradores.
  *
- * Solo considera tareas con fecha_asignacion (o created_at) dentro de la
- * semana seleccionada. No arrastra semanas anteriores.
+ * "Carga"/"Capacidad" son una foto de la carga operativa ACTUAL (misma
+ * definicion que el resto de la app: solo tareas abiertas, semana calendario
+ * en curso, sin navegacion). El resto de las metricas (tareas, a tiempo,
+ * tarde, vencidas, pendientes, cumplimiento, puntaje, clasificacion) es
+ * HISTORICO: considera todas las tareas que el colaborador ha tenido
+ * asignadas alguna vez (excepto canceladas), sin recortar por semana.
  */
 class EvaluadorRendimientoService
 {
@@ -20,23 +23,23 @@ class EvaluadorRendimientoService
     ) {}
 
     /**
-     * @return array{0: Carbon, 1: Carbon}
-     */
-    public function limitesSemana(?Carbon $ref = null): array
-    {
-        return $this->capacidad->limitesSemana($ref);
-    }
-
-    /**
+     * Todas las tareas (excepto canceladas) que el colaborador ha tenido
+     * asignadas alguna vez, sin importar la semana.
+     *
      * @return Collection<int, Task>
      */
-    public function tareasDeSemana(User $user, ?Carbon $ref = null): Collection
+    public function tareasHistoricas(User $user): Collection
     {
-        return $this->capacidad->tareasAsignadasEnSemanaTodas($user, null, $ref);
+        return Task::query()
+            ->where('asignado_id', $user->id)
+            ->where('estado', '!=', 'cancelada')
+            ->orderByRaw('COALESCE(fecha_asignacion, created_at) asc')
+            ->orderBy('id')
+            ->get();
     }
 
     /**
-     * Metricas de un colaborador en la semana de $ref.
+     * Metricas historicas de un colaborador (ver docblock de la clase).
      *
      * @return array{
      *   usuario: User,
@@ -53,13 +56,13 @@ class EvaluadorRendimientoService
      *   desglose: array<string, float|int|string>
      * }
      */
-    public function metricasColaborador(User $user, ?Carbon $ref = null): array
+    public function metricasColaborador(User $user): array
     {
-        [$desde, $hasta] = $this->limitesSemana($ref);
-        $tareas = $this->tareasDeSemana($user, $ref);
+        $cargaActual = $this->capacidad->cargaSemanaActual($user);
+        $carga = $cargaActual['asignadas'];
+        $capacidad = $cargaActual['disponibles'];
 
-        $carga = round((float) $tareas->sum(fn (Task $t) => (float) ($t->horas_estimadas ?? 0)), 2);
-        $capacidad = $this->capacidad->capacidadPeriodo($user, $desde, $hasta);
+        $tareas = $this->tareasHistoricas($user);
 
         $completadas = $tareas->where('estado', 'completada');
         $aTiempo = $completadas->where('cumplida_a_tiempo', true)->count();
@@ -68,6 +71,7 @@ class EvaluadorRendimientoService
         $vencidas = $tareas->filter(fn (Task $t) => $t->estaVencida())->count();
         $asignadas = $tareas->count();
 
+        $horasAsignadas = round((float) $tareas->sum(fn (Task $t) => (float) ($t->horas_estimadas ?? 0)), 2);
         $horasCompletadas = round((float) $completadas->sum(fn (Task $t) => (float) ($t->horas_estimadas ?? 0)), 2);
 
         $pctCumplimiento = $asignadas > 0
@@ -76,7 +80,7 @@ class EvaluadorRendimientoService
 
         $puntualidad = $asignadas > 0 ? ($aTiempo / $asignadas) * 100 : 100.0;
         $sinVencidas = $asignadas > 0 ? (1 - ($vencidas / $asignadas)) * 100 : 100.0;
-        $cargaCompletada = $carga > 0 ? min(100, ($horasCompletadas / $carga) * 100) : 100.0;
+        $cargaCompletada = $horasAsignadas > 0 ? min(100, ($horasCompletadas / $horasAsignadas) * 100) : 100.0;
 
         $pesos = config('operativa.puntaje');
         $puntaje = round(
@@ -123,11 +127,11 @@ class EvaluadorRendimientoService
      * @param  Collection<int, User>|iterable<User>  $usuarios
      * @return list<array>
      */
-    public function ranking(iterable $usuarios, ?Carbon $ref = null): array
+    public function ranking(iterable $usuarios): array
     {
         $filas = [];
         foreach ($usuarios as $user) {
-            $filas[] = $this->metricasColaborador($user, $ref);
+            $filas[] = $this->metricasColaborador($user);
         }
 
         usort($filas, function (array $a, array $b) {
