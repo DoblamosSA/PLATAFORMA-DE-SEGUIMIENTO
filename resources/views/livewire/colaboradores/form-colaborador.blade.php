@@ -4,9 +4,10 @@
             @include('livewire.colaboradores.partials.campos-formulario')
 
             <div class="flex items-center gap-3 pt-2">
-                <button type="submit"
-                        class="rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
-                    {{ $colaborador ? 'Guardar cambios' : 'Crear colaborador' }}
+                <button type="submit" wire:loading.attr="disabled" wire:target="save"
+                        class="rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    <span wire:loading.remove wire:target="save">{{ $colaborador ? 'Guardar cambios' : 'Crear colaborador' }}</span>
+                    <span wire:loading wire:target="save">Guardando…</span>
                 </button>
                 <button type="button" wire:click="cancelar" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition">Cancelar</button>
             </div>
@@ -28,9 +29,10 @@
                 @include('livewire.colaboradores.partials.campos-formulario')
 
                 <div class="flex items-center gap-3 pt-2">
-                    <button type="submit"
-                            class="rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition">
-                        {{ $colaborador ? 'Guardar cambios' : 'Crear colaborador' }}
+                    <button type="submit" wire:loading.attr="disabled" wire:target="save"
+                            class="rounded-xl bg-gradient-to-br from-blue-600 to-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-sky-700 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed">
+                        <span wire:loading.remove wire:target="save">{{ $colaborador ? 'Guardar cambios' : 'Crear colaborador' }}</span>
+                        <span wire:loading wire:target="save">Guardando…</span>
                     </button>
                     <a href="{{ route('colaboradores') }}" wire:navigate class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition">Cancelar</a>
                 </div>

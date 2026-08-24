@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\CapacidadService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -72,6 +73,8 @@ class ListaColaboradores extends Component
     #[On('cerrar-modal-colaborador')]
     public function cerrarModal(?string $mensaje = null): void
     {
+        Log::debug('colaborador.lista.modal_cerrado_por_evento', ['mensaje' => $mensaje]);
+
         $this->mostrarModal = false;
         $this->editando = null;
 

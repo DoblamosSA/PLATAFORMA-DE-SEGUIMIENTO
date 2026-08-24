@@ -188,11 +188,18 @@ class FormColaborador extends Component
 
         $mensaje = $esNuevo ? 'Colaborador creado correctamente.' : 'Colaborador actualizado.';
 
+        Log::info('colaborador.creado', [
+            'colaborador_id' => $colaborador->id,
+            'email' => $colaborador->email,
+            'es_nuevo' => $esNuevo,
+        ]);
+
         if ($this->enModal) {
             // El padre dispara el toast (ver ListaColaboradores::cerrarModal): su
             // elemento permanece estable, a diferencia del de este hijo justo
             // despues de esta misma accion (bug de Livewire con componentes
             // anidados montados dinamicamente - ver notas en cancelar()).
+            Log::debug('colaborador.form.dispatch_cerrar_modal', ['colaborador_id' => $colaborador->id]);
             $this->dispatch('cerrar-modal-colaborador', mensaje: $mensaje)->to('colaboradores.lista-colaboradores');
 
             return;

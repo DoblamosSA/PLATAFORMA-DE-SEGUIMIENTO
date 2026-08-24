@@ -118,4 +118,43 @@ class FormColaboradorValidationTest extends TestCase
             'user_id' => $colaborador->id,
         ]);
     }
+
+    public function test_un_doble_envio_no_crea_dos_colaboradores(): void
+    {
+        $component = Livewire::actingAs($this->admin)
+            ->test(FormColaborador::class, ['enModal' => true])
+            ->set($this->datosValidos());
+
+        // Primer envio: crea el colaborador.
+        $component->call('save')->assertHasNoErrors();
+        $this->assertSame(1, User::where('email', 'edison.ortiz@example.test')->count());
+
+        // Segundo envio (simulando un doble clic): mismos datos, ningun reset
+        // de por medio. Debe fallar por correo duplicado sin crear un segundo
+        // registro ni lanzar una excepcion no controlada.
+        $component->call('save')->assertHasErrors(['email']);
+        $this->assertSame(1, User::where('email', 'edison.ortiz@example.test')->count(), 'El doble envio no debe crear un segundo colaborador.');
+    }
+
+    public function test_una_validacion_fallida_por_otro_motivo_conserva_los_campos_alpine(): void
+    {
+        $datos = $this->datosValidos();
+        // Motivo de fallo ajeno a los campos Alpine: contrasenas que no coinciden.
+        $datos['password_confirmation'] = 'no-coincide';
+
+        $component = Livewire::actingAs($this->admin)
+            ->test(FormColaborador::class, ['enModal' => true])
+            ->set($datos)
+            ->call('save');
+
+        $component->assertHasErrors(['password']);
+
+        foreach (['department_id', 'sub_department_id', 'role_id', 'diasLaborales', 'horasDiarias'] as $propiedad) {
+            $component->assertSet(
+                $propiedad,
+                $datos[$propiedad],
+                "El campo Alpine [{$propiedad}] no deberia vaciarse cuando el fallo de validacion es por otro motivo (contrasena)."
+            );
+        }
+    }
 }
