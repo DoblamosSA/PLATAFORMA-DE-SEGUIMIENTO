@@ -157,4 +157,18 @@ class FormColaboradorValidationTest extends TestCase
             );
         }
     }
+
+    public function test_no_se_puede_crear_un_colaborador_sin_rol_de_departamento(): void
+    {
+        $datos = $this->datosValidos();
+        $datos['role_id'] = '';
+
+        Livewire::actingAs($this->admin)
+            ->test(FormColaborador::class, ['enModal' => true])
+            ->set($datos)
+            ->call('save')
+            ->assertHasErrors(['role_id' => 'required']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'edison.ortiz@example.test']);
+    }
 }

@@ -23,3 +23,13 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# AI Factory (Claude Code /aif tooling) - local assistant config, not project source
+/.ai-factory.json
+/.ai-factory/
+/.claude/agents/
+/.claude/skills/
+/.mcp.json
+/skills-lock.json
+/AGENTS.md
+/docs/

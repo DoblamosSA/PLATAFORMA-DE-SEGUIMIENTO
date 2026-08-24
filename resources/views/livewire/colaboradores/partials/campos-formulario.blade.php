@@ -10,28 +10,33 @@
         <input id="foto" type="file" wire:model="foto" accept="image/*"
                class="w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 dark:file:bg-blue-500/15 file:px-3 file:py-1.5 file:text-blue-700 dark:file:text-blue-400 file:text-sm">
         <div wire:loading wire:target="foto" class="text-xs text-slate-400 dark:text-slate-500 mt-1">Subiendo…</div>
-        @error('foto') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+        {{-- Span siempre presente (nunca @if/@error) para que Livewire parchee su
+             texto en vez de agregar/quitar el nodo: agregar/quitar nodos desalinea
+             el conteo de hermanos y hace que morphdom pierda el valor de otros
+             campos del formulario en el mismo re-render (causa real del bug donde
+             el formulario se veia vacio tras una validacion fallida). --}}
+        <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('foto') ? '' : 'hidden' }}">{{ $errors->first('foto') }}</span>
     </div>
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <div>
         <label for="name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Nombre *</label>
-        <input id="name" type="text" wire:model="name" required
+        <input id="name" type="text" wire:model="name" x-on:input="name = $event.target.value" required
                class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-        @error('name') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+        <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('name') ? '' : 'hidden' }}">{{ $errors->first('name') }}</span>
     </div>
     <div>
         <label for="email" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Correo *</label>
-        <input id="email" type="email" wire:model="email" required
+        <input id="email" type="email" wire:model="email" x-on:input="email = $event.target.value" required
                class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-        @error('email') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+        <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('email') ? '' : 'hidden' }}">{{ $errors->first('email') }}</span>
     </div>
     <div>
         <label for="telefono" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Teléfono</label>
         <input id="telefono" type="text" wire:model="telefono"
                class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-        @error('telefono') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+        <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('telefono') ? '' : 'hidden' }}">{{ $errors->first('telefono') }}</span>
     </div>
     <div>
         <label for="cargo" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Cargo</label>
@@ -50,13 +55,13 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
             <label for="password" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Nueva contraseña</label>
-            <input id="password" type="password" wire:model="password" autocomplete="new-password"
+            <input id="password" type="password" wire:model="password" x-on:input="password = $event.target.value" autocomplete="new-password"
                    class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-            @error('password') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+            <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('password') ? '' : 'hidden' }}">{{ $errors->first('password') }}</span>
         </div>
         <div>
             <label for="password_confirmation" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Confirmar contraseña</label>
-            <input id="password_confirmation" type="password" wire:model="password_confirmation" autocomplete="new-password"
+            <input id="password_confirmation" type="password" wire:model="password_confirmation" x-on:input="passwordConfirmation = $event.target.value" autocomplete="new-password"
                    class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
         </div>
     </div>
@@ -102,7 +107,7 @@
                     <option value="{{ $dpto->id }}">{{ $dpto->nombre }}</option>
                 @endforeach
             </select>
-            @error('department_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+            <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('department_id') ? '' : 'hidden' }}">{{ $errors->first('department_id') }}</span>
         </div>
         <div>
             <label for="sub_department_id" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Subdepartamento *</label>
@@ -114,19 +119,19 @@
                     <option :value="s.id" x-text="s.nombre"></option>
                 </template>
             </select>
-            @error('sub_department_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+            <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('sub_department_id') ? '' : 'hidden' }}">{{ $errors->first('sub_department_id') }}</span>
         </div>
         <div>
-            <label for="role_id" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Rol en el departamento</label>
+            <label for="role_id" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Rol en el departamento *</label>
             <select id="role_id" x-model="rol" :disabled="!depto"
                     x-init="$nextTick(() => $el.value = rol)"
                     class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed">
-                <option value="">Sin asignar</option>
+                <option value="" x-text="depto ? 'Selecciona…' : 'Elige un departamento primero'"></option>
                 <template x-for="r in roles" :key="r.id">
                     <option :value="r.id" x-text="r.nombre"></option>
                 </template>
             </select>
-            @error('role_id') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+            <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('role_id') ? '' : 'hidden' }}">{{ $errors->first('role_id') }}</span>
         </div>
     </div>
 </div>
@@ -168,7 +173,7 @@
                 </button>
             @endforeach
         </div>
-        @error('diasLaborales') <span class="block text-xs text-rose-600 dark:text-rose-400 mt-1">{{ $message }}</span> @enderror
+        <span class="block text-xs text-rose-600 dark:text-rose-400 mt-1 {{ $errors->has('diasLaborales') ? '' : 'hidden' }}">{{ $errors->first('diasLaborales') }}</span>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
@@ -177,7 +182,7 @@
             <input id="horasDiarias" type="number" step="0.5" min="0.5" max="12" x-model="horas"
                    x-init="$nextTick(() => $el.value = horas)"
                    class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-            @error('horasDiarias') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+            <span class="text-xs text-rose-600 dark:text-rose-400 {{ $errors->has('horasDiarias') ? '' : 'hidden' }}">{{ $errors->first('horasDiarias') }}</span>
         </div>
         <div class="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2">
             <p class="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Capacidad semanal</p>

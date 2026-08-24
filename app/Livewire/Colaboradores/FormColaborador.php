@@ -107,7 +107,7 @@ class FormColaborador extends Component
             'department_id' => 'required|exists:departments,id',
             // El subdepartamento (antes "area") debe pertenecer al departamento elegido.
             'sub_department_id' => ['required', Rule::exists('sub_departments', 'id')->where('department_id', $this->department_id)],
-            'role_id' => 'nullable|exists:roles,id',
+            'role_id' => 'required|exists:roles,id',
         ];
     }
 
@@ -122,6 +122,7 @@ class FormColaborador extends Component
             'department_id.required' => 'Selecciona un departamento.',
             'sub_department_id.required' => 'Selecciona un subdepartamento.',
             'sub_department_id.exists' => 'El subdepartamento no pertenece al departamento seleccionado.',
+            'role_id.required' => 'Selecciona un rol en el departamento.',
         ];
     }
 

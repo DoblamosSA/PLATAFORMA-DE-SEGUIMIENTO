@@ -1,66 +1,45 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="300" alt="Laravel Logo"></a></p>
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+# Plataforma de Seguimiento
 
-## About Laravel
+> Seguimiento de proyectos, tareas, SLA y capacidad operativa, con organización y RBAC.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Aplicación web interna (Laravel 11 + Livewire 3) para dar seguimiento a proyectos de tecnología (software, soporte e infraestructura), sus tareas y subtareas, cumplimiento de SLA (acuerdo de nivel de servicio), capacidad operativa de los colaboradores y la estructura organizacional (departamentos, roles y permisos).
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Inicio rápido
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```bash
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+composer run dev
+```
 
-## Learning Laravel
+`composer run dev` levanta en paralelo el servidor (`artisan serve`), la cola, los logs (`artisan pail`) y Vite. Ver [Primeros pasos](docs/primeros-pasos.md) para el detalle.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Funcionalidades principales
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- **Proyectos y tablero Kanban** — columnas configurables por proyecto que traducen la posición visual a un estado canónico de tarea.
+- **Tareas con SLA y semáforo** — vencimiento por tipo/prioridad y estado visual (`planeado`, `saludable`, `en_riesgo`, `vencido`).
+- **Capacidad operativa** — cálculo semanal por colaborador (días laborales × horas diarias) y evaluación de rendimiento con ranking.
+- **Informes** — cumplimiento mensual y evaluación de colaboradores.
+- **Organización y RBAC** (control de acceso basado en roles) — departamentos, subdepartamentos, roles jerárquicos y permisos (`grant`/`deny`), como subsistema independiente.
+- **Notificaciones Web Push** — VAPID + service worker para cambios de tareas/subtareas.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Documentación
 
-## Laravel Sponsors
+| Guía | Descripción |
+|------|-------------|
+| [Primeros pasos](docs/primeros-pasos.md) | Instalación, configuración inicial y primer arranque |
+| [Arquitectura](docs/arquitectura.md) | Patrón de arquitectura, capas del código y límites entre dominios |
+| [Configuración](docs/configuracion.md) | Variables de entorno y configuración de la jornada operativa |
+| [Notificaciones Push](docs/notificaciones-push.md) | Claves VAPID, service worker y particularidades por plataforma |
+| [Seguridad y permisos](docs/seguridad-y-permisos.md) | Roles legados, RBAC organizacional y reglas de visibilidad |
+| [Despliegue](deploy/README.md) | Despliegue en producción vía Docker y GitHub Actions |
+| [Base de conocimiento de dominio](.ai/README.md) | Entidades, flujos y reglas de negocio en detalle, para asistentes de IA |
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Uso
 
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Proyecto interno de uso privado; no está publicado como software de código abierto.
