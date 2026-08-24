@@ -28,7 +28,6 @@ class Task extends Model
         'fecha_limite',
         'fecha_inicio_real',
         'fecha_completada',
-        'sla_horas',
         'horas_estimadas',
         'cumplida_a_tiempo',
         'tag',
@@ -157,20 +156,6 @@ class Task extends Model
         $departamentoId = $user->departments()->first()?->id;
 
         return $q->whereHas('subDepartamento', fn (Builder $q2) => $q2->where('department_id', $departamentoId));
-    }
-
-    // ---------------------------------------------------------------
-    // Logica de SLA
-    // ---------------------------------------------------------------
-
-    /**
-     * @deprecated La capacidad ya no usa SLA. Se conserva por compatibilidad
-     * con datos antiguos; no recalcula fecha_limite ni sla_horas.
-     */
-    public function aplicarSla(): void
-    {
-        // Intencionalmente vacio: el vencimiento se deriva del plan de
-        // disponibilidad diaria (CapacidadService), no de SlaPolicy.
     }
 
     /**

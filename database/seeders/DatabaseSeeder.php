@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Domain\Organization\Models\Department;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Models\Project;
-use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\TaskActivity;
 use App\Models\User;
@@ -18,7 +17,6 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([PermissionSeeder::class, RoleSeeder::class]);
         $subDepartamentos = $this->seedSubDepartamentos();
-        $this->seedSlaPolicies($subDepartamentos);
         $usuarios = $this->seedUsuarios();
         $this->call(SuperAdminBackfillSeeder::class);
         $this->seedDemo($usuarios, $subDepartamentos);
@@ -26,7 +24,7 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Departamento "Tecnologia" con sus subdepartamentos base (software,
-     * soporte, infraestructura), usados por proyectos/tareas/SLA.
+     * soporte, infraestructura), usados por proyectos/tareas.
      *
      * @return array<string, SubDepartment>
      */
@@ -59,32 +57,6 @@ class DatabaseSeeder extends Seeder
         }
 
         return $creados;
-    }
-
-    /**
-     * Matriz de SLA (horas de resolucion) por subdepartamento y prioridad.
-     *
-     * @param  array<string, SubDepartment>  $subDepartamentos
-     */
-    private function seedSlaPolicies(array $subDepartamentos): void
-    {
-        $matriz = [
-            // subdepartamento  critica  alta  media  baja
-            'soporte' => [4,     8,    24,   72],
-            'software' => [8,     24,   72,   160],
-            'infraestructura' => [2,     6,    24,   72],
-        ];
-
-        $prioridades = ['critica', 'alta', 'media', 'baja'];
-
-        foreach ($matriz as $slug => $horas) {
-            foreach ($prioridades as $i => $prioridad) {
-                SlaPolicy::updateOrCreate(
-                    ['sub_department_id' => $subDepartamentos[$slug]->id, 'prioridad' => $prioridad],
-                    ['horas_resolucion' => $horas[$i], 'activo' => true],
-                );
-            }
-        }
     }
 
     /**

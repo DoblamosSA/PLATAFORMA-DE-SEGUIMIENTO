@@ -7,7 +7,6 @@ use App\Domain\Organization\Exceptions\SubDepartmentNotDeletableException;
 use App\Domain\Organization\Models\Department;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Repositories\Contracts\SubDepartmentRepositoryInterface;
-use App\Models\SlaPolicy;
 use App\Models\User;
 
 class SubDepartmentService
@@ -44,10 +43,6 @@ class SubDepartmentService
                 "El subdepartamento '{$subDepartment->nombre}' tiene proyectos o tareas asociadas y no puede eliminarse."
             );
         }
-
-        // Las politicas de SLA son configuracion propia del subdepartamento:
-        // se eliminan con el, a diferencia de proyectos/tareas (trabajo real).
-        SlaPolicy::where('sub_department_id', $subDepartment->id)->delete();
 
         $this->subDepartments->forceDelete($subDepartment);
     }

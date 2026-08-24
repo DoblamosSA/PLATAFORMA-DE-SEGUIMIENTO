@@ -9,7 +9,6 @@ use App\Domain\Organization\Models\SubDepartment;
 use App\Domain\Organization\Repositories\Contracts\DepartmentRepositoryInterface;
 use App\Domain\Organization\Repositories\Contracts\SubDepartmentRepositoryInterface;
 use App\Models\Project;
-use App\Models\SlaPolicy;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -62,7 +61,6 @@ class DepartmentService
             $subDepartments->each(function (SubDepartment $sd) {
                 Project::where('sub_department_id', $sd->id)->delete();
                 Task::where('sub_department_id', $sd->id)->delete();
-                SlaPolicy::where('sub_department_id', $sd->id)->delete();
                 $this->subDepartments->forceDelete($sd);
             });
 
