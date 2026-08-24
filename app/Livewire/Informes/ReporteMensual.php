@@ -3,10 +3,14 @@
 namespace App\Livewire\Informes;
 
 use App\Services\MetricasService;
+use App\Services\ReporteAgendaExcelService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[Layout('layouts.app')]
@@ -86,6 +90,26 @@ class ReporteMensual extends Component
 
             fclose($out);
         }, $nombre, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Exporta la agenda de tareas por proyecto a un libro Excel (una hoja
+     * por proyecto, una fila por subtarea/tarea con colaborador y fechas
+     * calculadas). Independiente del reporte de cumplimiento (exportarCsv).
+     */
+    public function exportarAgendaExcel(ReporteAgendaExcelService $servicio): StreamedResponse
+    {
+        Log::info('agenda_excel.exportado', ['user_id' => Auth::id()]);
+
+        $spreadsheet = $servicio->construir();
+        $nombre = 'agenda-tareas-'.now()->format('Y-m-d').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $nombre, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public function render(MetricasService $metricas)

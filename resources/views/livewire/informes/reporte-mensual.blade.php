@@ -22,6 +22,10 @@
                             class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2.5 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 active:scale-[0.98] transition">
                         <x-icon name="download" class="w-4 h-4" /> Excel/CSV
                     </button>
+                    <button wire:click="exportarAgendaExcel"
+                            class="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 dark:border-indigo-500/40 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-2.5 text-sm font-medium text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 active:scale-[0.98] transition">
+                        <x-icon name="download" class="w-4 h-4" /> Agenda por proyecto
+                    </button>
                     <button onclick="window.print()"
                             class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition">
                         <x-icon name="print" class="w-4 h-4" /> Imprimir / PDF
