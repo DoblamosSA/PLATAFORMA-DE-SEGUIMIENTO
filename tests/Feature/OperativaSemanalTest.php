@@ -92,7 +92,7 @@ class OperativaSemanalTest extends TestCase
         $this->assertEquals(20.0, $carga['asignadas']);
     }
 
-    public function test_tarea_completada_conserva_carga_en_la_misma_semana(): void
+    public function test_completar_una_tarea_libera_su_cupo_en_la_misma_semana(): void
     {
         $user = $this->colaborador();
         $this->tarea($user, [
@@ -103,7 +103,19 @@ class OperativaSemanalTest extends TestCase
         ]);
 
         $carga = $this->capacidad->cargaSemanaActual($user);
-        $this->assertEquals(16.0, $carga['asignadas']);
+        $this->assertEquals(0.0, $carga['asignadas']);
+    }
+
+    public function test_cancelar_una_tarea_libera_su_cupo_en_la_misma_semana(): void
+    {
+        $user = $this->colaborador();
+        $this->tarea($user, [
+            'horas_estimadas' => 16,
+            'estado' => 'cancelada',
+        ]);
+
+        $carga = $this->capacidad->cargaSemanaActual($user);
+        $this->assertEquals(0.0, $carga['asignadas']);
     }
 
     public function test_nueva_semana_reinicia_carga_sin_arrastrar_asignaciones_previas(): void

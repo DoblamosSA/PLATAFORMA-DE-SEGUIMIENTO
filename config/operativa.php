@@ -8,7 +8,8 @@
  * - Jornada diaria inicia a las hora_inicio_jornada (por defecto 08:00) y
  *   dura User.horas_diarias en dias de User.dias_laborales.
  * - La carga de una semana cuenta tareas con fecha_asignacion en esa semana
- *   (excluye canceladas); completadas/certificadas siguen contando.
+ *   que aun estan abiertas; completar o cancelar una tarea libera su cupo
+ *   de inmediato, sin importar en que semana se asigno.
  * - No existe entidad "sede"; el evaluador filtra por departamento.
  */
 return [

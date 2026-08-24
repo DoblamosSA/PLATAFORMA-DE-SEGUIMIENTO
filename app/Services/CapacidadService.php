@@ -6,13 +6,15 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Capacidad operativa por disponibilidad diaria del colaborador.
  *
  * La carga de una semana cuenta las tareas ASIGNADAS en esa semana
- * calendario (fecha_asignacion), incluyendo completadas/certificadas.
- * Canceladas no cuentan. El SLA no define la ventana de capacidad.
+ * calendario (fecha_asignacion) que aun estan abiertas (ver
+ * ESTADOS_ABIERTOS). Completar o cancelar una tarea libera su cupo de
+ * inmediato, sin importar en que semana se asigno.
  */
 class CapacidadService
 {
@@ -428,8 +430,9 @@ class CapacidadService
     }
 
     /**
-     * Tareas del colaborador asignadas en la semana de $ref (no canceladas).
-     * Completadas/certificadas siguen contando en la carga de esa semana.
+     * Tareas ABIERTAS del colaborador asignadas en la semana de $ref.
+     * Completar o cancelar una tarea libera su cupo de inmediato, sin
+     * importar en que semana se asigno.
      *
      * @return Collection<int, Task>
      */
@@ -438,9 +441,9 @@ class CapacidadService
         [$semanaInicio, $semanaFin] = $this->limitesSemana($ref);
         $finExclusivo = $semanaFin->copy()->addDay()->startOfDay();
 
-        return Task::query()
+        $tareas = Task::query()
             ->where('asignado_id', $user->id)
-            ->where('estado', '!=', 'cancelada')
+            ->whereIn('estado', self::ESTADOS_ABIERTOS)
             ->when($excluirTaskId, fn ($q) => $q->where('id', '!=', $excluirTaskId))
             ->where(function ($q) use ($semanaInicio, $finExclusivo) {
                 $q->where(function ($q2) use ($semanaInicio, $finExclusivo) {
@@ -456,6 +459,14 @@ class CapacidadService
             ->orderByRaw('COALESCE(fecha_asignacion, created_at) asc')
             ->orderBy('id')
             ->get();
+
+        Log::debug('capacidad.tareas_semana', [
+            'user_id' => $user->id,
+            'total_tareas' => $tareas->count(),
+            'estados' => $tareas->pluck('estado')->all(),
+        ]);
+
+        return $tareas;
     }
 
     /** @deprecated Usar tareasAsignadasEnSemana; se mantiene por compatibilidad interna. */
