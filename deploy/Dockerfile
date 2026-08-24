@@ -14,17 +14,21 @@ COPY resources ./resources
 RUN npm run build
 
 # --- Etapa 2: dependencias PHP ---
+# ext-gd solo hace falta en runtime (phpoffice/phpspreadsheet la requiere,
+# pero aqui solo se resuelven/descargan paquetes, no se ejecuta codigo PHP).
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --no-scripts --prefer-dist --optimize-autoloader
+RUN composer install --no-dev --no-interaction --no-scripts --prefer-dist --optimize-autoloader --ignore-platform-req=ext-gd
 
 # --- Etapa 3: runtime ---
 FROM php:8.3-fpm-alpine
 
-RUN apk add --no-cache nginx supervisor sqlite-libs icu-libs gmp \
-    && apk add --no-cache --virtual .build icu-dev gmp-dev \
-    && docker-php-ext-install intl opcache pdo_mysql gmp bcmath \
+# gd y zip son requeridos por phpoffice/phpspreadsheet (exportacion Excel).
+RUN apk add --no-cache nginx supervisor sqlite-libs icu-libs gmp freetype libjpeg-turbo libpng libwebp libzip \
+    && apk add --no-cache --virtual .build icu-dev gmp-dev freetype-dev libjpeg-turbo-dev libpng-dev libwebp-dev libzip-dev pkgconfig \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install intl opcache pdo_mysql gmp bcmath gd zip \
     && apk del .build
 
 COPY deploy/php.ini /usr/local/etc/php/conf.d/app.ini
