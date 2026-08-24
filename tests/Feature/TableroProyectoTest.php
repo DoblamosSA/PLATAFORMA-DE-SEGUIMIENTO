@@ -127,7 +127,7 @@ class TableroProyectoTest extends TestCase
         ]);
     }
 
-    public function test_mover_a_columna_completada_evalua_el_sla(): void
+    public function test_mover_a_columna_completada_evalua_el_cumplimiento(): void
     {
         $task = $this->tareaEn('pendiente');
         Livewire::actingAs($this->lider)->test(TableroProyecto::class, ['project' => $this->project]);
@@ -142,7 +142,28 @@ class TableroProyectoTest extends TestCase
 
         $this->assertSame('completada', $task->estado);
         $this->assertNotNull($task->fecha_completada);
-        $this->assertTrue($task->cumplida_a_tiempo); // el SLA cae en el futuro
+        $this->assertTrue($task->cumplida_a_tiempo); // fecha_limite cae en el futuro
+    }
+
+    public function test_completar_una_tarea_despues_de_la_fecha_limite_marca_falta(): void
+    {
+        $task = $this->tareaEn('pendiente');
+        $task->fecha_limite = now()->subDay();
+        $task->save();
+
+        Livewire::actingAs($this->lider)->test(TableroProyecto::class, ['project' => $this->project]);
+
+        $terminada = $this->columna('Terminada');
+
+        Livewire::actingAs($this->dev)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('moverTarea', $task->id, $terminada->id, [$task->id]);
+
+        $task->refresh();
+
+        $this->assertSame('completada', $task->estado);
+        $this->assertNotNull($task->fecha_completada);
+        $this->assertFalse($task->cumplida_a_tiempo);
     }
 
     public function test_persiste_el_orden_de_varias_cards(): void
@@ -349,6 +370,8 @@ class TableroProyectoTest extends TestCase
             ->set('prioridad', 'media')
             ->set('estado', 'pendiente')
             ->set('asignado_id', $this->dev->id)
+            ->set('fechaInicioInput', now()->format('Y-m-d'))
+            ->set('fechaLimiteInput', now()->addDays(3)->format('Y-m-d\TH:i'))
             ->call('save');
 
         $task = Task::where('titulo', 'Tarea desde formulario')->firstOrFail();
@@ -407,6 +430,8 @@ class TableroProyectoTest extends TestCase
             ->set('titulo', 'Tarea asignada desde tablero')
             ->set('sub_department_id', (string) $this->subDepartment->id)
             ->set('asignado_id', $this->dev->id)
+            ->set('fechaInicioInput', now()->format('Y-m-d'))
+            ->set('fechaLimiteInput', now()->addDays(3)->format('Y-m-d\TH:i'))
             ->call('save')
             ->assertHasNoErrors();
 
@@ -443,47 +468,47 @@ class TableroProyectoTest extends TestCase
         $this->assertDatabaseHas('task_activities', ['task_id' => $task->id, 'accion' => 'cambio_estado']);
     }
 
-    public function test_solo_el_admin_ve_el_campo_de_fecha_limite_en_la_edicion_en_linea(): void
+    public function test_los_campos_de_fecha_son_obligatorios_en_la_edicion_en_linea(): void
     {
         $task = $this->tareaEn('pendiente');
-        $admin = User::factory()->create(['rol' => 'admin']);
-
-        Livewire::actingAs($this->lider) // lider no es admin
-            ->test(TableroProyecto::class, ['project' => $this->project])
-            ->call('abrirTarea', $task->id)
-            ->call('iniciarEdicion')
-            ->assertDontSee('Modificar fecha límite');
-
-        Livewire::actingAs($admin)
-            ->test(TableroProyecto::class, ['project' => $this->project])
-            ->call('abrirTarea', $task->id)
-            ->call('iniciarEdicion')
-            ->assertSee('Modificar fecha límite');
-    }
-
-    public function test_un_no_admin_no_puede_cambiar_la_fecha_limite_desde_el_tablero(): void
-    {
-        $task = $this->tareaEn('pendiente');
-        $original = $task->fecha_limite->format('Y-m-d\TH:i');
 
         Livewire::actingAs($this->lider)
             ->test(TableroProyecto::class, ['project' => $this->project])
             ->call('abrirTarea', $task->id)
             ->call('iniciarEdicion')
-            ->set('edFechaLimiteInput', now()->addMonth()->format('Y-m-d\TH:i'))
+            ->assertSee('Fecha de inicio')
+            ->assertSee('Fecha límite')
+            ->set('edFechaInicioInput', '')
+            ->set('edFechaLimiteInput', '')
+            ->call('guardarEdicion')
+            ->assertHasErrors(['edFechaInicioInput' => 'required', 'edFechaLimiteInput' => 'required']);
+    }
+
+    public function test_un_usuario_sin_rol_admin_puede_cambiar_la_fecha_limite_de_una_tarea_abierta_desde_el_tablero(): void
+    {
+        $task = $this->tareaEn('pendiente');
+        $nueva = now()->addMonth()->startOfMinute();
+
+        Livewire::actingAs($this->lider)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('abrirTarea', $task->id)
+            ->call('iniciarEdicion')
+            ->set('edFechaLimiteInput', $nueva->format('Y-m-d\TH:i'))
             ->call('guardarEdicion')
             ->assertHasNoErrors();
 
-        $this->assertSame($original, $task->fresh()->fecha_limite->format('Y-m-d\TH:i'));
+        $this->assertTrue($nueva->equalTo($task->fresh()->fecha_limite));
     }
 
-    public function test_el_admin_debe_dejar_observacion_al_cambiar_la_fecha_limite_desde_el_tablero(): void
+    public function test_cambiar_fecha_limite_de_tarea_cerrada_desde_el_tablero_exige_observacion_sin_importar_el_rol(): void
     {
-        $task = $this->tareaEn('pendiente');
-        $admin = User::factory()->create(['rol' => 'admin']);
+        $task = $this->tareaEn('completada');
+        $task->fecha_completada = now();
+        $task->cumplida_a_tiempo = true;
+        $task->save();
         $original = $task->fecha_limite->format('Y-m-d\TH:i');
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($this->lider)
             ->test(TableroProyecto::class, ['project' => $this->project])
             ->call('abrirTarea', $task->id)
             ->call('iniciarEdicion')
@@ -494,13 +519,15 @@ class TableroProyectoTest extends TestCase
         $this->assertSame($original, $task->fresh()->fecha_limite->format('Y-m-d\TH:i'));
     }
 
-    public function test_el_admin_puede_cambiar_la_fecha_limite_desde_el_tablero_dejando_observacion(): void
+    public function test_usuario_puede_cambiar_fecha_limite_de_tarea_cerrada_desde_el_tablero_dejando_observacion(): void
     {
-        $task = $this->tareaEn('pendiente');
-        $admin = User::factory()->create(['rol' => 'admin']);
+        $task = $this->tareaEn('completada');
+        $task->fecha_completada = now();
+        $task->cumplida_a_tiempo = true;
+        $task->save();
         $nueva = now()->addDays(10)->startOfMinute();
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($this->lider)
             ->test(TableroProyecto::class, ['project' => $this->project])
             ->call('abrirTarea', $task->id)
             ->call('iniciarEdicion')

@@ -212,8 +212,9 @@ class DatabaseSeeder extends Seeder
             'asignado_id' => $asignado->id,
             'creado_por' => $creador->id,
             'fecha_asignacion' => $fechaAsignacion,
+            'fecha_inicio' => $fechaAsignacion->copy(),
+            'fecha_limite' => $fechaAsignacion->copy()->addDays(3),
         ]);
-        $task->aplicarSla();
 
         // Para simular una tarea abierta ya vencida, forzamos fecha limite pasada
         if ($vencidaAbierta) {
