@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -219,6 +220,14 @@ class FormColaborador extends Component
 
     public function render()
     {
+        Log::debug('colaborador.form.render', [
+            'department_id' => $this->department_id,
+            'sub_department_id' => $this->sub_department_id,
+            'role_id' => $this->role_id,
+            'dias' => $this->diasLaborales,
+            'horas' => $this->horasDiarias,
+        ]);
+
         $departamentos = Department::orderBy('nombre')->get(['id', 'nombre']);
 
         $subPorDepto = SubDepartment::where('activo', true)

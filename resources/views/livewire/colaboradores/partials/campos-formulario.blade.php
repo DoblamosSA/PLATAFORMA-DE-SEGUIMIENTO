@@ -66,8 +66,18 @@
      (Alpine) con datos precargados: elegir el departamento filtra sus
      subdepartamentos y sus roles al instante, sin round-trips (fragiles dentro
      del modal). Los valores se sincronizan con Livewire via @entangle y viajan
-     con el submit para validarse/guardarse. --}}
+     con el submit para validarse/guardarse.
+
+     El wire:key de este bloque evita que Livewire recree (en vez de parchear)
+     este x-data en cada re-render, que era la causa mas probable de que el
+     formulario se viera "vacio" tras una validacion fallida. Se mantienen
+     ademas los x-init de cada <select>/<input> (ahora aplicados de forma
+     uniforme a los tres selects y a horasDiarias) como respaldo: sin
+     verificacion manual en navegador con throttling de red que confirme que
+     el wire:key por si solo es suficiente en todos los casos, es mas seguro
+     conservar y uniformar este parche existente que retirarlo. --}}
 <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 p-4 space-y-3"
+     wire:key="colaborador-depto-{{ $colaborador?->id ?? 'nuevo' }}"
      x-data="{
         depto: @entangle('department_id'),
         subdepto: @entangle('sub_department_id'),
@@ -85,6 +95,7 @@
         <div>
             <label for="department_id" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Departamento *</label>
             <select id="department_id" x-model="depto" @change="onDepto()"
+                    x-init="$nextTick(() => $el.value = depto)"
                     class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="">Selecciona…</option>
                 @foreach ($departamentos as $dpto)
@@ -126,6 +137,7 @@
      cuando el formulario se monta dentro del modal). Los valores viajan con
      el submit para validarse/guardarse. --}}
 <div class="rounded-xl border border-blue-100 dark:border-blue-500/30 bg-blue-50/40 dark:bg-blue-500/10 p-4 space-y-3"
+     wire:key="colaborador-disponibilidad-{{ $colaborador?->id ?? 'nuevo' }}"
      x-data="{
         dias: @entangle('diasLaborales'),
         horas: @entangle('horasDiarias'),
@@ -163,6 +175,7 @@
         <div>
             <label for="horasDiarias" class="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Horas diarias * (máx. 12)</label>
             <input id="horasDiarias" type="number" step="0.5" min="0.5" max="12" x-model="horas"
+                   x-init="$nextTick(() => $el.value = horas)"
                    class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
             @error('horasDiarias') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
         </div>
