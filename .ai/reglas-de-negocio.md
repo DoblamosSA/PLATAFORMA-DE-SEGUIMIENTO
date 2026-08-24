@@ -1,21 +1,22 @@
 ---
 id: business-rules
-title: Reglas de negocio, SLA y métricas
-tags: [reglas, sla, metricas, capacidad, semaforo]
+title: Reglas de negocio, cumplimiento y métricas
+tags: [reglas, cumplimiento, metricas, capacidad, semaforo]
 fuentes:
   - app/Models/Project.php
   - app/Models/Task.php
-  - app/Models/SlaPolicy.php
   - app/Services/MetricasService.php
   - app/Services/CapacidadService.php
-updated: 2026-07-29
+updated: 2026-08-24
 ---
 
 # Reglas de negocio
 
-## SLA de tareas
+## Fechas y cumplimiento de tareas
 
-Una tarea abierta está vencida si no está `completada` ni `cancelada`, tiene `fecha_limite` y dicha fecha ya pasó. Las políticas SLA activas se seleccionan por tipo y prioridad. Si no existe una política, la duración predeterminada es: crítica 4 h, alta 24 h, media 72 h y baja 120 h.
+`fecha_inicio` y `fecha_limite` son obligatorias y se ingresan siempre a mano en el formulario de tareas (creación y edición, para cualquier usuario con permiso); ya no existe SLA ni auto-cálculo por horario laboral. Al editar `fecha_limite` de una tarea ya cerrada (`completada`/`cancelada`) se exige dejar una observación justificando el cambio.
+
+Una tarea abierta está vencida si no está `completada` ni `cancelada`, tiene `fecha_limite` y dicha fecha ya pasó. El cumplimiento (`cumplida_a_tiempo`) se fija al completar la tarea comparando directamente `fecha_completada` contra `fecha_limite`: si la supera, queda en falta (`false`); si no, cumple (`true`).
 
 ## Cumplimiento y progreso
 
@@ -29,9 +30,7 @@ El semáforo no depende directamente del estado o fechas del proyecto, sino de s
 
 La capacidad semanal de una persona es la cantidad de días laborales configurados multiplicada por sus horas diarias. Los códigos de día son `L`, `M`, `X`, `J`, `V`, `S`, `D`; su traducción a días de Carbon está definida en `User::DIAS_CARBON`.
 
-La **carga operativa de una semana** suma las `horas_estimadas` de tareas cuyo `fecha_asignacion` cae en esa semana calendario (lunes–domingo, `APP_TIMEZONE`). Incluye completadas/certificadas; excluye canceladas. Completar una tarea **no libera** capacidad en esa misma semana. Al iniciar una nueva semana, solo cuentan las asignaciones de la semana nueva.
-
-El inicio y fin planificados (`inicio_planificado`, `fecha_limite`) se calculan con `HorarioLaboralService` respetando la jornada (`config/operativa.php` + perfil del colaborador), sin asumir horas corridas de reloj.
+La **carga operativa de una semana** suma las `horas_estimadas` de tareas **abiertas** (`pendiente`, `en_progreso`, `en_revision`, `rechazada`) cuyo `fecha_asignacion` cae en esa semana calendario (lunes–domingo, `APP_TIMEZONE`). Completar o cancelar una tarea libera su cupo de inmediato, sin importar en qué semana se asignó. Al iniciar una nueva semana, solo cuentan las asignaciones de la semana nueva.
 
 No se permite asignar trabajo nuevo si el colaborador tiene tareas abiertas asignadas en semanas anteriores (`CierreSemanalService`).
 

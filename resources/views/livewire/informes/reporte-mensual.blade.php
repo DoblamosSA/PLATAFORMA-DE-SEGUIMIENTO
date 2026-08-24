@@ -35,7 +35,7 @@
             <h2 class="text-sm font-semibold text-gray-700 dark:text-slate-200 mb-4">Resumen ejecutivo</h2>
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
-                    <p class="text-xs text-gray-500 dark:text-slate-400">Cumplimiento SLA</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">Cumplimiento de plazos</p>
                     <p class="text-2xl font-bold
                         @if ($resumen['cumplimiento'] >= 90) text-emerald-600 dark:text-emerald-400
                         @elseif ($resumen['cumplimiento'] >= 70) text-amber-600 dark:text-amber-400
@@ -46,7 +46,7 @@
                     <p class="text-2xl font-bold text-gray-800 dark:text-slate-100">{{ $resumen['completadas'] }}</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 dark:text-slate-400">Fuera de SLA</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400">Fuera de plazo</p>
                     <p class="text-2xl font-bold text-rose-600 dark:text-rose-400">{{ $resumen['vencidas_cerradas'] }}</p>
                 </div>
                 <div>

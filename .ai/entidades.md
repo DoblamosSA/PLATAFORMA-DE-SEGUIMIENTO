@@ -19,15 +19,13 @@ updated: 2026-07-22
 
 ## Tareas y trazabilidad
 
-`Task` puede pertenecer opcionalmente a un proyecto (permite actividades de soporte sueltas). Tiene asignado, creador, tipo, prioridad, estado, fechas SLA, columna Kanban, posición y estimación de horas. Se relaciona con muchas `Subtask` y `TaskActivity`.
+`Task` puede pertenecer opcionalmente a un proyecto (permite actividades de soporte sueltas). Tiene asignado, creador, tipo, prioridad, estado, `fecha_inicio`/`fecha_limite` (obligatorias, se ingresan manualmente en el formulario, ya no se auto-calculan), columna Kanban, posición y estimación de horas. Se relaciona con muchas `Subtask` y `TaskActivity`.
 
 `Subtask` desglosa una tarea en `titulo` y `horas`; su suma alimenta `tasks.horas_estimadas`. `TaskActivity` registra acciones y comentarios asociados a una tarea. `AuditLog` registra trazabilidad de entidades generales que no necesariamente tienen tarea.
 
-## Personas y configuración de SLA
+## Personas
 
 `User` es el usuario autenticable. Además de identidad, conserva el rol legado, perfil operativo (`dias_laborales`, `horas_diarias`), tareas asignadas, proyectos bajo su responsabilidad y proyectos donde integra el equipo.
-
-`SlaPolicy` configura `horas_resolucion` por la combinación de tipo y prioridad, con bandera `activo`. Una tarea guarda una instantánea de las horas aplicadas en `sla_horas`.
 
 ## Organización y RBAC
 

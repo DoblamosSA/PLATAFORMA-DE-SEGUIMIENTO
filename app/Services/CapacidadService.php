@@ -22,7 +22,6 @@ class CapacidadService
     private const ESTADOS_ABIERTOS = ['pendiente', 'en_progreso', 'en_revision', 'rechazada'];
 
     public function __construct(
-        protected HorarioLaboralService $horario,
         protected CierreSemanalService $cierre,
     ) {}
 
@@ -390,38 +389,6 @@ class CapacidadService
         }
 
         return $plan;
-    }
-
-    /**
-     * Calcula inicio/fin planificados y plan diario segun jornada laboral.
-     *
-     * @return array{inicio: Carbon, fin: Carbon, plan: array<string, float>}
-     */
-    public function planificarAsignacion(User $user, float $horas, ?Carbon $desde = null): array
-    {
-        [$inicio, $fin, $plan] = $this->horario->calcularVentana($user, $horas, $desde);
-
-        return ['inicio' => $inicio, 'fin' => $fin, 'plan' => $plan];
-    }
-
-    /**
-     * Ultimo instante del plan de disponibilidad (vencimiento sin SLA).
-     * Preferir planificarAsignacion() cuando se conoce al colaborador.
-     */
-    public function fechaFinPlan(array $plan, ?Carbon $fallback = null): ?Carbon
-    {
-        if ($plan === []) {
-            return $fallback;
-        }
-
-        $ultimo = max(array_keys($plan));
-        $horasUltimoDia = (float) $plan[$ultimo];
-        $hora = $this->horario->horaInicioJornada();
-        $minuto = $this->horario->minutoInicioJornada();
-
-        return Carbon::parse($ultimo)
-            ->setTime($hora, $minuto, 0)
-            ->addHours($horasUltimoDia);
     }
 
     public function fmt(float $n): string

@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Services\CapacidadService;
 use App\Services\CierreSemanalService;
 use App\Services\EvaluadorRendimientoService;
-use App\Services\HorarioLaboralService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -21,8 +20,6 @@ class OperativaSemanalTest extends TestCase
     use RefreshDatabase;
 
     private CapacidadService $capacidad;
-
-    private HorarioLaboralService $horario;
 
     private CierreSemanalService $cierre;
 
@@ -38,7 +35,6 @@ class OperativaSemanalTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-07-27 10:00:00')); // lunes
 
         $this->capacidad = app(CapacidadService::class);
-        $this->horario = app(HorarioLaboralService::class);
         $this->cierre = app(CierreSemanalService::class);
         $this->evaluador = app(EvaluadorRendimientoService::class);
 
@@ -131,15 +127,6 @@ class OperativaSemanalTest extends TestCase
 
         $carga = $this->capacidad->cargaSemanaActual($user);
         $this->assertEquals(0.0, $carga['asignadas']);
-    }
-
-    public function test_horario_laboral_reparte_horas_entre_jornadas(): void
-    {
-        $user = $this->colaborador();
-        [$inicio, $fin] = $this->horario->calcularVentana($user, 9, Carbon::parse('2026-07-27 08:00:00'));
-
-        $this->assertTrue($inicio->equalTo(Carbon::parse('2026-07-27 08:00:00')));
-        $this->assertTrue($fin->equalTo(Carbon::parse('2026-07-28 09:00:00')));
     }
 
     public function test_bloquea_asignacion_si_hay_pendientes_de_semanas_anteriores(): void

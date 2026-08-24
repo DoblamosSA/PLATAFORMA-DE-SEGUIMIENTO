@@ -456,6 +456,13 @@ class FormTarea extends Component
 
             if ($task->fecha_completada) {
                 $task->cumplida_a_tiempo = $task->fecha_completada->lessThanOrEqualTo($task->fecha_limite);
+
+                Log::info('tarea.cumplimiento', [
+                    'task_id' => $task->id,
+                    'fecha_completada' => $task->fecha_completada,
+                    'fecha_limite' => $task->fecha_limite,
+                    'cumplida_a_tiempo' => $task->cumplida_a_tiempo,
+                ]);
             }
 
             $task->save();

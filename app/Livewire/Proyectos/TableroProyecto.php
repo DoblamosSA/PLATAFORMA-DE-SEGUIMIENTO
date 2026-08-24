@@ -195,7 +195,7 @@ class TableroProyecto extends Component
 
     /**
      * Aplica el estado canonico destino replicando los efectos de negocio
-     * existentes (inicio real, cierre y evaluacion de SLA, reapertura).
+     * existentes (inicio real, cierre y evaluacion de cumplimiento, reapertura).
      */
     protected function aplicarCambioEstado(Task $task, string $nuevoEstado): void
     {
@@ -207,9 +207,14 @@ class TableroProyecto extends Component
             $task->estado = 'completada';
             if (! $task->fecha_completada) {
                 $task->fecha_completada = now();
-                $task->cumplida_a_tiempo = $task->fecha_limite
-                    ? now()->lessThanOrEqualTo($task->fecha_limite)
-                    : true;
+                $task->cumplida_a_tiempo = $task->fecha_completada->lessThanOrEqualTo($task->fecha_limite);
+
+                Log::info('tarea.cumplimiento', [
+                    'task_id' => $task->id,
+                    'fecha_completada' => $task->fecha_completada,
+                    'fecha_limite' => $task->fecha_limite,
+                    'cumplida_a_tiempo' => $task->cumplida_a_tiempo,
+                ]);
             }
         } else {
             $task->estado = $nuevoEstado;
@@ -535,6 +540,13 @@ class TableroProyecto extends Component
 
             if ($task->fecha_completada) {
                 $task->cumplida_a_tiempo = $task->fecha_completada->lessThanOrEqualTo($task->fecha_limite);
+
+                Log::info('tarea.cumplimiento', [
+                    'task_id' => $task->id,
+                    'fecha_completada' => $task->fecha_completada,
+                    'fecha_limite' => $task->fecha_limite,
+                    'cumplida_a_tiempo' => $task->cumplida_a_tiempo,
+                ]);
             }
 
             $task->save();

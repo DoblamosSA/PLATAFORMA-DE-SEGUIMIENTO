@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class Task extends Model
 {
@@ -192,9 +193,14 @@ class Task extends Model
 
         $this->estado = 'completada';
         $this->fecha_completada = $cuando;
-        $this->cumplida_a_tiempo = $this->fecha_limite
-            ? $cuando->lessThanOrEqualTo($this->fecha_limite)
-            : true;
+        $this->cumplida_a_tiempo = $cuando->lessThanOrEqualTo($this->fecha_limite);
+
+        Log::info('tarea.cumplimiento', [
+            'task_id' => $this->id,
+            'fecha_completada' => $this->fecha_completada,
+            'fecha_limite' => $this->fecha_limite,
+            'cumplida_a_tiempo' => $this->cumplida_a_tiempo,
+        ]);
 
         $this->save();
     }

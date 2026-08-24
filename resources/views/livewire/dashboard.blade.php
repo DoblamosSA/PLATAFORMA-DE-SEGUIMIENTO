@@ -1,7 +1,7 @@
 <div class="p-4 sm:p-6 lg:p-8 space-y-6 anim-stagger">
 
     {{-- Encabezado --}}
-    <x-page-header title="Cumplimiento y SLA" subtitle="Panorama de actividades y proyectos de tecnologia" icon="dashboard">
+    <x-page-header title="Cumplimiento de plazos" subtitle="Panorama de actividades y proyectos de tecnologia" icon="dashboard">
         <x-slot:actions>
             <select wire:model.live="rango"
                     class="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -19,7 +19,7 @@
             <div class="absolute inset-x-0 -top-px h-1 bg-gradient-to-r from-blue-500 via-sky-500 to-cyan-500"></div>
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Cumplimiento SLA</p>
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Cumplimiento de plazos</p>
                     <p class="text-xs text-slate-400 dark:text-slate-500">{{ $periodos[$rango] }}</p>
                 </div>
                 <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400">
@@ -39,7 +39,7 @@
             <x-stat label="Tiempo promedio" :value="$resumen['tiempo_promedio'] !== null ? $resumen['tiempo_promedio'].'h' : '—'" icon="clock" tone="sky"
                     hint="Resolucion en el periodo" />
             <x-stat label="Completadas" :value="$resumen['completadas']" icon="check" tone="emerald"
-                    hint="{{ $resumen['vencidas_cerradas'] }} cerradas fuera de SLA" />
+                    hint="{{ $resumen['vencidas_cerradas'] }} cerradas fuera de plazo" />
             <x-stat label="Total asignadas" :value="$resumen['total']" icon="tasks" tone="indigo"
                     hint="En el periodo seleccionado" />
         </div>
