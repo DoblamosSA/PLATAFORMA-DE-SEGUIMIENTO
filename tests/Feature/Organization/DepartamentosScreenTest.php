@@ -113,6 +113,8 @@ class DepartamentosScreenTest extends TestCase
             'prioridad' => 'media',
             'estado' => 'pendiente',
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
             'asignado_id' => $colaborador->id,
         ]);
 

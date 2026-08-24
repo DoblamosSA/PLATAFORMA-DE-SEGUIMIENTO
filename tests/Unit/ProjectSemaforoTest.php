@@ -29,6 +29,8 @@ class ProjectSemaforoTest extends TestCase
             'tipo' => 'software',
             'prioridad' => 'media',
             'estado' => 'en_progreso',
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
         ], $overrides));
     }
 

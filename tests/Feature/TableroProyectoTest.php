@@ -68,6 +68,7 @@ class TableroProyectoTest extends TestCase
             'estado' => $estado,
             'asignado_id' => $this->dev->id,
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
             'fecha_limite' => now()->addDays(3),
         ]);
 

@@ -13,6 +13,7 @@ use App\Services\CapacidadService;
 use App\Services\TaskEvidenceService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -77,8 +78,11 @@ class TableroProyecto extends Component
 
     public ?int $edAsignadoId = null;
 
-    // Modificacion manual de la fecha limite: solo el administrador puede
-    // hacerlo, y debe dejar una observacion justificando el cambio.
+    // fecha_inicio y fecha_limite se ingresan siempre a mano (ya no se
+    // auto-calculan). Si la tarea ya esta cerrada (completada/cancelada) y
+    // se edita fecha_limite, se exige dejar una observacion (ver guardarEdicion()).
+    public ?string $edFechaInicioInput = null;
+
     public ?string $edFechaLimiteInput = null;
 
     public string $edObservacionFecha = '';
@@ -87,6 +91,9 @@ class TableroProyecto extends Component
     public string $nuevaSubtareaTitulo = '';
 
     public ?string $nuevaSubtareaHoras = null;
+
+    /** Tarea abierta que agota la capacidad semanal, para enlazarla en el mensaje de bloqueo. */
+    public ?Task $tareaBloqueanteCapacidad = null;
 
     // Rechazo de tarea completada (solo evaluador)
     public bool $rechazando = false;
@@ -332,6 +339,7 @@ class TableroProyecto extends Component
         $this->edPrioridad = $task->prioridad;
         $this->edEstado = $task->estado;
         $this->edAsignadoId = $task->asignado_id;
+        $this->edFechaInicioInput = $task->fecha_inicio?->format('Y-m-d');
         $this->edFechaLimiteInput = $task->fecha_limite?->format('Y-m-d\TH:i');
         $this->edObservacionFecha = '';
 
@@ -345,13 +353,7 @@ class TableroProyecto extends Component
         $this->resetErrorBag();
     }
 
-    /** Solo el administrador puede modificar manualmente la fecha limite. */
-    public function getEsAdminProperty(): bool
-    {
-        return Auth::user()?->esAdmin() ?? false;
-    }
-
-    /** True si el admin edito el valor de la fecha limite en el panel. */
+    /** True si se edito el valor de la fecha limite en el panel. */
     public function getEdFechaLimiteCambiadaProperty(): bool
     {
         if (! $this->tareaSeleccionadaId) {
@@ -416,15 +418,18 @@ class TableroProyecto extends Component
             'edPrioridad' => 'required|in:baja,media,alta,critica',
             'edEstado' => 'required|in:'.implode(',', self::ESTADOS),
             'edAsignadoId' => 'nullable|exists:users,id',
+            'edFechaInicioInput' => 'required|date',
+            'edFechaLimiteInput' => 'required|date|after_or_equal:edFechaInicioInput',
         ];
 
-        // Solo el admin puede tocar la fecha limite; si la cambia, la
-        // observacion es obligatoria.
-        if ($this->esAdmin) {
-            $reglas['edFechaLimiteInput'] = 'nullable|date';
-            if ($this->edFechaLimiteCambiada) {
-                $reglas['edObservacionFecha'] = 'required|string|min:5|max:500';
-            }
+        $task = $this->tarea($this->tareaSeleccionadaId);
+
+        // fecha_inicio y fecha_limite ya son obligatorias para cualquier
+        // usuario. Si la tarea ya esta cerrada (completada/cancelada) y
+        // fecha_limite cambia, se exige dejar una observacion.
+        $tareaYaCerrada = in_array($task->estado, ['completada', 'cancelada'], true);
+        if ($tareaYaCerrada && $this->edFechaLimiteCambiada) {
+            $reglas['edObservacionFecha'] = 'required|string|min:5|max:500';
         }
 
         $this->validate($reglas, [], [
@@ -432,15 +437,14 @@ class TableroProyecto extends Component
             'edPrioridad' => 'prioridad',
             'edEstado' => 'estado',
             'edAsignadoId' => 'asignado',
+            'edFechaInicioInput' => 'fecha de inicio',
             'edFechaLimiteInput' => 'fecha límite',
             'edObservacionFecha' => 'observación',
         ]);
 
         // Se evalua antes de tocar la tarea, para comparar contra el valor
         // original en base de datos.
-        $fechaCambioManual = $this->esAdmin && $this->edFechaLimiteCambiada;
-
-        $task = $this->tarea($this->tareaSeleccionadaId);
+        $fechaCambioManual = $tareaYaCerrada && $this->edFechaLimiteCambiada;
 
         // El asignado debe pertenecer al equipo del proyecto (si tiene equipo)
         if ($this->edAsignadoId) {
@@ -452,17 +456,16 @@ class TableroProyecto extends Component
             }
         }
 
-        // Bloquea la reasignacion si supera la disponibilidad semanal del colaborador
-        // o si tiene pendientes de semanas anteriores.
+        // Bloquea la reasignacion si supera la disponibilidad semanal del
+        // colaborador (anclada a la fecha_inicio manual), o si tiene
+        // pendientes de semanas anteriores.
         $capacidad = app(CapacidadService::class);
-        $planDisponibilidad = [];
-        $ventana = null;
         if ($this->edAsignadoId && $task->horas_estimadas > 0) {
             $colaborador = User::find($this->edAsignadoId);
             $resultado = $capacidad->validarAsignacion(
                 $colaborador,
                 (float) $task->horas_estimadas,
-                $task->inicio_planificado ?? $task->fecha_inicio,
+                Carbon::parse($this->edFechaInicioInput),
                 $task->id,
             );
 
@@ -472,13 +475,6 @@ class TableroProyecto extends Component
 
                 return;
             }
-
-            $planDisponibilidad = $resultado['plan'] ?? [];
-            $ventana = $capacidad->planificarAsignacion(
-                $colaborador,
-                (float) $task->horas_estimadas,
-                $task->inicio_planificado ?? $task->fecha_inicio,
-            );
         }
 
         $prev = [
@@ -495,22 +491,20 @@ class TableroProyecto extends Component
             'prioridad' => $this->edPrioridad,
             'estado' => $this->edEstado,
             'asignado_id' => $this->edAsignadoId,
+            'fecha_inicio' => $this->edFechaInicioInput,
+            'inicio_planificado' => Carbon::parse($this->edFechaInicioInput)->startOfDay(),
+            'fecha_limite' => Carbon::parse($this->edFechaLimiteInput),
         ]);
 
         if ($this->edAsignadoId && $prev['asignado_id'] !== $this->edAsignadoId) {
             $task->fecha_asignacion = now();
         }
 
-        // Inicio/fin planificados segun jornada laboral (sin recalcular por SLA).
-        if ($ventana && ! $fechaCambioManual) {
-            $task->inicio_planificado = $ventana['inicio'];
-            $task->fecha_inicio = $ventana['inicio']->toDateString();
-            $task->fecha_limite = $ventana['fin'];
-            $task->sla_horas = null;
-        } elseif ($this->edAsignadoId && $task->horas_estimadas > 0 && ! $fechaCambioManual) {
-            $task->fecha_limite = $capacidad->fechaFinPlan($planDisponibilidad, $task->fecha_limite);
-            $task->sla_horas = null;
-        }
+        Log::debug('tarea.fechas.manual', [
+            'task_id' => $task->id,
+            'fecha_inicio' => $this->edFechaInicioInput,
+            'fecha_limite' => $this->edFechaLimiteInput,
+        ]);
 
         if ($this->edEstado === 'en_progreso' && ! $task->fecha_inicio_real) {
             $task->fecha_inicio_real = now();
@@ -533,15 +527,14 @@ class TableroProyecto extends Component
             $task->save();
         }
 
-        // Override manual de la fecha limite (solo admin). Se aplica despues
-        // del SLA/transiciones de estado para que tenga la ultima palabra.
+        // Cambio manual de fecha_limite en una tarea ya cerrada: se aplica
+        // despues de las transiciones de estado para que tenga siempre la
+        // ultima palabra, y reevalua cumplida_a_tiempo contra la nueva fecha.
         if ($fechaCambioManual) {
-            $task->fecha_limite = $this->edFechaLimiteInput ? Carbon::parse($this->edFechaLimiteInput) : null;
+            $task->fecha_limite = Carbon::parse($this->edFechaLimiteInput);
 
             if ($task->fecha_completada) {
-                $task->cumplida_a_tiempo = $task->fecha_limite
-                    ? $task->fecha_completada->lessThanOrEqualTo($task->fecha_limite)
-                    : true;
+                $task->cumplida_a_tiempo = $task->fecha_completada->lessThanOrEqualTo($task->fecha_limite);
             }
 
             $task->save();
@@ -713,6 +706,7 @@ class TableroProyecto extends Component
         ]);
 
         $task = $this->tarea($this->tareaSeleccionadaId);
+        $this->tareaBloqueanteCapacidad = null;
 
         // Si la tarea ya esta asignada, valida solo el INCREMENTO de horas
         // (no el total proyectado de la tarea). Excluir la tarea y pedir 24 h
@@ -726,6 +720,15 @@ class TableroProyecto extends Component
             );
 
             if (! $resultado['ok']) {
+                // No enlazar a la misma tarea que se esta editando (puede
+                // salir elegida si sus propias subtareas previas ya agotan
+                // el cupo): el mensaje sigue siendo correcto, solo se omite
+                // el enlace por no llevar a ningun lado util.
+                $tareaBloqueante = $resultado['tarea_bloqueante'];
+                $this->tareaBloqueanteCapacidad = $tareaBloqueante && $tareaBloqueante->id !== $task->id
+                    ? $tareaBloqueante
+                    : null;
+
                 $this->addError('nuevaSubtareaHoras', $resultado['mensaje']);
                 $this->registrar($task, 'bloqueo_capacidad', $resultado['mensaje']);
 
@@ -874,7 +877,6 @@ class TableroProyecto extends Component
             'puedeEliminarSubtarea' => Auth::user()?->puedeEliminarSubtarea() ?? false,
             'puedeCrearComentario' => Auth::user()?->puedeCrearComentario() ?? false,
             'puedeEliminarComentario' => Auth::user()?->puedeEliminarComentario() ?? false,
-            'esAdmin' => $this->esAdmin,
             'edCargaPrevia' => $this->edCargaPrevia,
             'edFechaLimiteCambiada' => $this->edFechaLimiteCambiada,
             'puedeRechazar' => $this->puedeRechazar,

@@ -7,6 +7,7 @@ use App\Domain\Organization\Models\Permission;
 use App\Domain\Organization\Models\Role;
 use App\Domain\Organization\Models\SubDepartment;
 use App\Livewire\Proyectos\TableroProyecto;
+use App\Livewire\Tareas\ListaTareas;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -64,6 +65,7 @@ class SubtareasTest extends TestCase
             'prioridad' => 'media',
             'estado' => 'pendiente',
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
             'fecha_limite' => now()->addDays(3),
         ]);
     }
@@ -174,6 +176,47 @@ class SubtareasTest extends TestCase
         $this->assertDatabaseCount('subtasks', 0);
     }
 
+    public function test_agregar_subtarea_que_excede_capacidad_bloquea_y_referencia_la_tarea_que_la_agota(): void
+    {
+        $this->dev->update(['dias_laborales' => ['L'], 'horas_diarias' => 8]);
+
+        $tareaPrevia = Task::create([
+            'project_id' => $this->project->id,
+            'titulo' => 'Tarea previa que agota la semana',
+            'sub_department_id' => $this->task->sub_department_id,
+            'prioridad' => 'media',
+            'estado' => 'pendiente',
+            'asignado_id' => $this->dev->id,
+            'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
+            'horas_estimadas' => 8,
+        ]);
+
+        $this->task->update(['asignado_id' => $this->dev->id]);
+
+        $componente = Livewire::actingAs($this->dev)
+            ->test(TableroProyecto::class, ['project' => $this->project])
+            ->call('abrirTarea', $this->task->id)
+            ->set('nuevaSubtareaTitulo', 'Subtarea que no cabe')
+            ->set('nuevaSubtareaHoras', '2')
+            ->call('agregarSubtarea');
+
+        $componente->assertHasErrors(['nuevaSubtareaHoras']);
+        $componente->assertSet('tareaBloqueanteCapacidad.id', $tareaPrevia->id);
+
+        // El enlace debe llevar al tablero del proyecto de esa tarea (panel
+        // lateral con subtareas), no al modal generico de "Editar tarea".
+        $componente->assertSee(route('proyectos.tablero', ['project' => $this->project->id, 'tarea' => $tareaPrevia->id]), false);
+
+        $this->assertCount(0, $this->task->fresh()->subtareas);
+
+        $actividad = $this->task->actividades()->where('accion', 'bloqueo_capacidad')->first();
+        $this->assertNotNull($actividad);
+        $this->assertStringContainsString('Superas la capacidad de trabajo', $actividad->detalle);
+        $this->assertStringContainsString('Tarea previa que agota la semana', $actividad->detalle);
+    }
+
     public function test_las_subtareas_se_mantienen_en_orden_de_creacion(): void
     {
         $componente = Livewire::actingAs($this->dev)
@@ -188,5 +231,26 @@ class SubtareasTest extends TestCase
             ['Primera', 'Segunda', 'Tercera'],
             $this->task->fresh()->subtareas->pluck('titulo')->all()
         );
+    }
+
+    public function test_un_no_admin_con_permiso_puede_eliminar_una_tarea_que_tiene_subtareas(): void
+    {
+        // Tener subtareas ya no bloquea el borrado para no-admins (antes solo
+        // el admin podia borrar una tarea con subtareas): subtasks.task_id
+        // tiene cascadeOnDelete() en BD, asi que se eliminan junto con la tarea.
+        $this->otorgarPermiso($this->dev, 'tasks.delete');
+
+        $this->task->subtareas()->create([
+            'titulo' => 'Subtarea existente',
+            'horas' => 2,
+            'creado_por' => $this->dev->id,
+        ]);
+
+        Livewire::actingAs($this->dev)
+            ->test(ListaTareas::class)
+            ->call('eliminar', $this->task->id);
+
+        $this->assertDatabaseMissing('tasks', ['id' => $this->task->id]);
+        $this->assertDatabaseMissing('subtasks', ['task_id' => $this->task->id]);
     }
 }

@@ -339,6 +339,18 @@
                                         <option value="critica">Critica</option>
                                     </select>
                                 </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Fecha de inicio *</label>
+                                    <input type="date" wire:model="edFechaInicioInput" required
+                                           class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
+                                    @error('edFechaInicioInput') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Fecha límite *</label>
+                                    <input type="datetime-local" wire:model.live="edFechaLimiteInput" required
+                                           class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
+                                    @error('edFechaLimiteInput') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+                                </div>
                             </div>
 
                             {{-- Previsualizacion de carga resultante antes de guardar --}}
@@ -352,26 +364,20 @@
                                 </div>
                             @endif
 
-                            {{-- Modificacion manual de la fecha limite: solo administrador --}}
-                            @if ($esAdmin)
+                            {{-- Si la tarea ya esta cerrada (completada/cancelada) y se cambia la
+                                 fecha límite, se exige dejar una observación justificando el motivo. --}}
+                            @if (in_array($tareaSeleccionada->estado, ['completada', 'cancelada'], true) && $edFechaLimiteCambiada)
                                 <div class="rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 p-3 space-y-2">
                                     <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                                         <x-icon name="alert" class="w-3.5 h-3.5" />
-                                        <p class="text-xs font-semibold">Modificar fecha límite (solo administrador)</p>
+                                        <p class="text-xs font-semibold">Esta tarea ya está cerrada</p>
                                     </div>
                                     <div>
-                                        <input type="datetime-local" wire:model.live="edFechaLimiteInput"
-                                               class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-                                        @error('edFechaLimiteInput') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+                                        <textarea wire:model="edObservacionFecha" rows="2"
+                                                  placeholder="Observación obligatoria: motivo del cambio de fecha límite..."
+                                                  class="w-full resize-none rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                        @error('edObservacionFecha') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
                                     </div>
-                                    @if ($edFechaLimiteCambiada)
-                                        <div>
-                                            <textarea wire:model="edObservacionFecha" rows="2"
-                                                      placeholder="Observación obligatoria: motivo del cambio de fecha límite..."
-                                                      class="w-full resize-none rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-                                            @error('edObservacionFecha') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
-                                        </div>
-                                    @endif
                                 </div>
                             @endif
 
@@ -442,7 +448,27 @@
                                     <x-icon name="plus" class="w-4 h-4" />
                                 </button>
                             </form>
-                            @error('nuevaSubtareaHoras') <span class="block text-xs text-rose-600 dark:text-rose-400 mt-1">{{ $message }}</span> @enderror
+                            @error('nuevaSubtareaHoras')
+                                <span class="block text-xs text-rose-600 dark:text-rose-400 mt-1">
+                                    @if ($tareaBloqueanteCapacidad)
+                                        Superas la capacidad de trabajo, pendiente la tarea:
+                                        @if ($tareaBloqueanteCapacidad->project_id && $tareaBloqueanteCapacidad->proyecto?->usuarioPuedeGestionar(auth()->user()))
+                                            {{-- Deep-link al tablero del proyecto de esa tarea (no necesariamente
+                                                 el que esta abierto aqui): abre el panel lateral con subtareas,
+                                                 igual que el enlace de las notificaciones push (ver SubtaskObserver). --}}
+                                            <a href="{{ route('proyectos.tablero', ['project' => $tareaBloqueanteCapacidad->project_id, 'tarea' => $tareaBloqueanteCapacidad->id]) }}" wire:navigate
+                                               class="underline hover:text-rose-700 dark:hover:text-rose-300">{{ $tareaBloqueanteCapacidad->titulo }}</a>.
+                                        @elseif (auth()->user()->can('tasks.access'))
+                                            <a href="{{ route('tareas.editar', $tareaBloqueanteCapacidad) }}" wire:navigate
+                                               class="underline hover:text-rose-700 dark:hover:text-rose-300">{{ $tareaBloqueanteCapacidad->titulo }}</a>.
+                                        @else
+                                            {{ $tareaBloqueanteCapacidad->titulo }}.
+                                        @endif
+                                    @else
+                                        {{ $message }}
+                                    @endif
+                                </span>
+                            @enderror
                         @endif
                     </div>
 

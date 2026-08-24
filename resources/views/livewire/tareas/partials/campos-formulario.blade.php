@@ -85,13 +85,20 @@
             @error('asignado_id') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
         </div>
 
-        {{-- Fecha de inicio planificada --}}
+        {{-- Fecha de inicio --}}
         <div>
-            <label for="fechaInicioInput" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Fecha de inicio planificada</label>
-            <input id="fechaInicioInput" type="date" wire:model="fechaInicioInput"
+            <label for="fechaInicioInput" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Fecha de inicio *</label>
+            <input id="fechaInicioInput" type="date" wire:model="fechaInicioInput" required
                    class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-            <span class="text-xs text-gray-400 dark:text-slate-500">Las horas se colocan día a día en la disponibilidad libre del colaborador (semana laboral).</span>
             @error('fechaInicioInput') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
+        </div>
+
+        {{-- Fecha límite (fecha fin): siempre manual, obligatoria para cualquier usuario --}}
+        <div>
+            <label for="fechaLimiteInput" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Fecha límite *</label>
+            <input id="fechaLimiteInput" type="datetime-local" wire:model="fechaLimiteInput" required
+                   class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
+            @error('fechaLimiteInput') <span class="block text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
         </div>
 
         {{-- Subdepartamento --}}
@@ -173,25 +180,21 @@
         </div>
     @endif
 
-    {{-- Modificacion manual de la fecha limite: solo administrador --}}
-    @if ($task && $esAdmin)
+    {{-- Si la tarea ya esta cerrada (completada/cancelada) y se cambia la
+         fecha límite, se exige dejar una observación justificando el motivo. --}}
+    @if ($task && in_array($task->estado, ['completada', 'cancelada'], true))
         <div class="rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 p-4 space-y-3"
              x-data="{
                 fecha: @entangle('fechaLimiteInput'),
-                original: @js($task->fecha_limite?->format('Y-m-d\TH:i') ?? ''),
+                original: @js($task->fecha_limite->format('Y-m-d\TH:i')),
                 get changed() { return (this.fecha ?? '') !== this.original; }
-             }">
+             }"
+             x-show="changed" x-cloak>
             <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                 <x-icon name="alert" class="w-4 h-4" />
-                <p class="text-sm font-semibold">Modificar fecha límite (solo administrador)</p>
+                <p class="text-sm font-semibold">Esta tarea ya está cerrada</p>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Fecha y hora límite</label>
-                <input type="datetime-local" x-model="fecha"
-                       class="w-full rounded-lg border-gray-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 text-sm focus:border-blue-500 focus:ring-blue-500">
-                @error('fechaLimiteInput') <span class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</span> @enderror
-            </div>
-            <div x-show="changed" x-cloak>
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Observación (obligatoria) *</label>
                 <textarea wire:model="observacionFecha" rows="2"
                           placeholder="Explica el motivo del cambio de fecha límite..."

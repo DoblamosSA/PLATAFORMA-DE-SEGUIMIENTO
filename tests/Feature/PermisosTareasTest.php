@@ -113,6 +113,8 @@ class PermisosTareasTest extends TestCase
             'estado' => 'pendiente',
             'creado_por' => $this->coordinador->id,
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
         ]);
 
         Livewire::actingAs($this->coordinador)
@@ -133,6 +135,8 @@ class PermisosTareasTest extends TestCase
             'estado' => 'pendiente',
             'creado_por' => $this->coordinador->id,
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
         ]);
         $task->subtareas()->create(['titulo' => 'Sub 1', 'horas' => 2, 'creado_por' => $this->coordinador->id]);
 
@@ -155,6 +159,8 @@ class PermisosTareasTest extends TestCase
             'estado' => 'pendiente',
             'creado_por' => $this->coordinador->id,
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
         ]);
         $task->subtareas()->create(['titulo' => 'Sub 1', 'horas' => 2, 'creado_por' => $this->coordinador->id]);
 

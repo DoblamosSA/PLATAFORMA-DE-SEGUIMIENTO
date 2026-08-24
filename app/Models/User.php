@@ -204,21 +204,13 @@ class User extends Authenticatable
     }
 
     /**
-     * Eliminar una tarea requiere el permiso granular 'tasks.delete'. Quien
-     * ademas tenga rol admin puede eliminar aunque la tarea tenga subtareas;
-     * el resto (ej. coordinador con 'tasks.delete') solo si no tiene.
+     * Eliminar una tarea requiere el permiso granular 'tasks.delete'. Tener
+     * subtareas ya no bloquea el borrado: la relacion subtasks.task_id tiene
+     * cascadeOnDelete() en BD, asi que se eliminan junto con la tarea.
      */
     public function puedeEliminarTarea(Task $task): bool
     {
-        if (! $this->hasPermission('tasks.delete')) {
-            return false;
-        }
-
-        if ($this->esAdmin()) {
-            return true;
-        }
-
-        return ! $task->subtareas()->exists();
+        return $this->hasPermission('tasks.delete');
     }
 
     /** Crear subtareas requiere el permiso granular 'subtasks.create'. */

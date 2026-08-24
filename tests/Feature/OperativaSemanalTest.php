@@ -74,6 +74,8 @@ class OperativaSemanalTest extends TestCase
             'estado' => 'pendiente',
             'asignado_id' => $user->id,
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
             'horas_estimadas' => 8,
         ], $extra));
     }

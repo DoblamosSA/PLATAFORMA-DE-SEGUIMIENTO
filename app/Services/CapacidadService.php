@@ -269,7 +269,7 @@ class CapacidadService
             return [
                 'ok' => true, 'disponibles' => null, 'asignadas' => null,
                 'solicitadas' => $horasSolicitadas, 'restante' => null,
-                'mensaje' => null, 'plan' => [],
+                'mensaje' => null, 'plan' => [], 'tarea_bloqueante' => null,
             ];
         }
 
@@ -283,6 +283,7 @@ class CapacidadService
                 'restante' => null,
                 'mensaje' => $cierre['mensaje'],
                 'plan' => [],
+                'tarea_bloqueante' => null,
             ];
         }
 
@@ -294,6 +295,7 @@ class CapacidadService
                 'ok' => true, 'disponibles' => 0.0, 'asignadas' => null,
                 'solicitadas' => $horasSolicitadas, 'restante' => null, 'plan' => [],
                 'mensaje' => "{$user->name} no tiene disponibilidad configurada (días laborales/horas diarias). Completa su perfil de colaborador para validar la capacidad.",
+                'tarea_bloqueante' => null,
             ];
         }
 
@@ -320,15 +322,20 @@ class CapacidadService
         }
 
         $mensaje = null;
+        $tareaBloqueante = null;
         if (! $ok) {
-            $mensaje = sprintf(
-                'Capacidad excedida para %s: esta semana dispone de %s h y ya tiene %s h asignadas (quedan %s h libres), pero se solicitan %s h. Reduce la duración o elige otro responsable.',
-                $user->name,
-                $this->fmt($disponibles),
-                $this->fmt($asignadas),
-                $this->fmt(max($restanteHueco, 0)),
-                $this->fmt($horasSolicitadas),
-            );
+            // La tarea "pendiente" a referenciar en el mensaje: la mas antigua
+            // (orden FIFO) entre las que realmente ocupan horas de la semana
+            // (0 h no consume cupo, ver el mismo filtro en ocupacionSemana) y
+            // todavia esta abierta (no completada), para que el enlace lleve
+            // a algo que el usuario pueda realmente reducir o reasignar.
+            $tareaBloqueante = $this->tareasAsignadasEnSemana($user, $excluirTaskId)
+                ->first(fn (Task $t) => in_array($t->estado, self::ESTADOS_ABIERTOS, true)
+                    && (float) ($t->horas_estimadas ?? 0) > 0);
+
+            $mensaje = $tareaBloqueante
+                ? sprintf('Superas la capacidad de trabajo, pendiente la tarea: %s.', $tareaBloqueante->titulo)
+                : sprintf('Superas la capacidad de trabajo semanal de %s.', $user->name);
         }
 
         return [
@@ -339,6 +346,7 @@ class CapacidadService
             'restante' => $restanteHueco,
             'mensaje' => $mensaje,
             'plan' => $plan,
+            'tarea_bloqueante' => $tareaBloqueante,
         ];
     }
 

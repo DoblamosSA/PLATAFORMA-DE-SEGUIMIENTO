@@ -44,6 +44,8 @@ class CapacidadServiceTest extends TestCase
             'estado' => 'pendiente',
             'asignado_id' => $user->id,
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
             'horas_estimadas' => 8,
         ], $extra));
     }
@@ -119,8 +121,11 @@ class CapacidadServiceTest extends TestCase
         // Sumar 8 h mas debe bloquearse pidiendo solo el incremento.
         $resultado = $this->servicio->validarAsignacion($user, 8);
         $this->assertFalse($resultado['ok']);
-        $this->assertStringContainsString('se solicitan 8 h', $resultado['mensaje']);
-        $this->assertStringContainsString('quedan 0 h libres', $resultado['mensaje']);
+        $this->assertStringContainsString('Superas la capacidad de trabajo', $resultado['mensaje']);
+        // La tarea referenciada es la mas antigua (FIFO) entre las abiertas de la semana.
+        $this->assertNotNull($resultado['tarea_bloqueante']);
+        $this->assertEquals('A', $resultado['tarea_bloqueante']->titulo);
+        $this->assertStringContainsString('A', $resultado['mensaje']);
     }
 
     public function test_cupo_semanal_permite_aunque_parte_del_libre_este_en_dias_pasados(): void
@@ -177,8 +182,23 @@ class CapacidadServiceTest extends TestCase
         $resultado = $this->servicio->validarAsignacion($user, 4);
 
         $this->assertFalse($resultado['ok']);
-        $this->assertStringContainsString($user->name, $resultado['mensaje']);
         $this->assertStringContainsString('capacidad', mb_strtolower($resultado['mensaje']));
+        $this->assertNotNull($resultado['tarea_bloqueante']);
+        $this->assertEquals('Carga casi full', $resultado['tarea_bloqueante']->titulo);
+        $this->assertStringContainsString('Carga casi full', $resultado['mensaje']);
+    }
+
+    public function test_mensaje_de_bloqueo_usa_el_nombre_del_usuario_si_no_hay_tarea_abierta_para_referenciar(): void
+    {
+        // Capacidad excedida sin ninguna tarea previa: el fallback debe
+        // mencionar al colaborador en vez de dejar el mensaje sin contexto.
+        $user = User::factory()->create(['dias_laborales' => ['L', 'M', 'X', 'J', 'V'], 'horas_diarias' => 8]);
+
+        $resultado = $this->servicio->validarAsignacion($user, 41);
+
+        $this->assertFalse($resultado['ok']);
+        $this->assertNull($resultado['tarea_bloqueante']);
+        $this->assertStringContainsString($user->name, $resultado['mensaje']);
     }
 
     public function test_distribucion_diaria_llena_dias_secuencialmente(): void

@@ -13,6 +13,7 @@ use App\Services\CapacidadService;
 use App\Services\TaskEvidenceService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -53,8 +54,9 @@ class FormTarea extends Component
 
     public string $tag = '';
 
-    // Modificacion manual de la fecha limite: solo el administrador puede
-    // hacerlo, y debe dejar una observacion justificando el cambio.
+    // fecha_inicio y fecha_limite se ingresan siempre a mano (ya no se
+    // auto-calculan). Si la tarea ya esta cerrada (completada/cancelada) y
+    // se edita fecha_limite, se exige dejar una observacion (ver rules() en save()).
     public ?string $fechaLimiteInput = null;
 
     public string $observacionFecha = '';
@@ -204,15 +206,10 @@ class FormTarea extends Component
             'estado' => 'required|in:pendiente,en_progreso,en_revision,completada,cancelada,rechazada',
             'project_id' => 'nullable|exists:projects,id',
             'asignado_id' => 'nullable|exists:users,id',
-            'fechaInicioInput' => 'nullable|date',
+            'fechaInicioInput' => 'required|date',
+            'fechaLimiteInput' => 'required|date|after_or_equal:fechaInicioInput',
             'tag' => 'nullable|string|max:40',
         ];
-    }
-
-    /** Solo el administrador puede modificar manualmente la fecha limite. */
-    public function getEsAdminProperty(): bool
-    {
-        return Auth::user()?->esAdmin() ?? false;
     }
 
     /** El coordinador solo puede eliminar si la tarea no tiene subtareas; el admin siempre. */
@@ -329,24 +326,24 @@ class FormTarea extends Component
 
         $reglas = $this->rules();
 
-        // Solo al editar (no al crear) y solo el admin puede tocar la fecha
-        // limite manualmente; si la cambia, la observacion es obligatoria.
-        $puedeEditarFecha = $this->task && $this->esAdmin;
-        if ($puedeEditarFecha) {
-            $reglas['fechaLimiteInput'] = 'nullable|date';
-            if ($this->fechaLimiteCambiada) {
-                $reglas['observacionFecha'] = 'required|string|min:5|max:500';
-            }
+        // fecha_inicio y fecha_limite ya son obligatorias para cualquier
+        // usuario (ver rules()). Si la tarea que se edita ya esta cerrada
+        // (completada/cancelada) y fecha_limite cambia, se exige dejar una
+        // observacion justificando el cambio.
+        $tareaYaCerrada = $this->task && in_array($this->task->estado, ['completada', 'cancelada'], true);
+        if ($tareaYaCerrada && $this->fechaLimiteCambiada) {
+            $reglas['observacionFecha'] = 'required|string|min:5|max:500';
         }
 
         $this->validate($reglas, [], [
+            'fechaInicioInput' => 'fecha de inicio',
             'fechaLimiteInput' => 'fecha límite',
             'observacionFecha' => 'observación',
         ]);
 
         // Se evalua aqui, antes de tocar $this->task, para comparar contra
         // el valor original en base de datos.
-        $fechaCambioManual = $puedeEditarFecha && $this->fechaLimiteCambiada;
+        $fechaCambioManual = $tareaYaCerrada && $this->fechaLimiteCambiada;
 
         // El asignado debe pertenecer al equipo del proyecto (si el proyecto tiene equipo)
         if ($this->asignado_id) {
@@ -370,18 +367,15 @@ class FormTarea extends Component
         }
 
         // Validacion de capacidad por disponibilidad semanal (dia a dia),
-        // independiente del SLA / fecha limite. Tambien bloquea si el
+        // anclada a la fecha_inicio manual. Tambien bloquea si el
         // colaborador tiene pendientes de semanas anteriores.
         $capacidad = app(CapacidadService::class);
-        $planDisponibilidad = [];
-        $ventana = null;
         if ($this->asignado_id && $task->horas_estimadas > 0) {
-            $inicio = $this->fechaInicioInput ? Carbon::parse($this->fechaInicioInput) : ($task->inicio_planificado ?? $task->fecha_inicio);
             $colaborador = User::find($this->asignado_id);
             $resultado = $capacidad->validarAsignacion(
                 $colaborador,
                 (float) $task->horas_estimadas,
-                $inicio ? Carbon::parse($inicio) : null,
+                Carbon::parse($this->fechaInicioInput),
                 $task->id,
             );
 
@@ -398,13 +392,6 @@ class FormTarea extends Component
 
                 return;
             }
-
-            $planDisponibilidad = $resultado['plan'] ?? [];
-            $ventana = $capacidad->planificarAsignacion(
-                $colaborador,
-                (float) $task->horas_estimadas,
-                $inicio ? Carbon::parse($inicio) : null,
-            );
         }
 
         // Valores previos para la trazabilidad granular
@@ -423,7 +410,9 @@ class FormTarea extends Component
             'prioridad' => $this->prioridad,
             'estado' => $this->estado,
             'asignado_id' => $this->asignado_id,
-            'fecha_inicio' => $this->fechaInicioInput ?: null,
+            'fecha_inicio' => $this->fechaInicioInput,
+            'inicio_planificado' => Carbon::parse($this->fechaInicioInput)->startOfDay(),
+            'fecha_limite' => Carbon::parse($this->fechaLimiteInput),
             'tag' => $this->tag ?: null,
         ]);
 
@@ -431,18 +420,11 @@ class FormTarea extends Component
             $task->fecha_asignacion = now();
         }
 
-        // Inicio/fin planificados segun jornada laboral (sin SLA).
-        if ($ventana) {
-            $task->inicio_planificado = $ventana['inicio'];
-            $task->fecha_inicio = $ventana['inicio']->toDateString();
-            if (! $this->fechaLimiteInput) {
-                $task->fecha_limite = $ventana['fin'];
-                $task->sla_horas = null;
-            }
-        } elseif ($this->asignado_id && $task->horas_estimadas > 0 && ! $this->fechaLimiteInput) {
-            $task->fecha_limite = $capacidad->fechaFinPlan($planDisponibilidad, $task->fecha_limite);
-            $task->sla_horas = null;
-        }
+        Log::debug('tarea.fechas.manual', [
+            'task_id' => $task->id ?? null,
+            'fecha_inicio' => $this->fechaInicioInput,
+            'fecha_limite' => $this->fechaLimiteInput,
+        ]);
 
         // Manejo de transiciones de fecha segun estado
         if ($this->estado === 'en_progreso' && ! $task->fecha_inicio_real) {
@@ -466,18 +448,14 @@ class FormTarea extends Component
             $task->save();
         }
 
-        // Override manual de la fecha limite (solo admin, solo al editar).
-        // Se aplica despues de las transiciones de estado para que tenga
-        // siempre la ultima palabra sobre el valor final.
+        // Cambio manual de fecha_limite en una tarea ya cerrada: se aplica
+        // despues de las transiciones de estado para que tenga siempre la
+        // ultima palabra, y reevalua cumplida_a_tiempo contra la nueva fecha.
         if ($fechaCambioManual) {
-            $task->fecha_limite = $this->fechaLimiteInput ? Carbon::parse($this->fechaLimiteInput) : null;
+            $task->fecha_limite = Carbon::parse($this->fechaLimiteInput);
 
-            // Si la tarea ya esta cerrada, reevaluar el cumplimiento del SLA
-            // contra la nueva fecha limite.
             if ($task->fecha_completada) {
-                $task->cumplida_a_tiempo = $task->fecha_limite
-                    ? $task->fecha_completada->lessThanOrEqualTo($task->fecha_limite)
-                    : true;
+                $task->cumplida_a_tiempo = $task->fecha_completada->lessThanOrEqualTo($task->fecha_limite);
             }
 
             $task->save();
@@ -602,7 +580,6 @@ class FormTarea extends Component
             'equiposPorProyecto' => $this->equiposPorProyectoParaVista($proyectos, $servicio),
             'subDepartamentos' => $subDepartamentos,
             'bitacora' => $this->task?->actividades()->with('user')->limit(20)->get() ?? collect(),
-            'esAdmin' => $this->esAdmin,
             'puedeEliminar' => $this->puedeEliminar,
             'cargaPrevia' => $this->cargaPrevia,
             'fechaLimiteCambiada' => $this->fechaLimiteCambiada,

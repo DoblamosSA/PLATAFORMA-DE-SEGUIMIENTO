@@ -87,6 +87,8 @@ class UserLegacyRolesRegressionTest extends TestCase
             'tipo' => 'software',
             'prioridad' => 'media',
             'estado' => 'pendiente',
+            'fecha_inicio' => now(),
+            'fecha_limite' => now()->addDays(3),
         ]);
 
         $this->assertTrue($admin->puedeEliminarTarea($tareaSinSubtareas));

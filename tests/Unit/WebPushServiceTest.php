@@ -72,6 +72,7 @@ class WebPushServiceTest extends TestCase
             'estado' => 'pendiente',
             'asignado_id' => $darwin->id,
             'fecha_asignacion' => now(),
+            'fecha_inicio' => now(),
             'fecha_limite' => now()->addDays(2),
         ]);
 
